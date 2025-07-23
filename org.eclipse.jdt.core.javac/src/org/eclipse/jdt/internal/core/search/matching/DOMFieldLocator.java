@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import java.util.List;
 import java.util.Set;
 
 import org.eclipse.core.resources.IResource;
@@ -19,6 +20,8 @@ import org.eclipse.jdt.core.ISourceRange;
 import org.eclipse.jdt.core.ISourceReference;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
@@ -28,14 +31,18 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.search.FieldDeclarationMatch;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.SearchPattern;
@@ -136,9 +143,58 @@ public class DOMFieldLocator extends DOMPatternLocator {
 			|| (this.fieldLocator.pattern.writeAccess && DOMLocalVariableLocator.isWrite(name)))) {
 			int level = nodeSet.addMatch(name, this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
 					: PatternLocator.ACCURATE_MATCH);
+			if( level != IMPOSSIBLE_MATCH ) {
+				IBinding b = name.resolveBinding();
+				if( b == null ) {
+					if( name instanceof SimpleName sn && name.getParent() instanceof QualifiedName qn && sn == qn.getQualifier()) {
+						boolean shadowed = methodHasShadowedVariable(name);
+						if( shadowed )
+							return toResponse(IMPOSSIBLE_MATCH);
+					}
+				}
+			}
 			return toResponse(level, true);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
+	}
+
+	private boolean methodHasShadowedVariable(Name name) {
+		int startPos = name.getStartPosition();
+		String nameString = name.toString();
+		Block b = findParentBlockUpToMethod(name);
+		while( b != null ) {
+			List<Statement> l = b.statements();
+			for( Statement s : l ) {
+				if( s.getStartPosition() > startPos )
+					return false;
+				if( s instanceof VariableDeclarationStatement vds ) {
+					List<VariableDeclarationFragment> frags = vds.fragments();
+					for( VariableDeclarationFragment frag : frags ) {
+						Name varName = frag.getName();
+						String varNameStr = varName == null ? null : varName.toString();
+						if( nameString.equals(varNameStr)) {
+							return true;
+						}
+					}
+				}
+			}
+			b = findParentBlockUpToMethod(b);
+		}
+		return false;
+	}
+
+	private Block findParentBlockUpToMethod(ASTNode start) {
+		ASTNode n = start;
+		while(n != null ) {
+			n = n.getParent();
+			if( n instanceof Block b) {
+				return b;
+			}
+			if( n instanceof MethodDeclaration) {
+				return null;
+			}
+		}
+		return null;
 	}
 
 	private boolean matchesFineGrain(Name name) {
