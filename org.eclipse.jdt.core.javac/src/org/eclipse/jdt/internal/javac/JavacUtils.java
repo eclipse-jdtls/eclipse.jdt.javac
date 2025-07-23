@@ -262,25 +262,24 @@ public class JavacUtils {
 				}
 			}
 
-			boolean sourcePathEnabled = false;
 			if (compilerConfig != null && !isEmpty(compilerConfig.sourcepaths())) {
 				fileManager.setLocation(StandardLocation.SOURCE_PATH,
 					compilerConfig.sourcepaths()
 						.stream()
 						.map(File::new)
 						.toList());
-				sourcePathEnabled = true;
+			} else {
+				fileManager.setLocation(StandardLocation.SOURCE_PATH, classpathEntriesToFiles(javaProject, true, entry -> (isTest || !entry.isTest())));
 			}
+
+			boolean moduleSourcePathEnabled = false;
 			if (compilerConfig != null && !isEmpty(compilerConfig.moduleSourcepaths())) {
 				fileManager.setLocation(StandardLocation.MODULE_SOURCE_PATH,
 					compilerConfig.moduleSourcepaths()
 						.stream()
 						.map(File::new)
 						.toList());
-				sourcePathEnabled = true;
-			}
-			if (!sourcePathEnabled) {
-				fileManager.setLocation(StandardLocation.SOURCE_PATH, classpathEntriesToFiles(javaProject, true, entry -> (isTest || !entry.isTest())));
+				moduleSourcePathEnabled = true;
 			}
 
 			boolean classpathEnabled = false;
@@ -318,26 +317,35 @@ public class JavacUtils {
 						.collect(Collectors.toSet());
 
 				Collection<File> modulePathFiles = classpathEntriesToFiles(javaProject, false, entry -> (isTest || !entry.isTest()) && ClasspathEntry.isModular(entry));
+				if (!moduleProjects.isEmpty()) {
+					modulePathFiles = new LinkedHashSet<>(modulePathFiles);
+					moduleProjects.stream()
+						.map(project -> {
+							try {
+								IPath relativeOutputPath = project.getOutputLocation();
+								IPath absPath = javaProject.getProject().getParent()
+										.findMember(relativeOutputPath).getLocation();
+								return absPath.toOSString();
+							} catch (JavaModelException e) {
+								return null;
+							}
+						}).filter(Objects::nonNull)
+						.map(File::new)
+						.forEach(modulePathFiles::add);
+				}
 				fileManager.setLocation(StandardLocation.MODULE_PATH, modulePathFiles);
 				Collection<File> classpathFiles = classpathEntriesToFiles(javaProject, false, entry -> (isTest || !entry.isTest()) && !ClasspathEntry.isModular(entry));
 				classpathFiles.addAll(outDirectories(javaProject, entry -> isTest || !entry.isTest()));
 				fileManager.setLocation(StandardLocation.CLASS_PATH, classpathFiles);
 
-				if (!moduleProjects.isEmpty()) {
-					fileManager.setLocation(StandardLocation.MODULE_PATH, moduleProjects.stream()
-							.map(project -> {
-								try {
-									IPath relativeOutputPath = project.getOutputLocation();
-									IPath absPath = javaProject.getProject().getParent()
-											.findMember(relativeOutputPath).getLocation();
-									return absPath.toOSString();
-								} catch (JavaModelException e) {
-									return null;
-								}
-							})
-							.filter(Objects::nonNull)
-							.map(File::new)
-							.toList());
+				if (!moduleSourcePathEnabled && javaProject.getModuleDescription() != null) {
+					moduleProjects = new LinkedHashSet<>(moduleProjects);
+					moduleProjects.add(javaProject);
+					for (IJavaProject requiredModuleProject : moduleProjects) {
+						fileManager.setLocationForModule(StandardLocation.MODULE_SOURCE_PATH,
+								requiredModuleProject.getModuleDescription().getElementName(),
+								List.of(requiredModuleProject.getModuleDescription().getResource().getLocation().removeLastSegments(1).toPath()));
+					}
 				}
 			}
 		} catch (Exception ex) {
