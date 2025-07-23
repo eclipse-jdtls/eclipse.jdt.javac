@@ -112,6 +112,7 @@ import org.eclipse.jdt.internal.core.PackageFragment;
 import org.eclipse.jdt.internal.core.PackageFragmentRoot;
 import org.eclipse.jdt.internal.core.search.matching.ClassFileMatchLocator;
 import org.eclipse.jdt.internal.core.search.matching.DOMLocalVariableLocator;
+import org.eclipse.jdt.internal.core.search.matching.DOMMatchLocator;
 import org.eclipse.jdt.internal.core.search.matching.DOMPatternLocator;
 import org.eclipse.jdt.internal.core.search.matching.MatchLocator;
 import org.eclipse.jdt.internal.core.search.matching.MatchingNodeSet;
@@ -548,6 +549,9 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			// more...?
 		}
 		if (node instanceof ModuleDeclaration mod) {
+			if (locator instanceof DOMMatchLocator domLocator) {
+				domLocator.registerModuleBinding(mod.resolveBinding());
+			}
 			return new ModuleDeclarationMatch(DOMASTNodeUtils.getDeclaringJavaElement(mod), accuracy, mod.getName().getStartPosition(), mod.getName().getLength(), null, resource);
 		}
 		if (node.getLocationInParent() == SimpleType.NAME_PROPERTY
