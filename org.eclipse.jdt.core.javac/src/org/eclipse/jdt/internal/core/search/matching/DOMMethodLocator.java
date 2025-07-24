@@ -720,6 +720,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		int matchLevel = (weakerMethod & PatternLocator.MATCH_LEVEL_MASK);
 
 		int retval = weakerMethod;
+		if (messageSend instanceof MethodDeclaration && retval == ERASURE_MATCH && isEquivPattern) {
+			return ACCURATE_MATCH;
+		}
 		if( matchLevel != ACCURATE_MATCH) {
 			boolean isDefault = Modifier.isDefault(invocationOrDeclarationBinding.getModifiers());
 			boolean nullFocus = this.pattern.focus == null;
