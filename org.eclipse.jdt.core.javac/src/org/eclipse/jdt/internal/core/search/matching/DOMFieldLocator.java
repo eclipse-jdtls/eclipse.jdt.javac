@@ -87,63 +87,58 @@ public class DOMFieldLocator extends DOMPatternLocator {
 			return toResponse(IMPOSSIBLE_MATCH);
 		}
 
-		if (this.fieldLocator.matchesName(this.fieldLocator.pattern.name, name.toString().toCharArray())) {
-			if (this.fieldLocator.isDeclarationOfAccessedFieldsPattern
-					&& this.fieldLocator.pattern instanceof DeclarationOfAccessedFieldsPattern doafp) {
-				if (doafp.enclosingElement != null) {
-					// we have an enclosing element to check
-					if (!DOMASTNodeUtils.isWithinRange(name, doafp.enclosingElement)) {
-						return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
-					}
-					// We need to report the declaration, not the usage
-					// TODO testDeclarationOfAccessedFields2
-					IBinding b = name.resolveBinding();
-					IJavaElement je = b == null ? null : b.getJavaElement();
-					if (je != null && doafp.knownFields.includes(je)) {
-						doafp.knownFields.remove(je);
-						ISourceReference sr = je instanceof ISourceReference ? (ISourceReference) je : null;
-						IResource r = null;
-						ISourceRange srg = null;
-						String elName = je.getElementName();
-						try {
-							srg = sr.getSourceRange();
-							IJavaElement ancestor = je.getAncestor(IJavaElement.COMPILATION_UNIT);
-							r = ancestor == null ? null : ancestor.getCorrespondingResource();
-						} catch (JavaModelException jme) {
-							// ignore
-						}
-						if (srg != null) {
-							int accuracy = this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
-									: PatternLocator.ACCURATE_MATCH;
-							FieldDeclarationMatch fdMatch = new FieldDeclarationMatch(je, accuracy,
-									srg.getOffset() + srg.getLength() - elName.length() - 1, elName.length(),
-									locator.getParticipant(), r);
-							try {
-								locator.report(fdMatch);
-							} catch (CoreException ce) {
-								// ignore
-							}
-						}
-					}
+		if (!this.fieldLocator.matchesName(this.fieldLocator.pattern.name, name.toString().toCharArray())) {
+			return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
+		}
+		if (this.fieldLocator.isDeclarationOfAccessedFieldsPattern
+				&& this.fieldLocator.pattern instanceof DeclarationOfAccessedFieldsPattern doafp) {
+			if (doafp.enclosingElement != null) {
+				// we have an enclosing element to check
+				if (!DOMASTNodeUtils.isWithinRange(name, doafp.enclosingElement)) {
 					return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
 				}
+				// We need to report the declaration, not the usage
+				// TODO testDeclarationOfAccessedFields2
+				IBinding b = name.resolveBinding();
+				IJavaElement je = b == null ? null : b.getJavaElement();
+				if (je != null && doafp.knownFields.includes(je)) {
+					doafp.knownFields.remove(je);
+					ISourceReference sr = je instanceof ISourceReference ? (ISourceReference) je : null;
+					IResource r = null;
+					ISourceRange srg = null;
+					String elName = je.getElementName();
+					try {
+						srg = sr.getSourceRange();
+						IJavaElement ancestor = je.getAncestor(IJavaElement.COMPILATION_UNIT);
+						r = ancestor == null ? null : ancestor.getCorrespondingResource();
+					} catch (JavaModelException jme) {
+						// ignore
+					}
+					if (srg != null) {
+						int accuracy = this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
+								: PatternLocator.ACCURATE_MATCH;
+						FieldDeclarationMatch fdMatch = new FieldDeclarationMatch(je, accuracy,
+								srg.getOffset() + srg.getLength() - elName.length() - 1, elName.length(),
+								locator.getParticipant(), r);
+						try {
+							locator.report(fdMatch);
+						} catch (CoreException ce) {
+							// ignore
+						}
+					}
+				}
+				return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
 			}
+		}
 
-			if (!matchesFineGrain(name)) {
-				return toResponse(IMPOSSIBLE_MATCH);
-			}
-
-			if (!this.fieldLocator.pattern.readAccess && this.fieldLocator.pattern.fineGrain == 0 && DOMLocalVariableLocator.isRead(name)) {
-				return toResponse(IMPOSSIBLE_MATCH);
-			}
-			if (!this.fieldLocator.pattern.writeAccess && DOMLocalVariableLocator.isWrite(name)) {
-				return toResponse(IMPOSSIBLE_MATCH);
-			}
+		if (this.fieldLocator.pattern.fineGrain != 0 ? matchesFineGrain(name) :
+			((this.fieldLocator.pattern.readAccess && DOMLocalVariableLocator.isRead(name))
+			|| (this.fieldLocator.pattern.writeAccess && DOMLocalVariableLocator.isWrite(name)))) {
 			int level = nodeSet.addMatch(name, this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
 					: PatternLocator.ACCURATE_MATCH);
 			return toResponse(level, true);
 		}
-		return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
+		return toResponse(IMPOSSIBLE_MATCH);
 	}
 
 	private boolean matchesFineGrain(Name name) {
