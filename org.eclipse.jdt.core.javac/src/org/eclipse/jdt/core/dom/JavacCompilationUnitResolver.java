@@ -113,7 +113,7 @@ import com.sun.tools.javac.util.Options;
  */
 public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
-	public static final String MOCK_NAME_FOR_CLASSES = "whatever_InvalidNameWE_HOP3_n00ne_will_Ever_use_in_real_file.java";
+	private static final String MOCK_NAME_FOR_CLASSES = "whatever_InvalidNameWE_HOP3_n00ne_will_Ever_use_in_real_file.java";
 	public static final Key<Map<JavaFileObject, File>> FILE_OBJECTS_TO_JAR_KEY = new Key<>();
 
 	private final class ForwardDiagnosticsAsDOMProblems implements DiagnosticListener<JavaFileObject> {
@@ -712,6 +712,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				unitFile = new File(new String(sourceUnit.getFileName()));
 			}
 			Path sourceUnitPath = null;
+			boolean storeAsClassFromJar = false;
 			if (!unitFile.getName().endsWith(".java") || sourceUnit.getFileName() == null || sourceUnit.getFileName().length == 0) {
 				String uri1 = unitFile.toURI().toString().replaceAll("%7C", "/");
 				if( uri1.endsWith(".class")) {
@@ -720,17 +721,24 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					sourceUnitPath = Path.of(lastSegment);
 				}
 				if( sourceUnitPath == null ) {
-					// This can cause trouble in case the name of the file is important
-					// eg module-info.java.
-					sourceUnitPath = Path.of(new File(System.identityHashCode(sourceUnit) + '/' + MOCK_NAME_FOR_CLASSES).toURI());
+					storeAsClassFromJar = true;
+					if (sourceUnit instanceof ICompilationUnit modelUnit) {
+						sourceUnitPath = Path.of(new File(System.identityHashCode(sourceUnit) + "/" + modelUnit.getElementName()).toURI());
+					} else {
+						// This can cause trouble in case the name of the file is important
+						// eg module-info.java.
+						sourceUnitPath = Path.of(new File(System.identityHashCode(sourceUnit) + "/" + MOCK_NAME_FOR_CLASSES).toURI());
+					}
 				}
 			} else if (unitFile.getName().endsWith(".jar")) {
-				sourceUnitPath = Path.of(unitFile.toURI()).resolve(System.identityHashCode(sourceUnit) + '/' + MOCK_NAME_FOR_CLASSES);
+				sourceUnitPath = Path.of(unitFile.toURI()).resolve(System.identityHashCode(sourceUnit) + "/" + MOCK_NAME_FOR_CLASSES);
+				storeAsClassFromJar = true;
 			} else {
 				sourceUnitPath = Path.of(unitFile.toURI());
 			}
+			storeAsClassFromJar |= unitFile.getName().endsWith(".jar");
 			var fileObject = fileManager.getJavaFileObject(sourceUnitPath);
-			if (unitFile.getName().endsWith(".jar")) {
+			if (storeAsClassFromJar) {
 				fileObjectsToJars.put(fileObject, unitFile);
 			}
 			fileManager.cache(fileObject, CharBuffer.wrap(sourceUnit.getContents()));

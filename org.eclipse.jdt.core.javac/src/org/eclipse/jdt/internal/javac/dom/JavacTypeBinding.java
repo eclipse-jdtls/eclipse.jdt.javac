@@ -279,8 +279,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 							return resolved(ordinary.getType());
 						}
 					}
-				}
-				if (!jfo.getName().endsWith(JavacCompilationUnitResolver.MOCK_NAME_FOR_CLASSES)) {
+				} else {
 					var jfoFile = new File(jfo.getName());
 					var jfoPath = new Path(jfo.getName());
 					Stream<IFile> fileStream = jfoFile.isFile()	?
@@ -633,7 +632,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					} catch (IllegalArgumentException e) {
 						// probably: uri is not a valid path
 					}
-					if (fileName != null && !fileName.startsWith(classSymbol.getSimpleName().toString()) && !fileName.endsWith(JavacCompilationUnitResolver.MOCK_NAME_FOR_CLASSES)) {
+					if (fileName != null && !fileName.startsWith(classSymbol.getSimpleName().toString())) {
 						// There are multiple top-level types in this file,
 						// inject 'FileName~' before the type name to show that this type came from `FileName.java`
 						// (eg. Lorg/eclipse/jdt/FileName~MyTopLevelType;)
@@ -1599,6 +1598,10 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					.map(ann -> ann + " ")
 					.collect(Collectors.joining())
 				+ getQualifiedName();
+	}
+
+	private boolean isClassFromJar(String name) {
+		return this.resolver.context.get(JavacCompilationUnitResolver.FILE_OBJECTS_TO_JAR_KEY).containsValue(new File(name));
 	}
 
 }
