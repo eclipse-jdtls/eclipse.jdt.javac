@@ -82,7 +82,10 @@ public class DOMLocalVariableLocator extends DOMPatternLocator {
 		}
 		Object bindingElement = binding.getJavaElement();
 		LocalVariable localVar = getLocalVariable();
-		if (Objects.equals(bindingElement, localVar)) {
+		if (localVar != null &&
+			bindingElement instanceof LocalVariable resolvedVarElement &&
+			Objects.equals(localVar.getElementName(), resolvedVarElement.getElementName()) &&
+			localVar.nameStart == resolvedVarElement.nameStart) {
 			// We need to know if this is a reference request or a declaration request
 			if (this.locator.pattern.findReferences) {
 				return new LocatorResponse(ACCURATE_MATCH, false, node, false, false);
