@@ -232,11 +232,12 @@ public class DOMConstructorLocator extends DOMPatternLocator {
 		// parameter types
 		int parameterCount = this.locator.pattern.parameterCount;
 		if (parameterCount > -1) {
+			ITypeBinding[] params = constructor.getParameterTypes();
 			if (parameterCount != constructor.getParameterTypes().length) return IMPOSSIBLE_MATCH;
 			for (int i = 0; i < parameterCount; i++) {
 				// TODO (frederic) use this call to refine accuracy on parameter types
-//				int newLevel = resolveLevelForType(this.pattern.parameterSimpleNames[i], this.pattern.parameterQualifications[i], this.pattern.parametersTypeArguments[i], 0, constructor.parameters[i]);
-				int newLevel = this.resolveLevelForType(this.locator.pattern.parameterSimpleNames[i], this.locator.pattern.parameterQualifications[i], constructor.getParameterTypes()[i]);
+				ITypeBinding pi = params[i];
+				int newLevel = this.resolveLevelForType(this.locator.pattern.parameterSimpleNames[i], this.locator.pattern.parameterQualifications[i], pi);
 				if (level > newLevel) {
 					if (newLevel == IMPOSSIBLE_MATCH) {
 //						if (isErasureMatch) {

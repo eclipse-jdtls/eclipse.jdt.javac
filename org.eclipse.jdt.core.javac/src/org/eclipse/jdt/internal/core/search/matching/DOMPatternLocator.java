@@ -164,19 +164,24 @@ public class DOMPatternLocator extends PatternLocator {
 		return binding.getName();
 	}
 	protected int resolveLevelForType(char[] simpleNamePattern, char[] qualificationPattern, ITypeBinding binding) {
-		return
-			binding == null && simpleNamePattern == null && qualificationPattern == null ? ACCURATE_MATCH :
-			binding != null && binding.isArray() && new String(simpleNamePattern).endsWith("[]") ? resolveLevelForType(Arrays.copyOf(simpleNamePattern, simpleNamePattern.length - 2), qualificationPattern, binding.getComponentType()) :
-			resolveLevelForTypeFQN(simpleNamePattern, qualificationPattern, binding, null);
+		if( binding == null && simpleNamePattern == null && qualificationPattern == null )
+			return ACCURATE_MATCH;
+		if( binding != null && binding.isArray() && new String(simpleNamePattern).endsWith("[]"))
+			return resolveLevelForType(Arrays.copyOf(simpleNamePattern, simpleNamePattern.length - 2), qualificationPattern, binding.getComponentType());
+		return resolveLevelForTypeFQN(simpleNamePattern, qualificationPattern, binding, null);
 	}
 
 	protected int resolveLevelForTypeFQN(char[] simpleNamePattern, char[] qualificationPattern, ITypeBinding binding, IImportDiscovery discovery) {
-		int level = 0;
+		int level = IMPOSSIBLE_MATCH;
 		if (simpleNamePattern == null) {
 			return ACCURATE_MATCH;
 		}
-		if (qualificationPattern == null && simpleNamePattern != null) {
-			level = resolveLevelForTypeSourceName(simpleNamePattern, (binding.isArray() ? binding : binding.getErasure()).getName().toCharArray(), binding);
+
+		boolean isTypeVar = binding.isTypeVariable();
+		if( !isTypeVar ) {
+			if (qualificationPattern == null && simpleNamePattern != null) {
+				level = resolveLevelForTypeSourceName(simpleNamePattern, (binding.isArray() ? binding : binding.getErasure()).getName().toCharArray(), binding);
+			}
 		}
 		if (level == ACCURATE_MATCH || level == ERASURE_MATCH) {
 			return level;
