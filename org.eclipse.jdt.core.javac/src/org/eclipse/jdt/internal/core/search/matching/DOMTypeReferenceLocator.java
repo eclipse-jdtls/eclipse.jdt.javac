@@ -38,6 +38,7 @@ import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
@@ -572,22 +573,39 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 			}
 			return toResponse(v);
 		}
-//		if( binding instanceof IPackageBinding && node instanceof SimpleName sn && node.getLocationInParent() != QualifiedName.NAME_PROPERTY) {
-//			// var x = (B36479.C)val;
-//			// might interpret the B36479 to be a package and C a type,
-//			// rather than B36479 to be a type and C to be an inner-type
-//			if( this.locator.isDeclarationOfReferencedTypesPattern) {
-//				return toResponse(IMPOSSIBLE_MATCH);
-//			}
-//			if( hasPackageDeclarationAncestor(node)) {
-//				return toResponse(IMPOSSIBLE_MATCH);
-//			}
-//			String identifier = sn.getIdentifier();
-//			if( this.locator.matchesName(this.locator.pattern.simpleName, identifier.toCharArray())) {
-//				return toResponse(INACCURATE_MATCH);
-//			}
-//		}
+		if( binding instanceof IPackageBinding pack &&
+			pack.isRecovered() &&
+			node instanceof SimpleName sn &&
+			node.getLocationInParent() != QualifiedName.NAME_PROPERTY &&
+			!isInImport(node)) {
+			// var x = (B36479.C)val;
+			// might interpret the B36479 to be a package and C a type,
+			// rather than B36479 to be a type and C to be an inner-type
+			if( this.locator.isDeclarationOfReferencedTypesPattern) {
+				return toResponse(IMPOSSIBLE_MATCH);
+			}
+			if( hasPackageDeclarationAncestor(node)) {
+				return toResponse(IMPOSSIBLE_MATCH);
+			}
+			String identifier = sn.getIdentifier();
+			if( this.locator.matchesName(this.locator.pattern.simpleName, identifier.toCharArray())) {
+				return toResponse(INACCURATE_MATCH);
+			}
+		}
 		return toResponse(IMPOSSIBLE_MATCH);
+	}
+
+	private boolean isInImport(ASTNode node) {
+		while (node != null) {
+			if (node instanceof ImportDeclaration) {
+				return true;
+			}
+			if (node instanceof PackageDeclaration) {
+				return true;
+			}
+			node = node.getParent();
+		}
+		return false;
 	}
 
 	private boolean preferParamaterizedNode() {
