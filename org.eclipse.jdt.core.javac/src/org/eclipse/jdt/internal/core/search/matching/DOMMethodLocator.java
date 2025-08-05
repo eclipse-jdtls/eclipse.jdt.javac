@@ -24,7 +24,9 @@ import java.util.stream.Stream;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.ILocalVariable;
 import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.ISourceRange;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.dom.AST;
@@ -56,9 +58,12 @@ import org.eclipse.jdt.core.dom.SuperMethodReference;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TypeMethodReference;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
+import org.eclipse.jdt.core.search.MethodDeclarationMatch;
+import org.eclipse.jdt.core.search.MethodReferenceMatch;
 import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.internal.core.BinaryMethod;
+import org.eclipse.jdt.internal.core.SourceMethod;
 import org.eclipse.jdt.internal.core.search.BasicSearchEngine;
 import org.eclipse.jdt.internal.core.search.DOMASTNodeUtils;
 import org.eclipse.jdt.internal.core.search.LocatorResponse;
@@ -1131,6 +1136,25 @@ public class DOMMethodLocator extends DOMPatternLocator {
 	 */
 	@Override
 	public void reportSearchMatch(MatchLocator locator, ASTNode node, SearchMatch match) throws CoreException {
+		if (match instanceof MethodReferenceMatch refMatch &&
+			this.pattern instanceof DeclarationOfReferencedMethodsPattern &&
+			DOMASTNodeUtils.getBinding(node) instanceof IMethodBinding binding &&
+			binding.getJavaElement() instanceof IMethod meth) {
+			MethodDeclarationMatch declMatch = new MethodDeclarationMatch(meth, refMatch.getAccuracy(), -1, -1, refMatch.getParticipant(), meth.getResource());
+			if (meth instanceof SourceMethod sourceMeth) {
+				ISourceRange nameRange = sourceMeth.getNameRange();
+				declMatch.setOffset(nameRange.getOffset());
+				int end = nameRange.getOffset() + nameRange.getLength() + "()".length();
+				ILocalVariable[] parameters = meth.getParameters();
+				if (parameters.length > 0) {
+					ILocalVariable lastParam = parameters[parameters.length - 1];
+					end = lastParam.getNameRange().getOffset() + lastParam.getNameRange().getLength();
+					end++; // ')'
+				}
+				declMatch.setLength(end - nameRange.getOffset());
+			}
+			match = declMatch;
+		}
 		if (!(node instanceof MethodDeclaration)
 			&& !(node instanceof AnnotationTypeMemberDeclaration)
 			&& DOMASTNodeUtils.getBinding(node) instanceof IMethodBinding methodBinding
