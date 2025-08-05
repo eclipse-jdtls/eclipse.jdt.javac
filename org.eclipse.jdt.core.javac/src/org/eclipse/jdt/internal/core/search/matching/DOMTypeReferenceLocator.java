@@ -69,7 +69,6 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.TypeDeclarationMatch;
 import org.eclipse.jdt.core.search.TypeReferenceMatch;
-import org.eclipse.jdt.internal.core.BinaryType;
 import org.eclipse.jdt.internal.core.ClassFileWorkingCopy;
 import org.eclipse.jdt.internal.core.JavaElement;
 import org.eclipse.jdt.internal.core.search.DOMASTNodeUtils;
@@ -865,26 +864,14 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 		IJavaElement je = t2 == null ? null : t2.getJavaElement();
 		if( je != null && !this.foundElements.contains(je) && DOMASTNodeUtils.isWithinRange(node, enclosing)) {
 			ISourceReference sr = je instanceof ISourceReference ? (ISourceReference)je : null;
-			IResource r = null;
+			IResource r = je.getResource();
 			ISourceRange srg = null;
 			ISourceRange nameRange = null;
 			try {
 				srg = sr.getSourceRange();
 				nameRange = sr.getNameRange();
-				IJavaElement ancestor = je.getAncestor(IJavaElement.COMPILATION_UNIT);
-				if( ancestor == null ) {
-					ancestor = je.getAncestor(IJavaElement.CLASS_FILE);
-				}
-				if( ancestor != null ) {
-					r = ancestor.getCorrespondingResource();
-				}
 			} catch(JavaModelException jme) {
 				// ignore
-			}
-			if( r == null ) {
-				if( je instanceof BinaryType) {
-					r = je.getJavaProject().getProject();
-				}
 			}
 			ISourceRange rangeToUse = (nameRange == null) ? srg : nameRange;
 			if( rangeToUse != null && r != null) {
