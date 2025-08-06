@@ -658,12 +658,13 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 		// scrape the parameters
 		List<Type> paramTypes = methodSymbolType.getParameterTypes();
-		for (int i = 0; i < paramTypes.size(); i++) {
+		List<Type> methodTypeParamTypes = methodType.getParameterTypes();
+		for (int i = 0; i < paramTypes.size() && i < methodTypeParamTypes.size(); i++) {
 			ListBuffer<Type> originalTypes = new ListBuffer<>();
 			ListBuffer<Type> substitutedTypes = new ListBuffer<>();
 			this.resolver.getTypes().adapt(
 					paramTypes.get(i),
-					methodType.getParameterTypes().get(i), originalTypes, substitutedTypes);
+					methodTypeParamTypes.get(i), originalTypes, substitutedTypes);
 			List<Type> originalTypesList = originalTypes.toList();
 			List<Type> substitutedTypesList = substitutedTypes.toList();
 			for (int j = 0; j < originalTypesList.size(); j++) {
