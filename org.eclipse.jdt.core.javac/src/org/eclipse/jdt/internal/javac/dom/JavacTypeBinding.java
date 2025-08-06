@@ -248,6 +248,11 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 						return resolved(type.getType("", 1));
 					}
 				}
+				try {
+					return this.resolver.javaProject.findType(this.typeSymbol.flatName().toString());
+				} catch (JavaModelException ex) {
+					ILog.get().error(ex.getMessage(), ex);
+				}
 			}
 			if( this.typeSymbol.owner instanceof MethodSymbol) {
 				if (getDeclaringMethod() != null && getDeclaringMethod().getJavaElement() instanceof IMethod method) {
