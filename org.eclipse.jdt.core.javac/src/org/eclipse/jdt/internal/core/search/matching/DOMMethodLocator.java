@@ -476,6 +476,10 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			if( argBindings.length != goal.length  )
 				return IMPOSSIBLE_MATCH;
 
+			if( methodIsRaw && !isExactPattern) {
+				return ACCURATE_MATCH;
+			}
+
 			boolean inaccurateFound = false;
 			boolean erasureFound = false;
 			for( int i = 0; i < argBindings.length; i++ ) {
