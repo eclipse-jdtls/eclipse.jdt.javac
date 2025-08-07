@@ -116,7 +116,9 @@ public class PatternLocatorVisitor extends ASTVisitor {
 		ASTNode n2 = nodeReplaced ? resp.replacement() : node;
 		n2 = n2 == null ? node : n2;
 		if (resp.level() == PatternLocator.POSSIBLE_MATCH && mustResolve) {
-			LocatorResponse resp2 = this.domPatternLocator.resolveLevel(n2, bindingFunc.apply(n2), this.locator);
+//			LocatorResponse resp2 = this.domPatternLocator.resolveLevel(n2, bindingFunc.apply(n2), this.locator);
+			IBinding b = bindingFunc.apply(n2);
+			LocatorResponse resp2 = this.domPatternLocator.resolveLevel(n2, b, this.locator);
 			n2 = resp2.replacementNodeFound() ? resp2.replacement() : n2;
 			resp = new LocatorResponse(resp2.level(), resp.replacementNodeFound() || resp2.replacementNodeFound(), n2, resp2.added(), resp2.canVisitChildren());
 		}
