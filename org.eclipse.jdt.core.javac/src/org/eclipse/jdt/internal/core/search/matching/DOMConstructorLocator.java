@@ -26,6 +26,7 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodRef;
 import org.eclipse.jdt.core.dom.MethodReference;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.Type;
@@ -147,6 +148,16 @@ public class DOMConstructorLocator extends DOMPatternLocator {
 	public LocatorResponse match(MethodReference node, NodeSetWrapper nodeSet, MatchLocator locator) {
 		if (node instanceof CreationReference ref
 			&& matchesTypeReference(this.locator.pattern.declaringSimpleName, ref.getType())) {
+			return toResponse(POSSIBLE_MATCH);
+		}
+		return toResponse(IMPOSSIBLE_MATCH);
+	}
+
+	@Override
+	public LocatorResponse match(MethodRef node, NodeSetWrapper nodeSet, MatchLocator locator) {
+		if (matchesName(this.locator.pattern.declaringSimpleName, node.getName().getIdentifier().toCharArray())
+			&& this.locator.pattern.parameterCount == node.parameters().size()) {
+			// could probably even refine by looking at qualifier
 			return toResponse(POSSIBLE_MATCH);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
