@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.dom.Assignment.Operator;
 import org.eclipse.jdt.core.dom.ChildListPropertyDescriptor;
 import org.eclipse.jdt.core.dom.ChildPropertyDescriptor;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.Name;
@@ -30,6 +31,7 @@ import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.internal.core.LocalVariable;
@@ -174,10 +176,19 @@ public class DOMLocalVariableLocator extends DOMPatternLocator {
 	}
 
 	public static boolean isWrite(Name name) {
-		if (name.getLocationInParent() == QualifiedName.NAME_PROPERTY) {
-			name = (QualifiedName)name.getParent();
+		ASTNode working = name;
+		StructuralPropertyDescriptor lip = working.getLocationInParent();
+		if (lip == QualifiedName.NAME_PROPERTY) {
+			working = working.getParent();
+			lip = working.getLocationInParent();
 		}
-		return Set.of(Assignment.LEFT_HAND_SIDE_PROPERTY, PostfixExpression.OPERAND_PROPERTY, PrefixExpression.OPERAND_PROPERTY)
-			.contains(name.getLocationInParent());
+		if( lip.equals(FieldAccess.NAME_PROPERTY)) {
+			working = working.getParent();
+			lip = working.getLocationInParent();
+		}
+		if( Set.of(Assignment.LEFT_HAND_SIDE_PROPERTY, PostfixExpression.OPERAND_PROPERTY, PrefixExpression.OPERAND_PROPERTY).contains(lip) ) {
+			return true;
+		}
+		return false;
 	}
 }
