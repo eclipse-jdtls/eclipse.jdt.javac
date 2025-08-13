@@ -75,8 +75,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 					char[] declaringType = CharOperation.concat(fieldPattern.declaringQualification,
 							fieldPattern.declaringSimpleName, '.');
 					if (this.fieldLocator.matchesName(declaringType, importRef.getName().toString().toCharArray())) {
-						declarationsLevel = this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
-								: PatternLocator.ACCURATE_MATCH;
+						declarationsLevel = getPossibleOrAccurateViaMustResolve();
 					}
 				}
 			}
@@ -122,8 +121,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 						// ignore
 					}
 					if (srg != null) {
-						int accuracy = this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
-								: PatternLocator.ACCURATE_MATCH;
+						int accuracy = getPossibleOrAccurateViaMustResolve();
 						FieldDeclarationMatch fdMatch = new FieldDeclarationMatch(je, accuracy,
 								srg.getOffset() + srg.getLength() - elName.length() - 1, elName.length(),
 								locator.getParticipant(), r);
@@ -141,8 +139,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 		if (this.fieldLocator.pattern.fineGrain != 0 ? matchesFineGrain(name) :
 			((this.fieldLocator.pattern.readAccess && DOMLocalVariableLocator.isRead(name))
 			|| (this.fieldLocator.pattern.writeAccess && DOMLocalVariableLocator.isWrite(name)))) {
-			int level = nodeSet.addMatch(name, this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
-					: PatternLocator.ACCURATE_MATCH);
+			int level = nodeSet.addMatch(name, getPossibleOrAccurateViaMustResolve());
 			if( level != IMPOSSIBLE_MATCH ) {
 				IBinding b = name.resolveBinding();
 				if( b == null ) {
@@ -156,6 +153,10 @@ public class DOMFieldLocator extends DOMPatternLocator {
 			return toResponse(level, true);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
+	}
+
+	private int getPossibleOrAccurateViaMustResolve() {
+		return this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH : PatternLocator.ACCURATE_MATCH;
 	}
 
 	private boolean methodHasShadowedVariable(Name name) {
@@ -263,8 +264,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 					&& node.getInitializer() != null)
 				if (this.fieldLocator.matchesName(this.fieldLocator.pattern.name,
 						node.getName().getIdentifier().toCharArray()))
-					referencesLevel = this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
-							: PatternLocator.ACCURATE_MATCH;
+					referencesLevel = getPossibleOrAccurateViaMustResolve();
 
 		int declarationsLevel = PatternLocator.IMPOSSIBLE_MATCH;
 		if ((this.fieldLocator.pattern.findDeclarations || this.fieldLocator.isDeclarationOfAccessedFieldsPattern)
@@ -273,8 +273,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 				&& this.fieldLocator.pattern instanceof FieldPattern fieldPattern
 				&& this.matchesTypeReference(fieldPattern.typeSimpleName,
 						((org.eclipse.jdt.core.dom.FieldDeclaration) node.getParent()).getType())) {
-			declarationsLevel = this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
-					: PatternLocator.ACCURATE_MATCH;
+			declarationsLevel = getPossibleOrAccurateViaMustResolve();
 		}
 		// use the stronger match
 		int level = nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel);
@@ -288,8 +287,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 			if (this.fieldLocator.pattern.writeAccess && !this.fieldLocator.pattern.readAccess)
 				if (this.fieldLocator.matchesName(this.fieldLocator.pattern.name,
 						node.getName().getIdentifier().toCharArray()))
-					referencesLevel = this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
-							: PatternLocator.ACCURATE_MATCH;
+					referencesLevel = getPossibleOrAccurateViaMustResolve();
 
 		int declarationsLevel = PatternLocator.IMPOSSIBLE_MATCH;
 		if (this.fieldLocator.pattern.findDeclarations
@@ -298,8 +296,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 				&& this.fieldLocator.pattern instanceof FieldPattern fieldPattern
 				&& this.fieldLocator.matchesName(fieldPattern.typeSimpleName,
 						((EnumDeclaration) node.getParent()).getName().getIdentifier().toCharArray())) {
-			declarationsLevel = this.fieldLocator.pattern.mustResolve ? PatternLocator.POSSIBLE_MATCH
-					: PatternLocator.ACCURATE_MATCH;
+			declarationsLevel = getPossibleOrAccurateViaMustResolve();
 		}
 		// use the stronger match
 		int level = nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel);
