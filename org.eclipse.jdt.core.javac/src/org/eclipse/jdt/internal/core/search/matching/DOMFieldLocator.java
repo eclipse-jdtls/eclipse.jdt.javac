@@ -100,39 +100,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 				&& this.fieldLocator.pattern instanceof DeclarationOfAccessedFieldsPattern doafp) {
 			if (doafp.enclosingElement != null) {
 				// we have an enclosing element to check
-				if (!DOMASTNodeUtils.isWithinRange(name, doafp.enclosingElement)) {
-					return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
-				}
-				// We need to report the declaration, not the usage
-				// TODO testDeclarationOfAccessedFields2
-				IBinding b = name.resolveBinding();
-				IJavaElement je = b == null ? null : b.getJavaElement();
-				if (je != null && doafp.knownFields.includes(je)) {
-					doafp.knownFields.remove(je);
-					ISourceReference sr = je instanceof ISourceReference ? (ISourceReference) je : null;
-					IResource r = null;
-					ISourceRange srg = null;
-					String elName = je.getElementName();
-					try {
-						srg = sr.getSourceRange();
-						IJavaElement ancestor = je.getAncestor(IJavaElement.COMPILATION_UNIT);
-						r = ancestor == null ? null : ancestor.getCorrespondingResource();
-					} catch (JavaModelException jme) {
-						// ignore
-					}
-					if (srg != null) {
-						int accuracy = getPossibleOrAccurateViaMustResolve();
-						FieldDeclarationMatch fdMatch = new FieldDeclarationMatch(je, accuracy,
-								srg.getOffset() + srg.getLength() - elName.length() - 1, elName.length(),
-								locator.getParticipant(), r);
-						try {
-							locator.report(fdMatch);
-						} catch (CoreException ce) {
-							// ignore
-						}
-					}
-				}
-				return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
+				return reportDeclarationOfAccessedFieldsPatternResult(name, doafp, locator);
 			}
 		}
 
@@ -153,6 +121,43 @@ public class DOMFieldLocator extends DOMPatternLocator {
 			return toResponse(level, true);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
+	}
+
+	private LocatorResponse reportDeclarationOfAccessedFieldsPatternResult(Name name,
+			DeclarationOfAccessedFieldsPattern doafp, MatchLocator locator) {
+		if (!DOMASTNodeUtils.isWithinRange(name, doafp.enclosingElement)) {
+			return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
+		}
+		// We need to report the declaration, not the usage
+		// TODO testDeclarationOfAccessedFields2
+		IBinding b = name.resolveBinding();
+		IJavaElement je = b == null ? null : b.getJavaElement();
+		if (je != null && doafp.knownFields.includes(je)) {
+			doafp.knownFields.remove(je);
+			ISourceReference sr = je instanceof ISourceReference ? (ISourceReference) je : null;
+			IResource r = null;
+			ISourceRange srg = null;
+			String elName = je.getElementName();
+			try {
+				srg = sr.getSourceRange();
+				IJavaElement ancestor = je.getAncestor(IJavaElement.COMPILATION_UNIT);
+				r = ancestor == null ? null : ancestor.getCorrespondingResource();
+			} catch (JavaModelException jme) {
+				// ignore
+			}
+			if (srg != null) {
+				int accuracy = getPossibleOrAccurateViaMustResolve();
+				FieldDeclarationMatch fdMatch = new FieldDeclarationMatch(je, accuracy,
+						srg.getOffset() + srg.getLength() - elName.length() - 1, elName.length(),
+						locator.getParticipant(), r);
+				try {
+					locator.report(fdMatch);
+				} catch (CoreException ce) {
+					// ignore
+				}
+			}
+		}
+		return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
 	}
 
 	private int getPossibleOrAccurateViaMustResolve() {
