@@ -282,16 +282,6 @@ public class JavacBindingResolver extends BindingResolver {
 			}
 
 			boolean likelyGeneric = false;
-//			if( type instanceof ClassType ct && ct.isParameterized()) {
-//				 List<com.sun.tools.javac.code.Type> typeArgs = ct.getTypeArguments();
-//				 int size = typeArgs.size();
-//				 for( int i = 0; i < size && !likelyGeneric; i++ ) {
-//					 if( typeArgs.get(i) instanceof TypeVar) {
-//						 likelyGeneric = true;
-//					 }
-//				 }
-//			}
-//
 			return getTypeBinding(type.baseType() /* remove metadata for constant values */, likelyGeneric);
 		}
 		public JavacTypeBinding getTypeBinding(com.sun.tools.javac.code.Type type, boolean isGeneric) {

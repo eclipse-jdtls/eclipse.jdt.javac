@@ -1463,16 +1463,6 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	}
 
 	@Override
-	public boolean isGenericType() {
-		return isGenericType(this.type);
-	}
-
-	public boolean isGenericType(Type t) {
-		return !isRawType(t) && t.isParameterized() && this.isGeneric;
-	}
-
-
-	@Override
 	public boolean isInterface() {
 		return this.typeSymbol.isInterface();
 	}
@@ -1516,14 +1506,6 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	}
 
 	@Override
-	public boolean isParameterizedType() {
-		return isParameterizedType(this.type);
-	}
-	public boolean isParameterizedType(Type t) {
-		return t.isParameterized() && !this.isGeneric;
-	}
-
-	@Override
 	public boolean isPrimitive() {
 		return this.type.isPrimitiveOrVoid();
 	}
@@ -1536,6 +1518,36 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	private boolean isRawType(Type type2) {
 		return type2.isRaw();
 	}
+
+	@Override
+	public boolean isGenericType() {
+		return isGenericType(this.type);
+	}
+
+	public boolean isGenericType(Type t) {
+		return !t.isRaw() && t.isParameterized() && this.isGeneric;
+	}
+
+	@Override
+	public boolean isParameterizedType() {
+		return isParameterizedType(this.type);
+	}
+	public boolean isParameterizedType(Type t) {
+		List<Type> typeVarParams = t.tsym.type.getTypeArguments();
+		if( typeVarParams.isEmpty()) {
+			// Not even a generic type at all
+			return false;
+		}
+
+		List<Type> actualTypeArgs = t.getTypeArguments();
+		if( actualTypeArgs.isEmpty()) {
+			// We are raw?
+			return false;
+		}
+
+		return !isGeneric;
+	}
+
 
 	@Override
 	public boolean isSubTypeCompatible(final ITypeBinding type) {
