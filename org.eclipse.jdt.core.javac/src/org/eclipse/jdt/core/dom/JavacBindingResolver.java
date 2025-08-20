@@ -1021,6 +1021,11 @@ public class JavacBindingResolver extends BindingResolver {
 			if (!this.isRecoveringBindings) {
 				if( methodDecl.type == null || methodDecl.type instanceof ErrorType)
 					return null;
+				if( methodDecl.restype == null || methodDecl.restype.type instanceof ErrorType) {
+					boolean methodDeclNameMatchesInit = Objects.equals(methodDecl.name.toString(), Names.instance(this.context).init.toString());
+					if( !methodDeclNameMatchesInit )
+						return null;
+				}
 				if( methodDecl.params != null ) {
 					for( JCVariableDecl jcvd : methodDecl.params) {
 						if( jcvd.type instanceof ErrorType ) {
