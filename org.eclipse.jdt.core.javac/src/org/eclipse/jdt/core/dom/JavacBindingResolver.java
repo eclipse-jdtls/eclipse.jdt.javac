@@ -390,41 +390,46 @@ public class JavacBindingResolver extends BindingResolver {
 			}
 			return null;
 		}
+
+		private IBinding filterCollectionFindKey(Collection<? extends IBinding> vals, String key) {
+			return vals.stream()
+					.filter(b -> key.equals(b.getKey()))
+					.findAny()
+					.orElse(null);
+		}
+
 		public IBinding getBinding(String key) {
+			// This is now very very inefficient. Yuck.
 			IBinding binding;
-			binding = this.annotationBindings.get(key);
+			binding = filterCollectionFindKey(this.annotationBindings.values(), key);
 			if (binding != null) {
 				return binding;
 			}
-			binding = this.memberValuePairBindings.get(key);
+			binding = filterCollectionFindKey(this.memberValuePairBindings.values(), key);
 			if (binding != null) {
 				return binding;
 			}
-			binding = this.methodBindings.values()
-					.stream()
-					.filter(methodBindings -> key.equals(methodBindings.getKey()))
-					.findAny()
-					.orElse(null);
+			binding = filterCollectionFindKey(this.methodBindings.values(), key);
 			if (binding != null) {
 				return binding;
 			}
-			binding = this.moduleBindings.get(key);
+			binding = filterCollectionFindKey(this.moduleBindings.values(), key);
 			if (binding != null) {
 				return binding;
 			}
-			binding = this.packageBindings.get(key);
+			binding = filterCollectionFindKey(this.packageBindings.values(), key);
 			if (binding != null) {
 				return binding;
 			}
-			binding = new ArrayList<>(this.typeBinding.values())
-					.stream()
-					.filter(typeBinding -> key.equals(typeBinding.getKey()))
-					.findAny()
-					.orElse(null);
+			binding = filterCollectionFindKey(this.typeBinding.values(), key);
 			if (binding != null) {
 				return binding;
 			}
-			return this.variableBindings.get(key);
+			binding = filterCollectionFindKey(this.typeVariableBindings.values(), key);
+			if (binding != null) {
+				return binding;
+			}
+			return filterCollectionFindKey(this.variableBindings.values(), key);
 		}
 	}
 	public final Bindings bindings = new Bindings();
