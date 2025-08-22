@@ -649,8 +649,9 @@ public class JavacBindingResolver extends BindingResolver {
 			return this.bindings.getTypeBinding(((JCNewArray)jcArrayCreation).type);
 		}
 		JCTree jcTree = this.converter.domToJavac.get(type);
-		if( !this.isRecoveringBindings && jcTree.type instanceof ErrorType) {
-			return null;
+		if( !this.isRecoveringBindings ) {
+			if( jcTree.type instanceof ErrorType )
+				return null;
 		}
 
 		if (jcTree instanceof JCIdent ident && ident.type != null) {
@@ -673,6 +674,14 @@ public class JavacBindingResolver extends BindingResolver {
 			return this.bindings.getTypeBinding(wcType.type);
 		}
 		if (jcTree instanceof JCTypeApply jcta && jcta.type != null) {
+			if( !this.isRecoveringBindings ) {
+				for( var t : jcta.type.getTypeArguments() ) {
+					if( t instanceof ErrorType ) {
+						return null;
+					}
+				}
+			}
+
 			var res = this.bindings.getTypeBinding(jcta.type);
 			if (res != null) {
 				return res;
