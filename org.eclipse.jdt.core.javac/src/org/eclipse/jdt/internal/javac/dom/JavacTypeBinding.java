@@ -59,6 +59,7 @@ import org.eclipse.jdt.core.dom.IModuleBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.Initializer;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JavacBindingResolver.BindingKeyException;
 import org.eclipse.jdt.core.dom.JavacCompilationUnitResolver;
@@ -964,6 +965,8 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				node = null;
 			} else if (node instanceof LambdaExpression lambda) {
 				return lambda.resolveMethodBinding();
+			} else if( node instanceof Initializer) {
+				return null;
 			}
 		}
 
