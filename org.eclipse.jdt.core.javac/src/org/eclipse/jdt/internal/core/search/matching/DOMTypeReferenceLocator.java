@@ -107,6 +107,9 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 		if( name.getParent() instanceof BreakStatement bs && bs.getLabel() == name) {
 			return toResponse(IMPOSSIBLE_MATCH);
 		}
+		if (name.getLocationInParent() == TypeParameter.NAME_PROPERTY) {
+			return toResponse(IMPOSSIBLE_MATCH);
+		}
 		if (!matchFineGrain(name, this.locator.fineGrain())) {
 			return toResponse(IMPOSSIBLE_MATCH);
 		}
