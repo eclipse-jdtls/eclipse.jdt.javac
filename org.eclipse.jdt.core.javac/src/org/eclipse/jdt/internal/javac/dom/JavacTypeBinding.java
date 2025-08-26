@@ -1409,6 +1409,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if (this.type instanceof Type.CapturedType capturedType) {
 			return this.resolver.bindings.getTypeBinding(capturedType.wildcard);
 		}
+		if( this.type instanceof WildcardType) {
+			return this;
+		}
 		return null;
 	}
 
@@ -1437,7 +1440,13 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public boolean isCapture() {
-		return this.type instanceof Type.CapturedType;
+		if( this.type instanceof Type.CapturedType )
+			return true;
+		if( this.type instanceof WildcardType wct) {
+			if( wct.isUnbound())
+				return true;
+		}
+		return false;
 	}
 
 	@Override
