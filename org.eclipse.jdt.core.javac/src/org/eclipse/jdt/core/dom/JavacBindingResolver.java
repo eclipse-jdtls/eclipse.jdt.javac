@@ -1462,7 +1462,7 @@ public class JavacBindingResolver extends BindingResolver {
 		if (jcTree instanceof JCExpression expression
 			&& isTypeOfType(expression.type)
 			&& !expression.type.isErroneous()) {
-			var res = this.bindings.getTypeBinding(expression.type, null, findBackupOwner(expression), false);
+			var res = this.bindings.getTypeBinding(expression.type.baseType(), null, findBackupOwner(expression), false);
 			if (res != null) {
 				return res;
 			}
