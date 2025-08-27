@@ -954,8 +954,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			if (parentSymbol instanceof final ClassSymbol clazz) {
 				return this.resolver.bindings.getTypeBinding(clazz.type, null, clazz, true);
 			}
-			if( parentSymbol.type instanceof JCNoType && !usedBackup ) {
+			if( !usedBackup  && parentSymbol.type instanceof JCNoType ) {
 				parentSymbol = backupOwner;
+				usedBackup = true;
 			} else {
 				parentSymbol = parentSymbol.owner;
 			}
