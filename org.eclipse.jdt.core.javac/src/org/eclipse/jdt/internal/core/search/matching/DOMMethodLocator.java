@@ -950,6 +950,17 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		// method does not exist. This is not grounds for disqualification.
 		IMethodBinding method = getDOMASTMethodBinding(type, methodName, argumentTypes);
 
+		int level = resolveLevelForType(simplePattern, qualifiedPattern, type);
+		if (level != IMPOSSIBLE_MATCH) {
+			if (isDefault && !Objects.equals(packageName, type.getPackage().getName())) {
+				return IMPOSSIBLE_MATCH;
+			}
+			if (((method != null && !Modifier.isAbstract(method.getModifiers())) || !Modifier.isAbstract(type.getModifiers())) && !type.isInterface()) { // if concrete, then method is overridden
+				level |= OVERRIDDEN_METHOD_FLAVOR;
+			}
+			return level;
+		}
+
 		boolean methodIdenticalToOriginal = compareDeclaringClass(originalQuery, method);
 		int r1 = resolveLevelAsSubtype_basic(simplePattern, qualifiedPattern, type, method, packageName, isDefault, methodIdenticalToOriginal);
 		if( r1 != -1 )

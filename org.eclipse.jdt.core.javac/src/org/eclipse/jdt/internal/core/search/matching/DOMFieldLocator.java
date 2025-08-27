@@ -245,8 +245,11 @@ public class DOMFieldLocator extends DOMPatternLocator {
 						variableBinding.getName().toCharArray()))
 					return toResponse(PatternLocator.IMPOSSIBLE_MATCH);
 				FieldPattern fieldPattern = (FieldPattern) this.fieldLocator.pattern;
+				// sometimes the binding is assumed as being a parameter (with a declaring class)
+				// and sometimes it has a declaring class... This is a bad smell, more likely to
+				// be fixed in the binding resolver, but in the meantime, let's try both
 				IMethodBinding declaring = variableBinding == null ? null : variableBinding.getDeclaringMethod();
-				ITypeBinding tb = declaring == null ? null : declaring.getDeclaringClass();
+				ITypeBinding tb = declaring == null ? variableBinding.getDeclaringClass() : declaring.getDeclaringClass();
 				int level = this.resolveLevelForType(fieldPattern.declaringSimpleName,
 						fieldPattern.declaringQualification, tb);
 				return toResponse(level);

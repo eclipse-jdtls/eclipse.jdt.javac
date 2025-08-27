@@ -1095,10 +1095,10 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public String getName() {
-		return getName(true);
+		return getName(true, false);
 	}
 
-	public String getName(boolean checkParameterized) {
+	public String getName(boolean checkParameterized, boolean sourceName) {
 		if (this.isIntersectionType()) {
 			if (this.alternatives != null) {
 				return this.resolver.bindings.getTypeBinding(this.alternatives[0]).getName();
@@ -1126,7 +1126,17 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			builder.append(this.resolver.bindings.getTypeBinding(wt.type).getName());
 			return builder.toString();
 		}
-		StringBuilder builder = new StringBuilder(this.typeSymbol.getSimpleName().toString());
+		StringBuilder builder = new StringBuilder();
+		if (isAnonymous() && sourceName) {
+			builder.append("new ");
+			ITypeBinding superClass = getSuperclass();
+			if (superClass != null) {
+				builder.append(superClass.getName());
+			}
+			builder.append("(){}");
+		} else {
+			builder.append(this.typeSymbol.getSimpleName().toString());
+		}
 		if(checkParameterized && isParameterizedType()) {
 			ITypeBinding[] types = this.getUncheckedTypeArguments(this.type, this.typeSymbol);
 			if (types != null && types.length > 0) {
