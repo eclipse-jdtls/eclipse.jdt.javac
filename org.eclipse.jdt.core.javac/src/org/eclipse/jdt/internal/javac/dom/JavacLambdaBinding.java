@@ -22,6 +22,8 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.internal.SignatureUtils;
 import org.eclipse.jdt.internal.core.JavaElement;
@@ -79,6 +81,14 @@ public class JavacLambdaBinding extends JavacMethodBinding {
 			return LambdaFactory.createLambdaMethod(expr, this.methodSymbol.name.toString(), getKey(), this.declaration.getStartPosition(), this.declaration.getStartPosition() + this.declaration.getLength() - 1, arrowIndex, Arrays.stream(getParameterTypes()).map(SignatureUtils::getSignature).toArray(String[]::new), getParameterNames(), SignatureUtils.getSignature(getReturnType()));
 		}
 		return super.getJavaElement();
+	}
+
+	@Override
+	public String[] getParameterNames() {
+		return ((List<VariableDeclaration>)this.declaration.parameters()).stream()
+			.map(VariableDeclaration::getName)
+			.map(SimpleName::getIdentifier)
+			.toArray(String[]::new);
 	}
 
 }
