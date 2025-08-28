@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -117,23 +118,23 @@ import org.eclipse.jdt.internal.core.search.processing.JobManager;
 import org.eclipse.jdt.internal.core.util.Util;
 
 public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
-	private Map<PossibleMatch, NodeSetWrapper> matchToWrapper = new HashMap<>();
 	public DOMJavaSearchDelegate() {
-
+		// must be kept as it's used by an extension point
 	}
 
 	@Override
 	public void locateMatches(MatchLocator locator, IJavaProject javaProject, PossibleMatch[] possibleMatches, int start,
 			int length) throws CoreException {
 		locator.initialize((JavaProject)javaProject, length);
+
+		Map<MatchingNodeSet, NodeSetWrapper> wrappedSets = new IdentityHashMap<>(); // PossibleMatch hashCode collides too easily
 		for( int i = 0; i < possibleMatches.length; i++ ) {
-			matchToWrapper.put(possibleMatches[i], wrapNodeSet(possibleMatches[i].nodeSet));
+			wrappedSets.put(possibleMatches[i].nodeSet, wrapNodeSet(possibleMatches[i].nodeSet));
 		}
 
-
-		Map<String, String> map = javaProject.getOptions(true);
-		map.put(CompilerOptions.OPTION_TaskTags, org.eclipse.jdt.internal.compiler.util.Util.EMPTY_STRING);
-		locator.options = new CompilerOptions(map);
+		Map<String, String> options = javaProject.getOptions(true);
+		options.put(CompilerOptions.OPTION_TaskTags, org.eclipse.jdt.internal.compiler.util.Util.EMPTY_STRING);
+		locator.options = new CompilerOptions(options);
 
 		// Original implementation used Map throughout, however,
 		// PossibleMatch was determined to be a bad / non-unique key where the
@@ -192,15 +193,10 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 				if (pm != null) {
 					for (int i = 0; i < possibleMatches.length; i++) {
 						if (possibleMatches[i] == pm) {
-//							String s = CharOperation.toString(pm.compoundName);
-//							if( "g1.t.s.ref.R1".equals(s)) {
-//							if( "g3.t.ref.R4".equals(s)) {
-//								int z = 5; z++; if( z == 3 ) {}
-//							}
 							domUnits[i] = ast;
 							nonNullDomIndexes.add(i);
 							locator.currentPossibleMatch = pm;
-							NodeSetWrapper wrapper = matchToWrapper.get(possibleMatches[i]);
+							NodeSetWrapper wrapper = wrappedSets.get(possibleMatches[i].nodeSet);
 							ast.accept(new PatternLocatorVisitor(locator, wrapper));
 							return;
 						}
@@ -214,7 +210,7 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 		for (int x : nonNullDomIndexes) {
 			PossibleMatch possibleMatch = possibleMatches[x];
 			locator.currentPossibleMatch = possibleMatch;
-			NodeSetWrapper wrapper = this.matchToWrapper.get(possibleMatch);
+			NodeSetWrapper wrapper = wrappedSets.get(possibleMatch.nodeSet);
 			for (org.eclipse.jdt.core.dom.ASTNode node : wrapper.trustedASTNodeLevels.keySet()) {
 				int level = wrapper.trustedASTNodeLevels.get(node);
 				SearchMatch match = toMatch(locator, node, level, possibleMatch);
