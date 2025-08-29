@@ -194,10 +194,11 @@ class JavacConverter {
 		if (javacCompilationUnit.getModule() != null && this.ast.apiLevel >= AST.JLS9_INTERNAL) {
 			res.setModule(convert(javacCompilationUnit.getModuleDecl()));
 		}
-		javacCompilationUnit.getImports().stream().filter(imp -> imp instanceof JCImport).map(jc -> convert((JCImport)jc)).forEach(res.imports()::add);
-		if (this.ast.apiLevel >= AST.JLS23_INTERNAL) {
-			javacCompilationUnit.getImports().stream().filter(imp -> imp instanceof JCModuleImport).map(jc -> convert((JCModuleImport)jc)).forEach(res.imports()::add);
-		}
+		javacCompilationUnit.getImports().stream().map(tree ->
+			tree instanceof JCImport imp ? convert(imp) :
+			tree instanceof JCModuleImport moduleImp && this.ast.apiLevel >= AST.JLS23_INTERNAL ? convert(moduleImp) :
+			null).filter(ImportDeclaration.class::isInstance)
+			.forEach(res.imports()::add);
 		javacCompilationUnit.getTypeDecls().stream()
 			.map(n -> convertBodyDeclaration(n, res, false))
 			.filter(Objects::nonNull)
