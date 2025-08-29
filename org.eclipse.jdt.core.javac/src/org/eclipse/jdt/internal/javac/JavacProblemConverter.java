@@ -672,6 +672,8 @@ public class JavacProblemConverter {
 			case "compiler.err.illegal.dot" -> IProblem.Syntax;
 			case "compiler.err.statement.not.expected" -> IProblem.Syntax;
 			case "compiler.warn.raw.class.use" -> IProblem.RawTypeReference;
+			case "compiler.err.improperly.formed.type.inner.raw.param" -> IProblem.RawMemberTypeCannotBeParameterized;
+			case "compiler.err.cant.select.static.class.from.param.type" -> IProblem.StaticMemberOfParameterizedType;
 			case "compiler.err.cant.resolve.location" -> switch (getDiagnosticArgumentByType(diagnostic, Kinds.KindName.class)) {
 					case CLASS -> IProblem.UndefinedType;
 					case METHOD -> IProblem.UndefinedMethod;
@@ -886,6 +888,7 @@ public class JavacProblemConverter {
 			case "compiler.err.non.sealed.with.no.sealed.supertype" -> IProblem.SealedDisAllowedNonSealedModifierInClass;
 			case "compiler.err.record.cannot.declare.instance.fields" -> IProblem.RecordNonStaticFieldDeclarationInRecord;
 			case "compiler.err.else.without.if" -> IProblem.Syntax;
+			case "compiler.err.implicit.class.should.not.have.package.declaration" -> IProblem.Syntax;
 			// next are javadoc; defaulting to JavadocUnexpectedText when no better problem could be found
 			case "compiler.err.dc.bad.entity" -> IProblem.JavadocUnexpectedText;
 			case "compiler.err.dc.bad.inline.tag" -> IProblem.JavadocUnexpectedText;
