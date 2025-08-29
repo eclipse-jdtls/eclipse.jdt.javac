@@ -1121,19 +1121,23 @@ public class JavacBindingResolver extends BindingResolver {
 	@Override
 	IMethodBinding resolveConstructor(SuperConstructorInvocation expression) {
 		resolve();
-		JCTree javacElement = this.converter.domToJavac.get(expression);
+		JCTree original = this.converter.domToJavac.get(expression);
+		JCTree javacElement = original;
+		List<com.sun.tools.javac.code.Type> typeArgs = null;
 		if (javacElement instanceof JCMethodInvocation javacMethodInvocation) {
+			typeArgs = List.of();
 			javacElement = javacMethodInvocation.getMethodSelect();
+			typeArgs = javacMethodInvocation.getTypeArguments().stream().map(jcExpr -> jcExpr.type).toList();
 		}
 		if (javacElement instanceof JCIdent ident && ident.sym instanceof MethodSymbol methodSymbol) {
 			if (ident.type != null && (ident.type instanceof MethodType || ident.type instanceof ForAll)) {
-				return this.bindings.getMethodBinding(ident.type.asMethodType(), methodSymbol, null, false, null);
+				return this.bindings.getMethodBinding(ident.type.asMethodType(), methodSymbol, null, false, typeArgs);
 			} else if (methodSymbol.asType() instanceof MethodType || methodSymbol.asType() instanceof ForAll) {
-				return this.bindings.getMethodBinding(methodSymbol.asType().asMethodType(), methodSymbol, null, false, null);
+				return this.bindings.getMethodBinding(methodSymbol.asType().asMethodType(), methodSymbol, null, false, typeArgs);
 			}
 		}
 		if (javacElement instanceof JCFieldAccess fieldAccess && fieldAccess.sym instanceof MethodSymbol methodSymbol) {
-			return this.bindings.getMethodBinding(fieldAccess.type.asMethodType(), methodSymbol, null, false, null);
+			return this.bindings.getMethodBinding(fieldAccess.type.asMethodType(), methodSymbol, null, false, typeArgs);
 		}
 		return null;
 	}

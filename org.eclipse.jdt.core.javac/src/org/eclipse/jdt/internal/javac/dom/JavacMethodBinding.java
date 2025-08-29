@@ -54,6 +54,7 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
+import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ForAll;
@@ -647,17 +648,61 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return !isRawMethod() && !methodHasGenerics() && methodMatchesParameterized();
 	}
 
+	private boolean parameterizedViaDeclaringClass() {
+		return isConstructor() && getDeclaringClass().isParameterizedType();
+	}
+
+	private boolean parameterizedViaSymbolTypeParams() {
+		return this.methodSymbol != null && !this.methodSymbol.getTypeParameters().isEmpty() && !isDeclaration;
+	}
+
 	private boolean methodMatchesParameterized() {
-		return ((isConstructor() && getDeclaringClass().isParameterizedType())
-				|| (this.methodSymbol != null && !this.methodSymbol.getTypeParameters().isEmpty() && !isDeclaration));
+		boolean constructorMatch = parameterizedViaDeclaringClass();
+		boolean secondaryMatch = parameterizedViaSymbolTypeParams();
+		return constructorMatch || secondaryMatch;
 	}
 
 	@Override
 	public boolean isRawMethod() {
-		return this.methodType.isRaw() ||
-				(getDeclaringClass() != null && getDeclaringClass().isRawType() &&
-						(isConstructor() || !this.methodType.getParameterTypes().isEmpty())) ||
-				(this.methodSymbol == null && !this.methodType.getParameterTypes().isEmpty());
+		if( methodHasGenerics() )
+			return false;
+
+		if( this.methodSymbol != null ) {
+			List<Type> typeArgs = null;
+			if( this.methodSymbol.type instanceof ForAll fa) {
+				typeArgs = fa.getTypeArguments();
+			}
+			if( typeArgs == null || typeArgs.size() == 0 ) {
+				// The type (ie method decl) has no type args
+				return false;
+			}
+			List<TypeVariableSymbol> tp = this.methodSymbol == null ? null : this.methodSymbol.getTypeParameters();
+			int countExpected = (tp == null || tp.size() == 0 ) ? 0 : tp.size();
+			if( countExpected == 0 ) {
+				return false;
+			}
+		}
+
+
+		if( parameterizedViaDeclaringClass() ) {
+			return false;
+		}
+		if( parameterizedViaSymbolTypeParams() && this.resolvedTypeArgs != null) {
+			return false;
+		}
+
+		boolean finalRet = false;
+		if( this.methodSymbol != null && (this.resolvedTypeArgs == null || this.resolvedTypeArgs.size() == 0)) {
+			finalRet = true;
+		} else {
+			ITypeBinding declaring = getDeclaringClass();
+			boolean old1 = (declaring != null && declaring.isRawType() &&
+					(isConstructor() || !this.methodType.getParameterTypes().isEmpty()));
+			boolean old2 = (this.methodSymbol == null && !this.methodType.getParameterTypes().isEmpty());
+			boolean old = old1 || old2;
+			finalRet = old;
+		}
+		return finalRet;
 	}
 
 	@Override

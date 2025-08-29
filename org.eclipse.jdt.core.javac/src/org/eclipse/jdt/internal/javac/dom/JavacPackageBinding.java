@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -86,8 +87,10 @@ public abstract class JavacPackageBinding implements IPackageBinding {
 			return null;
 		}
 		try {
-			IJavaElement ret = Arrays.stream(this.resolver.javaProject.getAllPackageFragmentRoots())
-				.map(root -> root.getPackageFragment(this.getQualifiedNameInternal()))
+			IPackageFragmentRoot[] roots = this.resolver.javaProject.getAllPackageFragmentRoots();
+			String qName = this.getQualifiedNameInternal();
+			IJavaElement ret = Arrays.stream(roots)
+				.map(root -> root.getPackageFragment(qName))
 				.filter(Objects::nonNull)
 				.filter(IPackageFragment::exists)
 				.findFirst()
