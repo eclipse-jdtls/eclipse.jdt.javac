@@ -239,8 +239,8 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 				}
 
 				String[] parametersResolved = new String[0];
-				if( this.methodSymbol != null ) {
-					parametersResolved = this.methodSymbol.params().stream()
+				if( this.methodSymbol != null && this.methodSymbol.baseSymbol() instanceof MethodSymbol base) {
+					parametersResolved = base.params().stream()
 						.map(varSymbol -> varSymbol.type)
 						.map(t ->
 							t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
@@ -254,7 +254,11 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 							.toArray(String[]::new);
 				}
 				parametersResolved = maybeTrimEnumConstructorArgs(parametersResolved);
-				IMethod[] methods = currentType.findMethods(currentType.getMethod(getName(), parametersResolved));
+				IMethod m = currentType.getMethod(getName(), parametersResolved);
+				if (m != null && m.exists()) {
+					return m;
+				}
+				IMethod[] methods = currentType.findMethods(m);
 				if (methods != null && methods.length > 0) {
 					return methods[0];
 				}
@@ -268,7 +272,11 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 						.toArray(String[]::new);
 				}
 				parametersNotResolved = maybeTrimEnumConstructorArgs(parametersNotResolved);
-				methods = currentType.findMethods(currentType.getMethod(getName(), parametersNotResolved));
+				m = currentType.getMethod(getName(), parametersNotResolved);
+				if (m != null && m.exists()) {
+					return m;
+				}
+				methods = currentType.findMethods(m);
 				if (methods != null && methods.length > 0) {
 					return methods[0];
 				}
