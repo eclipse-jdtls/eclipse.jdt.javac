@@ -1489,7 +1489,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	@Override
 	public boolean isClass() {
 		// records count as classes, so they are not excluded here
-		return this.typeSymbol instanceof final ClassSymbol classSymbol
+		return !isWildcardType() && this.typeSymbol instanceof final ClassSymbol classSymbol
 				&& !(classSymbol.isEnum() || classSymbol.isInterface());
 	}
 
