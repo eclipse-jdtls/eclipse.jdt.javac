@@ -1041,6 +1041,76 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		      .forEach(before::add);
 		before.sort(Comparator.comparingInt(Comment::getStartPosition));
 		res.setCommentTable(before.toArray(Comment[]::new));
+
+
+		List<Javadoc> orphanedJavadoc = new ArrayList<>();
+		for( Comment c : comments ) {
+			if( c instanceof Javadoc j && j.getParent() == null) {
+				orphanedJavadoc.add(j);
+			}
+		}
+
+		// Fix known missing javadoc errors due to JDT being out of spec
+		ArrayList<Initializer> initializers = new ArrayList<>();
+		HashMap<Comment, ASTNode> possibleOwners = new HashMap<>();
+		res.accept(new ASTVisitor() {
+			@Override
+			public boolean preVisit2(ASTNode node) {
+				boolean ret = false;
+				for( Javadoc c : orphanedJavadoc ) {
+					ret |= preVisitPerComment(node, c);
+				}
+				return ret;
+			}
+			public boolean preVisitPerComment(ASTNode node, Javadoc c) {
+				int commentStart = c.getStartPosition();
+				int commentEnd = commentStart + c.getLength();
+				int start = node.getStartPosition();
+				int end = start + node.getLength();
+				if( end < commentStart ) {
+					return false;
+				}
+				if( start > commentEnd ) {
+					ASTNode closest = possibleOwners.get(c);
+					if( closest == null ) {
+						possibleOwners.put(c, node);
+					} else {
+						int closestStart = closest.getStartPosition();
+						//int closestEnd = start + closest.getLength();
+						int closestDiff = commentEnd - closestStart;
+						int thisDiff = commentEnd - start;
+						if( thisDiff < closestDiff ) {
+							possibleOwners.put(c, node);
+						}
+					}
+					return false;
+				}
+				return true;
+			}
+			@Override
+			public boolean visit(Initializer node) {
+				initializers.add(node);
+				return true;
+			}
+			// TODO add other locations where jdt violates spec, other than Initializer
+		});
+		for( Javadoc k : orphanedJavadoc) {
+			ASTNode closest = possibleOwners.get(k);
+			if( closest instanceof Initializer i ) {
+				try {
+					i.setJavadoc(k);
+					int iStart = i.getStartPosition();
+					int kStart = k.getStartPosition();
+					int iEnd = iStart + i.getLength();
+					int kEnd = kStart + k.getLength();
+					int min = Math.min(iStart, kStart);
+					int end = Math.max(iEnd, kEnd);
+					i.setSourceRange(min, end - min);
+				} catch(RuntimeException re) {
+					// Ignore
+				}
+			}
+		}
 	}
 
 	private static boolean noCommentAt(CompilationUnit unit, int pos) {
