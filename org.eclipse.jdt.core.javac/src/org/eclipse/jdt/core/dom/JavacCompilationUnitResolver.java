@@ -300,8 +300,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			});
 
 			resolveRequestedBindingKeys(bindingResolver[0], bindingKeys,
-					(a,b) -> requestor.acceptBinding(a,b),
-					new Classpath[0], // TODO need some classpaths
+					(a,b) -> {
+						if (b != null || mockUnit != null) {
+							requestor.acceptBinding(a,b);
+						}
+					}, new Classpath[0], // TODO need some classpaths
 					new CompilerOptions(compilerOptions),
 					units.values(), project, bindingMap, monitor);
 		} else {
@@ -343,36 +346,32 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 		// resolve the requested bindings
 		for (String bindingKey : bindingKeys) {
-
 			int arrayCount = Signature.getArrayCount(bindingKey);
-			IBinding bindingFromMap = bindingMap.get(bindingKey);
-			if (bindingFromMap != null) {
-				// from parsed files
-				requestor.acceptBinding(bindingKey, bindingFromMap);
-			} else {
-				if (arrayCount > 0) {
-					String elementKey = Signature.getElementType(bindingKey);
-					IBinding elementBinding = bindingMap.get(elementKey);
-					if (elementBinding instanceof ITypeBinding elementTypeBinding) {
-						requestor.acceptBinding(bindingKey, elementTypeBinding.createArrayType(arrayCount));
-						continue;
-					}
+			IBinding binding = bindingMap.get(bindingKey);
+			if (binding == null && arrayCount > 0) {
+				String elementKey = Signature.getElementType(bindingKey);
+				IBinding elementBinding = bindingMap.get(elementKey);
+				if (elementBinding instanceof ITypeBinding elementTypeBinding) {
+					binding = elementBinding;
 				}
-
+			}
+			if (binding == null) {
 				CustomBindingKeyParser bkp = new CustomBindingKeyParser(bindingKey);
 				bkp.parse(true);
 				ITypeBinding type = bindingResolver.resolveWellKnownType(bkp.compoundName);
 				if (type != null) {
 					if (Objects.equals(bindingKey, type.getKey())) {
-						requestor.acceptBinding(bindingKey, type);
+						binding = type;
 					} else {
-						Stream.of(type.getDeclaredMethods(), type.getDeclaredFields())
+						binding = Stream.of(type.getDeclaredMethods(), type.getDeclaredFields())
 							.flatMap(Arrays::stream)
-							.filter(binding -> Objects.equals(binding.getKey(), bindingKey))
-							.forEach(binding -> requestor.acceptBinding(bindingKey, binding));
+							.filter(b -> Objects.equals(b.getKey(), bindingKey))
+							.findAny()
+							.orElse(null);
 					}
 				}
 			}
+			requestor.acceptBinding(bindingKey, binding);
 		}
 
 	}
