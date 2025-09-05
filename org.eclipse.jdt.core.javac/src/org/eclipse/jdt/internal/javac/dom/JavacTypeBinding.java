@@ -407,6 +407,32 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	}
 
 	private String computeKey() {
+		if (isWildcardType() && this.type instanceof WildcardType wildcardType) {
+			String key = getKey(wildcardType.bound.tsym.owner.asType(), wildcardType.bound.tsym.owner.flatName(), false, true);
+			key += "{" + getRank() + "}";
+			if (wildcardType.isUnbound()) {
+				// This is very wrong and is not parseable by KeyToSignature
+				// Should be something like Lg1/t/m/def/Generic;{0}*
+				key = key + '+' + this.resolver.resolveWellKnownType(Object.class.getName()).getKey();
+			} else if (wildcardType.isExtendsBound()) {
+				Type extendsBound = wildcardType.getExtendsBound();
+				if (extendsBound.isIntersection()) {
+					key += '*';
+				} else {
+					key += '+';
+					key += getBound().getKey();
+				}
+			} else if (wildcardType.isSuperBound()) {
+				Type superBound = wildcardType.getSuperBound();
+				if (superBound.isIntersection()) {
+					key += '*';
+				} else {
+					key += '-';
+					key += getBound().getKey();
+				}
+			}
+			return key;
+		}
 		String b3 = getKeyWithPossibleGenerics(this.type, this.typeSymbol, tb -> tb != null ? tb.getKey() : KeyUtils.OBJECT_KEY, true);
 		if( (this.type.isSuperBound() || this.type.isExtendsBound()) && this.type instanceof WildcardType wt) {
 			String base1 = getKey(this.type, this.typeSymbol.flatName(), false, true);
@@ -808,7 +834,16 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public int getRank() {
-		if (isWildcardType() || isIntersectionType()) {
+		if (isWildcardType() && this.type instanceof WildcardType wildcardType) {
+			var params = getDeclaringClass().getTypeParameters();
+			for (int i = 0; i < params.length; i++) {
+				var typeParam = params[i];
+				if (typeParam instanceof JavacTypeBinding javacTypeParam && javacTypeParam.type == wildcardType.bound) {
+					return i;
+				}
+			}
+		}
+		if (isIntersectionType()) {
 			return types.rank(this.type);
 		}
 		return -1;
@@ -1402,6 +1437,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public ITypeBinding getTypeDeclaration() {
+		if (isWildcardType()) {
+			return this;
+		}
 		if (this.isParameterizedType() || this.isRawType()) {
 			return getErasure();
 		}
