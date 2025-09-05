@@ -1516,7 +1516,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if( this.type instanceof Type.CapturedType )
 			return true;
 		if( this.type instanceof WildcardType wct) {
-			if( wct.isUnbound())
+			if( wct.isExtendsBound())
 				return true;
 		}
 		return false;
