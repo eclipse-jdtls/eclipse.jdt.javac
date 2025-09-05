@@ -459,13 +459,31 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			return ret;
 		}
 
-		String base1 = getKey(t, s.flatName(), false, useSlashes);
-		String base = removeTrailingSemicolon(base1);
-		if( isRawType(t)) {
-			return base + "<>;";
+		String base1 = null;
+		String base = null;
+		if( isMember()) {
+			TypeSymbol owner = s != null ? s.owner instanceof ClassSymbol ts1a ? ts1a : null : null;
+			Type ownerType =  owner != null ? owner.type : null;
+			if(ownerType != null && t != null && (isParameterizedType(t) || isRawType(t))) {
+				base1 = getGenericTypeSignature(ownerType, owner, false);
+				base = removeTrailingSemicolon(base1);
+				boolean semiRemoved = base1.length() != base.length();
+				String nameAsString = s.getSimpleName().toString();
+				if (useSlashes) {
+					nameAsString = nameAsString.replace('.', '/');
+				}
+				nameAsString = nameAsString.replaceFirst("\\$([0-9]+)([A-Za-z$_][A-Za-z$_0-9]*)", "\\$$1\\$$2");
+				base += "." + nameAsString;
+				base1 = semiRemoved ? base + ";" : base;
+			}
 		}
-
-
+		if( base == null ) {
+			base1 = getKey(t, s.flatName(), false, useSlashes);
+			base = removeTrailingSemicolon(base1);
+			if( isRawType(t)) {
+				return base + "<>;";
+			}
+		}
 
 		if (isGenericType(t)) {
 			return base + '<'
