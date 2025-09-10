@@ -784,6 +784,29 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 			if( simpleNameMatch != -1 ) {
 				return simpleNameMatch;
 			}
+			if( node instanceof Type t) {
+				String qualifiedNameFromNode = getQualifiedNameFromType(t);
+				char[] qualifiedPattern = getQualifiedPattern(trp.simpleName,trp.qualification);
+				if( qualifiedNameFromNode != null && qualNameFromBinding.endsWith(qualifiedNameFromNode)) {
+					// Might be a rare situation where two top-level classes defined in same file?
+					int level3 = resolveLevelForTypeSourceName(qualifiedPattern, qualifiedNameFromNode.toCharArray(), typeBinding);
+					if( level3 != IMPOSSIBLE_MATCH ) {
+						return level3;
+					}
+				} else {
+					org.eclipse.jdt.core.dom.CompilationUnit cu = findCompilationUnitAncestor(node);
+					String pkg = cu.getPackage() == null ? null : cu.getPackage().getName().toString();
+					if( pkg != null ) {
+						if( qualNameFromBinding.startsWith(pkg + ".")) {
+							String suffix = qualNameFromBinding.substring(pkg.length() + 1);
+							int level3 = resolveLevelForTypeSourceName(qualifiedPattern, suffix.toCharArray(), typeBinding);
+							if( level3 != IMPOSSIBLE_MATCH ) {
+								return level3;
+							}
+						}
+					}
+				}
+			}
 		}
 		if( newLevel == ACCURATE_MATCH ) {
 			if( trp.hasTypeArguments() ) {
