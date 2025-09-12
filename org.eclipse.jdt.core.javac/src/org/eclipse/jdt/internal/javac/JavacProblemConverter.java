@@ -874,7 +874,10 @@ public class JavacProblemConverter {
 			case "compiler.err.illegal.static.intf.meth.call" -> IProblem.InterfaceStaticMethodInvocationNotBelow18;
 			case "compiler.err.recursive.ctor.invocation" -> IProblem.RecursiveConstructorInvocation;
 			case "compiler.err.illegal.text.block.open" -> IProblem.Syntax;
-			case "compiler.warn.prob.found.req" -> IProblem.UncheckedAccessOfValueOfFreeTypeVariable;
+			case "compiler.warn.prob.found.req" ->
+				diagnostic.getMessage(Locale.ENGLISH).split("\n")[0].contains("cast") ?
+						IProblem.UnsafeGenericCast :
+						IProblem.UncheckedAccessOfValueOfFreeTypeVariable;
 			case "compiler.warn.restricted.type.not.allowed" -> IProblem.RestrictedTypeName;
 			case "compiler.err.override.weaker.access" -> IProblem.MethodReducesVisibility;
 			case "compiler.err.enum.constant.expected" -> IProblem.Syntax;
