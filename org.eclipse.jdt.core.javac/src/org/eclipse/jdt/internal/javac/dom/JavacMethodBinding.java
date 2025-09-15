@@ -146,7 +146,11 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		if( methodSymbol == null ) {
 			return new IAnnotationBinding[0];
 		}
-		return methodSymbol.getAnnotationMirrors().stream().map(ann -> this.resolver.bindings.getAnnotationBinding(ann, this)).toArray(IAnnotationBinding[]::new);
+		var anns = methodSymbol.getAnnotationMirrors().stream();
+		if (!this.resolver.isRecoveringBindings()) {
+			anns = anns.filter(ann -> !ann.type.isErroneous());
+		}
+		return anns.map(ann -> this.resolver.bindings.getAnnotationBinding(ann, this)).toArray(IAnnotationBinding[]::new);
 	}
 
 	@Override

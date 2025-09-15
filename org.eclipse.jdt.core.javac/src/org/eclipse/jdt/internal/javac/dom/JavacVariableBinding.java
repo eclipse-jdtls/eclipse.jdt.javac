@@ -93,9 +93,14 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 				.map(IMethodBinding::getAnnotations)
 				.orElseGet(() -> new IAnnotationBinding[0]);
 		}
-		return this.variableSymbol.getAnnotationMirrors().stream()
-				.map(am -> this.resolver.bindings.getAnnotationBinding(am, this))
-				.toArray(IAnnotationBinding[]::new);
+		if(variableSymbol == null ) {
+			return new IAnnotationBinding[0];
+		}
+		var anns = this.variableSymbol.getAnnotationMirrors().stream();
+		if (!this.resolver.isRecoveringBindings()) {
+			anns = anns.filter(ann -> !ann.type.isErroneous());
+		}
+		return anns.map(ann -> this.resolver.bindings.getAnnotationBinding(ann, this)).toArray(IAnnotationBinding[]::new);
 	}
 
 	@Override
