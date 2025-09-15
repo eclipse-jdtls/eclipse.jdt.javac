@@ -13,7 +13,11 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.javac.dom;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JavacBindingResolver.BindingKeyException;
 
@@ -91,6 +95,16 @@ public abstract class JavacTypeVariableBinding extends JavacTypeBinding {
 
 	@Override
 	public String getBinaryName() {
+		var declaringMethod = getDeclaringMethod();
+		if (declaringMethod != null) {
+			return declaringMethod.getDeclaringClass().getBinaryName()
+				+ "$("
+				+ Arrays.stream(declaringMethod.getParameterTypes()).map(ITypeBinding::getKey).collect(Collectors.joining(","))
+				+ ")"
+				+ declaringMethod.getReturnType().getKey()
+				+ "$"
+				+ getQualifiedName();
+		}
 		var declaring = getDeclaringClass();
 		return declaring != null
 			? declaring.getBinaryName() + "$" + getQualifiedName()
