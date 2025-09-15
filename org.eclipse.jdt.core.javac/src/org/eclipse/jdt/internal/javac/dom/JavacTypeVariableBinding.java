@@ -89,6 +89,14 @@ public abstract class JavacTypeVariableBinding extends JavacTypeBinding {
 		return sym.getSimpleName().toString();
 	}
 
+	@Override
+	public String getBinaryName() {
+		var declaring = getDeclaringClass();
+		return declaring != null
+			? declaring.getBinaryName() + "$" + getQualifiedName()
+			: super.getBinaryName();
+	}
+
 	/**
 	 * this is the one that's used in method params and such, not the one that's actually used as it's final resting place (RIP)
 	 * @param sym
