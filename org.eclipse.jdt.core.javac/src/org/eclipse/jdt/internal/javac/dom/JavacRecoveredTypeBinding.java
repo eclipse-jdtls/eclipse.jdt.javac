@@ -12,9 +12,12 @@ package org.eclipse.jdt.internal.javac.dom;
 
 import java.util.Objects;
 
+import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.dom.ASTNode;
-import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.IPackageBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.QualifiedName;
@@ -23,35 +26,39 @@ import org.eclipse.jdt.core.dom.SimpleType;
 
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
+import com.sun.tools.javac.code.Type.PackageType;
 
 public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 
-	private final org.eclipse.jdt.core.dom.Type domType;
+	private final ASTNode domNode;
 
-	public JavacRecoveredTypeBinding(com.sun.tools.javac.code.Type type, org.eclipse.jdt.core.dom.Type domType, JavacBindingResolver resolver) {
+	public JavacRecoveredTypeBinding(com.sun.tools.javac.code.Type type, org.eclipse.jdt.core.dom.ASTNode domName, JavacBindingResolver resolver) {
 		super(type, type.tsym, null, null, false, resolver);
-		this.domType = domType;
+		this.domNode = domName;
 	}
 
 	@Override
 	public int hashCode() {
-		return super.hashCode() ^ domType.toString().hashCode();
+		return super.hashCode() ^ this.domNode.toString().hashCode();
 	}
 	@Override
 	public boolean equals(Object obj) {
 		return obj instanceof JavacRecoveredTypeBinding recovered &&
-			Objects.equals(recovered.domType.toString(), this.domType.toString()) &&
-			Objects.equals(recovered.domType.getAST(), this.domType.getAST()) &&
+			Objects.equals(recovered.domNode.toString(), this.domNode.toString()) &&
+			Objects.equals(recovered.domNode.getAST(), this.domNode.getAST()) &&
 			super.equals(obj);
 	}
 
 	@Override
 	public JavacTypeBinding getComponentType() {
 		if (this.type instanceof ArrayType javacArrayType && javacArrayType.isErroneous()) {
-			if (getDimensions() > 1) {
-				return this.resolver.bindings.getRecoveredTypeBinding(javacArrayType.elemtype, this.domType);
-			} else if (this.domType instanceof org.eclipse.jdt.core.dom.ArrayType domArrayType) {
+			if (getDimensions() == 1 && this.domNode instanceof org.eclipse.jdt.core.dom.ArrayType domArrayType) {
 				return this.resolver.bindings.getRecoveredTypeBinding(javacArrayType.elemtype, domArrayType.getElementType());
+			}
+			if (this.domNode instanceof org.eclipse.jdt.core.dom.Type t) {
+				return this.resolver.bindings.getRecoveredTypeBinding(javacArrayType.elemtype, t);
+			} else if (this.domNode instanceof org.eclipse.jdt.core.dom.Name n) {
+				return this.resolver.bindings.getRecoveredTypeBinding(javacArrayType.elemtype, n);
 			}
 		}
 		return super.getComponentType();
@@ -63,13 +70,17 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 		if (res != null) {
 			return res;
 		}
-		if (isArray() && this.domType instanceof org.eclipse.jdt.core.dom.ArrayType domArrayType) {
+		if (isArray()) {
 			Type t = this.types.elemtype(this.type);
 			while (t instanceof Type.ArrayType) {
 				t = this.types.elemtype(t);
 			}
 			if (t == null || t.isErroneous()) {
-				return this.resolver.bindings.getRecoveredTypeBinding(t, domArrayType);
+				if (this.domNode instanceof org.eclipse.jdt.core.dom.ArrayType domArrayType) {
+					return this.resolver.bindings.getRecoveredTypeBinding(t, domArrayType.getElementType());
+				} else {
+					return this.resolver.bindings.getRecoveredTypeBinding(t, domName());
+				}
 			}
 		}
 		return res;
@@ -80,30 +91,38 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 		if (isArray()) {
 			return null;
 		}
-		if (this.type == null || this.type.isErroneous()) {
-			SimpleType base = getBaseType();
-			if (base.getName() instanceof QualifiedName qname) {
+		if (this.type == null || this.type.isErroneous() || this.type instanceof PackageType) {
+			if (domName() instanceof QualifiedName qname) {
 				return this.resolver.bindings.getPackageBinding(qname.getQualifier());
 			} else {
-				ASTNode current = this.domType;
+				ASTNode current = this.domNode;
 				while (current != null) {
-					if (current instanceof CompilationUnit unit && unit.getPackage() != null) {
-						return unit.getPackage().resolveBinding();
+					if (current instanceof AbstractTypeDeclaration typeDecl) {
+						ITypeBinding declaringTypeBinding = typeDecl.resolveBinding();
+						if (declaringTypeBinding != null) {
+							return declaringTypeBinding.getPackage();
+						}
 					}
 					current = current.getParent();
 				}
 			}
-			return null;
+			return this.resolver.bindings.getPackageBinding("");
 		}
 		return super.getPackage();
 	}
 
-	private SimpleType getBaseType() {
-		org.eclipse.jdt.core.dom.Type toConsider = this.domType;
-		while (toConsider instanceof ParameterizedType parameterized) {
-			toConsider = parameterized.getType();
+	private org.eclipse.jdt.core.dom.Name domName() {
+		ASTNode toConsider = this.domNode;
+		if (toConsider instanceof ParameterizedType parameterizedType) {
+			toConsider = parameterizedType.getType();
 		}
-		return (SimpleType)toConsider;
+		if (toConsider instanceof SimpleType type) {
+			return type.getName();
+		}
+		if (toConsider instanceof org.eclipse.jdt.core.dom.Name name) {
+			return name;
+		}
+		return null;
 	}
 
 	@Override
@@ -116,7 +135,7 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 			if (!res.isEmpty()) {
 				res.append('.');
 			}
-			var name = getBaseType().getName();
+			var name = domName();
 			String simpleName = name.isSimpleName() ?
 						((SimpleName)name).getIdentifier() :
 						((QualifiedName)name).getName().getIdentifier();
@@ -124,5 +143,19 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 			return res.toString();
 		}
 		return super.getQualifiedName();
+	}
+
+	@Override
+	public boolean isRecovered() {
+		return true;
+	}
+
+	@Override
+	public IJavaElement getJavaElement() {
+		IPackageBinding pack = getPackage();
+		if (pack != null && pack.getJavaElement() instanceof IPackageFragment pkgFragment) {
+			return pkgFragment.getCompilationUnit(getName() + ".java").getType(getName());
+		}
+		return null;
 	}
 }

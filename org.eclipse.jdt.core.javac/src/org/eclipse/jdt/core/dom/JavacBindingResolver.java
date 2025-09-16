@@ -223,12 +223,15 @@ public class JavacBindingResolver extends BindingResolver {
 			return preferentiallyInsertPackageBinding(newInstance);
 		}
 		public JavacPackageBinding getPackageBinding(Name name) {
-			String n = packageNameToString(name);
+			return getPackageBinding(packageNameToString(name));
+		}
+		public JavacPackageBinding getPackageBinding(String n) {
 			if( n == null )
 				return null;
 			JavacPackageBinding newInstance = new JavacPackageBinding(n, JavacBindingResolver.this) {};
 			return preferentiallyInsertPackageBinding(newInstance);
 		}
+
 
 		public JavacPackageBinding findExistingPackageBinding(Name name) {
 			String n = name == null ? null : name.toString();
@@ -330,6 +333,14 @@ public class JavacBindingResolver extends BindingResolver {
 			JavacTypeBinding newInstance = new JavacTypeBinding(type, type.tsym, alternatives, backupOwner, isGeneric, JavacBindingResolver.this) { };
 			typeBinding.putIfAbsent(newInstance, newInstance);
 			return typeBinding.get(newInstance);
+		}
+		public JavacTypeBinding getRecoveredTypeBinding(com.sun.tools.javac.code.Type type, Name domName) {
+			if (domName.getLocationInParent() == SimpleType.NAME_PROPERTY) {
+				return getRecoveredTypeBinding(type, (SimpleType)domName.getParent());
+			}
+			var res = new JavacRecoveredTypeBinding(type, domName, JavacBindingResolver.this);
+			typeBinding.putIfAbsent(res, res);
+			return typeBinding.get(res);
 		}
 		public JavacTypeBinding getRecoveredTypeBinding(com.sun.tools.javac.code.Type type, Type domType) {
 			var res = new JavacRecoveredTypeBinding(type, domType, JavacBindingResolver.this);
@@ -677,7 +688,7 @@ public class JavacBindingResolver extends BindingResolver {
 			if (!arrayType.type.isErroneous()) {
 				return this.bindings.getTypeBinding(arrayType.type);
 			} else if (type instanceof org.eclipse.jdt.core.dom.ArrayType domType) {
-				return this.bindings.getRecoveredTypeBinding(arrayType.type, domType);
+				return this.bindings.getRecoveredTypeBinding(arrayType.type, type);
 			}
 		}
 		if (jcTree instanceof JCWildcard wcType && wcType.type != null) {
@@ -1229,6 +1240,21 @@ public class JavacBindingResolver extends BindingResolver {
 		JCTree tree = this.converter.domToJavac.get(name);
 		if( tree != null ) {
 			var res = resolveNameToJavac(name, tree);
+			if (res instanceof JavacPackageBinding && Character.isUpperCase(name.getFullyQualifiedName().charAt(0))) {
+				if (name.getLocationInParent() == QualifiedName.NAME_PROPERTY) {
+					name = (QualifiedName)name.getParent();
+				}
+				Name possibleTypeParentName = name;
+				while (possibleTypeParentName.getLocationInParent() == QualifiedName.QUALIFIER_PROPERTY) {
+					possibleTypeParentName = (QualifiedName)possibleTypeParentName.getParent();
+				}
+				if (possibleTypeParentName != name) {
+					IBinding b = possibleTypeParentName.resolveBinding();
+					if (b == null || b.isRecovered()) {
+						return this.bindings.getRecoveredTypeBinding(tree.type, name);
+					}
+				}
+			}
 			if (res != null) {
 				return res;
 			}
