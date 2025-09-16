@@ -655,7 +655,7 @@ public class JavacBindingResolver extends BindingResolver {
 			return this.bindings.getTypeBinding(((JCNewArray)jcArrayCreation).type);
 		}
 		JCTree jcTree = this.converter.domToJavac.get(type);
-		if( !this.isRecoveringBindings ) {
+		if( !this.isRecoveringBindings && type.getLocationInParent() != org.eclipse.jdt.core.dom.ArrayType.ELEMENT_TYPE_PROPERTY) {
 			if (jcTree != null && jcTree.type instanceof ErrorType )
 				return null;
 		}
