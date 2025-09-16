@@ -40,6 +40,7 @@ import org.eclipse.jdt.internal.javac.dom.JavacMemberValuePairBinding;
 import org.eclipse.jdt.internal.javac.dom.JavacMethodBinding;
 import org.eclipse.jdt.internal.javac.dom.JavacModuleBinding;
 import org.eclipse.jdt.internal.javac.dom.JavacPackageBinding;
+import org.eclipse.jdt.internal.javac.dom.JavacRecoveredTypeBinding;
 import org.eclipse.jdt.internal.javac.dom.JavacTypeBinding;
 import org.eclipse.jdt.internal.javac.dom.JavacTypeVariableBinding;
 import org.eclipse.jdt.internal.javac.dom.JavacVariableBinding;
@@ -329,6 +330,11 @@ public class JavacBindingResolver extends BindingResolver {
 			JavacTypeBinding newInstance = new JavacTypeBinding(type, type.tsym, alternatives, backupOwner, isGeneric, JavacBindingResolver.this) { };
 			typeBinding.putIfAbsent(newInstance, newInstance);
 			return typeBinding.get(newInstance);
+		}
+		public JavacTypeBinding getRecoveredTypeBinding(com.sun.tools.javac.code.Type type, Type domType) {
+			var res = new JavacRecoveredTypeBinding(type, domType, JavacBindingResolver.this);
+			typeBinding.putIfAbsent(res, res);
+			return typeBinding.get(res);
 		}
 		//
 		private Map<JavacTypeVariableBinding, JavacTypeVariableBinding> typeVariableBindings = new HashMap<>();
@@ -668,7 +674,11 @@ public class JavacBindingResolver extends BindingResolver {
 			return this.bindings.getTypeBinding(primitive.type);
 		}
 		if (jcTree instanceof JCArrayTypeTree arrayType && arrayType.type != null) {
-			return this.bindings.getTypeBinding(arrayType.type);
+			if (!arrayType.type.isErroneous()) {
+				return this.bindings.getTypeBinding(arrayType.type);
+			} else if (type instanceof org.eclipse.jdt.core.dom.ArrayType domType) {
+				return this.bindings.getRecoveredTypeBinding(arrayType.type, domType);
+			}
 		}
 		if (jcTree instanceof JCWildcard wcType && wcType.type != null) {
 			return this.bindings.getTypeBinding(wcType.type);
