@@ -48,6 +48,7 @@ public abstract class JavacModuleBinding implements IModuleBinding {
 	final JavacBindingResolver resolver;
 	public final ModuleSymbol moduleSymbol;
 	private JCModuleDecl moduleDecl;
+	private IModuleBinding[] requiredTransitiveModules;
 
 	public JavacModuleBinding(final ModuleType moduleType, final JavacBindingResolver resolver) {
 		this((ModuleSymbol) moduleType.tsym, moduleType, resolver);
@@ -73,6 +74,17 @@ public abstract class JavacModuleBinding implements IModuleBinding {
 		List<Attribute.Compound> list = moduleSymbol.getRawAttributes();
 		return list.stream().map(x -> this.resolver.bindings.getAnnotationBinding(x, this)).toArray(JavacAnnotationBinding[]::new);
 	}
+
+	@Override
+	public IModuleBinding[] getRequiredTransitiveModules() {
+		if (this.requiredTransitiveModules != null)
+			return this.requiredTransitiveModules;
+
+		// TODO
+		IModuleBinding[] result = new IModuleBinding[0];
+		return this.requiredTransitiveModules = result;
+	}
+
 
 	@Override
 	public String getName() {
