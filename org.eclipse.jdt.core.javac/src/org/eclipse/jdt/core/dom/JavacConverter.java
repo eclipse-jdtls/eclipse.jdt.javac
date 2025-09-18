@@ -2793,6 +2793,7 @@ class JavacConverter {
 				this.domToJavac.remove(single);
 				fragment = this.ast.newVariableDeclarationFragment();
 				commonSettings(fragment, javac);
+				removeTrailingSemicolonFromRange(fragment);
 				fragment.setFlags(single.getFlags());
 				SimpleName name = (SimpleName)single.getName().clone(this.ast);
 				fragment.setName(name);
