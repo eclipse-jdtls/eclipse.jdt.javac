@@ -205,6 +205,7 @@ class JavacConverter {
 			.filter(Objects::nonNull)
 			.forEach(res.types()::add);
 		res.accept(new FixPositions());
+		res.accept(new PropagateMalormed());
 	}
 
     private PackageDeclaration convertMalformedPackageDeclaration(JCErroneous jcer) {
@@ -3668,6 +3669,32 @@ class JavacConverter {
 				.map(x -> findDocTreePath(x))
 				.toArray(size -> new DocTreePath[size]);
 		return r;
+	}
+
+	/**
+	 * As per https://bugs.eclipse.org/bugs/show_bug.cgi?id=349862#c6 , the MALFORMED flag
+	 * should be propagated up to method declaration
+	 */
+	class PropagateMalormed extends ASTVisitor {
+
+		@Override
+		public boolean visit(MethodDeclaration node) {
+			return (node.getFlags() & ASTNode.MALFORMED) == 0;
+		}
+
+		@Override
+		public void postVisit(ASTNode node) {
+			if ((node.getFlags() & ASTNode.MALFORMED) != 0) {
+				ASTNode parent = node.getParent();
+				while (parent != null) {
+					if (parent instanceof MethodDeclaration decl) {
+						decl.setFlags(decl.getFlags() | ASTNode.MALFORMED);
+						return;
+					}
+					parent = parent.getParent();
+				}
+			}
+		}
 	}
 
 
