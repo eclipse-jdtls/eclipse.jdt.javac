@@ -16,8 +16,11 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.GenericRecoveredTypeBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.QualifiedName;
@@ -33,7 +36,7 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 	private final ASTNode domNode;
 
 	public JavacRecoveredTypeBinding(com.sun.tools.javac.code.Type type, org.eclipse.jdt.core.dom.ASTNode domName, JavacBindingResolver resolver) {
-		super(type, type.tsym, null, null, false, resolver);
+		super(type, type != null ? type.tsym : null, null, null, false, resolver);
 		this.domNode = domName;
 	}
 
@@ -157,5 +160,26 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 			return pkgFragment.getCompilationUnit(getName() + ".java").getType(getName());
 		}
 		return null;
+	}
+
+	@Override
+	public boolean isParameterizedType() {
+		return this.domNode instanceof ParameterizedType;
+	}
+	@Override
+	public ITypeBinding getTypeDeclaration() {
+		if (isParameterizedType() && this.domNode instanceof org.eclipse.jdt.core.dom.Type domType) {
+			return new GenericRecoveredTypeBinding(this.resolver, domType, this);
+		}
+		return super.getTypeDeclaration();
+	}
+
+	@Override
+	public IVariableBinding[] getDeclaredFields() {
+		return new IVariableBinding[0];
+	}
+	@Override
+	public IMethodBinding[] getDeclaredMethods() {
+		return new IMethodBinding[0];
 	}
 }

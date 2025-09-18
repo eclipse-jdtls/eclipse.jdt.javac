@@ -769,48 +769,7 @@ public class JavacBindingResolver extends BindingResolver {
 		// Recovery: sometime with Javac, there is no suitable type/symbol
 		// Workaround: use a RecoveredTypeBinding
 		// Caveats: cascade to other workarounds
-		return createRecoveredTypeBinding(type);
-	}
-
-	private RecoveredTypeBinding createRecoveredTypeBinding(Type type) {
-		return new RecoveredTypeBinding(this, type) {
-			@Override
-			public ITypeBinding getTypeDeclaration() {
-				if (isParameterizedType()) {
-					return new GenericRecoveredTypeBinding(JavacBindingResolver.this, type, this);
-				}
-				return super.getTypeDeclaration();
-			}
-			@Override
-			public IPackageBinding getPackage() {
-				if (type instanceof SimpleType simpleType && simpleType.getName() instanceof SimpleName) {
-					Collection<JCTree> jctr = JavacBindingResolver.this.converter.domToJavac.values();
-					Iterator<JCTree> jcit = jctr.iterator();
-					while(jcit.hasNext()) {
-						Object o = jcit.next();
-						if( o instanceof CompilationUnit cuuu ) {
-							// Should this even be here? Migrated from prior version
-							PackageDeclaration pd = cuuu.getPackage();
-							if( pd != null ) {
-								IPackageBinding pack = pd.resolveBinding();
-								if( pack != null )
-									return pack;
-							}
-						}
-						if( o instanceof JCCompilationUnit jcuu) {
-							JCPackageDecl jcpd = jcuu.getPackage();
-							if( jcpd != null ) {
-								JavacPackageBinding pckbind = bindings.getPackageBinding(jcpd.packge);
-								if( pckbind != null ) {
-									return pckbind;
-								}
-							}
-						}
-					}
-				}
-				return bindings.getPackageBinding(Symtab.instance(context).rootPackage);
-			}
-		};
+		return this.bindings.getRecoveredTypeBinding(jcTree != null ? jcTree.type : null, type);
 	}
 
 	@Override
@@ -1599,7 +1558,6 @@ public class JavacBindingResolver extends BindingResolver {
 			// workaround Javac missing bindings in some cases
 			if (expr instanceof ClassInstanceCreation classInstanceCreation) {
 				return classInstanceCreation.getType().resolveBinding();
-//				return createRecoveredTypeBinding(classInstanceCreation.getType());
 			}
 		}
 		return null;
