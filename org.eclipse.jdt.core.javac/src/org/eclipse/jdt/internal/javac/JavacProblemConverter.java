@@ -1037,7 +1037,10 @@ public class JavacProblemConverter {
 			case "compiler.err.switch.expression.empty" -> IProblem.SwitchExpressionsYieldMissingDefaultCase;
 			case "compiler.err.switch.mixing.case.types" -> IProblem.SwitchPreviewMixedCase;
 			case "compiler.err.return.outside.switch.expression" -> IProblem.SwitchExpressionsReturnWithinSwitchExpression;
-			case "compiler.err.cant.apply.diamond.1" -> IProblem.NonGenericType;
+			case "compiler.err.cant.apply.diamond.1" ->
+				diagnostic.getMessage(Locale.ENGLISH).contains("explicit type parameters")
+					? IProblem.CannotUseDiamondWithExplicitTypeArguments
+					: IProblem.NonGenericType;
 			case "compiler.err.class.in.unnamed.module.cant.extend.sealed.in.diff.package" -> IProblem.SealedPermittedTypeOutsideOfPackage;
 			case "compiler.err.non.sealed.or.sealed.expected" -> IProblem.SealedMissingInterfaceModifier;
 			case "compiler.err.array.dimension.missing" -> IProblem.MustDefineEitherDimensionExpressionsOrInitializer;

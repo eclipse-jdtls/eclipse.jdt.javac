@@ -666,9 +666,12 @@ public class JavacBindingResolver extends BindingResolver {
 			return this.bindings.getTypeBinding(((JCNewArray)jcArrayCreation).type);
 		}
 		JCTree jcTree = this.converter.domToJavac.get(type);
-		if( !this.isRecoveringBindings && type.getLocationInParent() != org.eclipse.jdt.core.dom.ArrayType.ELEMENT_TYPE_PROPERTY) {
-			if (jcTree != null && jcTree.type instanceof ErrorType )
+		if (jcTree == null || jcTree.type instanceof ErrorType) {
+			if(!this.isRecoveringBindings &&
+				type.getLocationInParent() != org.eclipse.jdt.core.dom.ArrayType.ELEMENT_TYPE_PROPERTY &&
+				!(type instanceof ParameterizedType) /* try base type later */) {
 				return null;
+			}
 		}
 
 		if (jcTree instanceof JCIdent ident && ident.type != null) {
@@ -707,13 +710,15 @@ public class JavacBindingResolver extends BindingResolver {
 			if (res != null) {
 				return res;
 			}
-			if (jcta.getType().type instanceof ErrorType errorType) {
+			// not fully resolved, try recovering bits
+			var baseType = jcta.getType().type;
+			if (baseType instanceof ErrorType errorType) {
 				res = this.bindings.getTypeBinding(errorType.getOriginalType(), null, null, true);
 				if (res != null) {
 					return res;
 				}
 			}
-			if (jcta.getType().type != null) {
+			if (baseType != null) {
 				res = this.bindings.getTypeBinding(jcta.getType().type);
 				if (res != null) {
 					return res;
