@@ -1227,6 +1227,15 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			}
 			return true;
 		}
+
+		@Override
+		public boolean visit(MethodInvocation node) {
+			IBinding binding = node.resolveMethodBinding();
+			if (binding != null) {
+				bindingMap.putIfAbsent(binding.getKey(), binding);
+			}
+			return true;
+		}
 	}
 
 	private static Function<String, IBinding> javacAdditionalBindingCreator(Map<String, IBinding> bindingMap, INameEnvironment environment, LookupEnvironment lu, BindingResolver[] bindingResolverPointer) {

@@ -143,6 +143,10 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public IAnnotationBinding[] getAnnotations() {
+		var decl = getMethodDeclaration();
+		if (decl != null && !Objects.equals(this, decl)) {
+			return decl.getAnnotations();
+		}
 		if( methodSymbol == null ) {
 			return new IAnnotationBinding[0];
 		}
