@@ -826,7 +826,7 @@ class JavacConverter {
 			Initializer res = this.ast.newInitializer();
 			commonSettings(res, tree);
 			// Now we have the tough task of going from a flags number to actual modifiers with source ranges
-			res.modifiers().addAll(convertModifiersFromFlags(block.getStartPosition(), block.endpos, block.flags));
+			res.modifiers().addAll(convertModifiersFromFlags(block.getStartPosition(), TreeInfo.endPos(block), block.flags));
 			boolean fillBlock = shouldFillBlock(block, this.focalPoint);
 			if( fillBlock ) {
 				res.setBody(convertBlock(block));
