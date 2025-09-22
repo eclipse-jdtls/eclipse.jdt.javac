@@ -17,6 +17,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.eclipse.core.runtime.ILog;
+import org.eclipse.jdt.core.IAnnotatable;
+import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -83,6 +85,13 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 
 	@Override
 	public IJavaElement getJavaElement() {
+		IBinding recipient = getRecipient();
+		IJavaElement recipientElement = recipient == null ? null : recipient.getJavaElement();
+		if( recipientElement != null && recipientElement instanceof IAnnotatable annot) {
+			IAnnotation found = annot.getAnnotation(getName());
+			if( found != null )
+				return found;
+		}
 		return getAnnotationTypeOptional().map(ITypeBinding::getJavaElement).orElse(null);
 	}
 

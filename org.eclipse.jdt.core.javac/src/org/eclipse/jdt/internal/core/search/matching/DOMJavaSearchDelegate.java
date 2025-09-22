@@ -35,6 +35,7 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.jdt.core.IAnnotatable;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -52,6 +53,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTRequestor;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
@@ -495,16 +497,23 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 		if (node instanceof Name name) {
 			IBinding b = name.resolveBinding();
 			IJavaElement enclosing = DOMASTNodeUtils.getEnclosingJavaElement(node);
-//		if( b == null ) {
-//			// This fixes some issues but causes even more failures
-//			return new SearchMatch(enclosing, accuracy, node.getStartPosition(), node.getLength(), getParticipant(locator), resource);
-//		}
+
+			IJavaElement annotationElement = null;
+			if( name.getParent() instanceof Annotation anot) {
+				IBinding annotBinding = anot.resolveAnnotationBinding();
+				annotationElement = annotBinding.getJavaElement();
+			}
+			IJavaElement[] otherElements = findOtherElements(name);
+
 			if (b instanceof ITypeBinding btb) {
 				TypeReferenceMatch ref = new TypeReferenceMatch(enclosing, accuracy, node.getStartPosition(),
 						node.getLength(), insideDocComment(node), getParticipant(locator), resource);
 				if (btb.isRawType())
 					ref.setRaw(true);
-				ref.setLocalElement(DOMASTNodeUtils.getLocalJavaElement(node));
+				IJavaElement localEl = annotationElement != null ? annotationElement : DOMASTNodeUtils.getLocalJavaElement(node);
+				ref.setLocalElement(localEl);
+				if( otherElements != null )
+					ref.setOtherElements(otherElements);
 				return ref;
 			}
 			if (b instanceof IVariableBinding variable) {
@@ -552,6 +561,33 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 		}
 		return null;
 	}
+
+	private IJavaElement[] findOtherElements(Name name) {
+		IJavaElement[] otherElements = null;
+		if( name.getParent() instanceof Annotation anot) {
+			List frags = null;
+			if( anot.getParent() instanceof FieldDeclaration fd) {
+				frags = fd.fragments();
+			} else if( anot.getParent() instanceof VariableDeclarationStatement vds ) {
+				frags = vds.fragments();
+			}
+			if( frags != null && frags.size() > 1 ) {
+				List<IJavaElement> otherEls = new ArrayList<>();
+				for( int i = 1; i < frags.size(); i++ ) {
+					VariableDeclarationFragment frag = (VariableDeclarationFragment)frags.get(i);
+					IVariableBinding vb = frag == null ? null : frag.resolveBinding();
+					IJavaElement el = vb == null ? null : vb.getJavaElement();
+					if( el != null && el instanceof IAnnotatable anno) {
+						el = anno.getAnnotation(name.toString());
+					}
+					otherEls.add(el);
+				}
+				otherElements = otherEls.toArray(new IJavaElement[otherEls.size()]);
+			}
+		}
+		return otherElements;
+	}
+
 	public SearchParticipant getParticipant(MatchLocator locator) {
 		return locator.currentPossibleMatch.document.getParticipant();
 	}

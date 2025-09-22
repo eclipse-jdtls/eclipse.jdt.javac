@@ -1827,6 +1827,8 @@ public class JavacBindingResolver extends BindingResolver {
 			recipient = annotatable.resolveBinding();
 		} else if (annotation.getParent() instanceof FieldDeclaration fieldDeclaration) {
 			recipient = ((VariableDeclarationFragment)fieldDeclaration.fragments().get(0)).resolveBinding();
+		} else if (annotation.getParent() instanceof VariableDeclarationStatement vds) {
+			recipient = ((VariableDeclarationFragment)vds.fragments().get(0)).resolveBinding();
 		} else if (annotation.getParent() instanceof TypeDeclaration td) {
 			recipient = td.resolveBinding();
 		}
