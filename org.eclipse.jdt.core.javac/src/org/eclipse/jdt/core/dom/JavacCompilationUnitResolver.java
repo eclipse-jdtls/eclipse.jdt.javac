@@ -106,6 +106,7 @@ import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Context.Key;
 import com.sun.tools.javac.util.DiagnosticSource;
+import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
 
@@ -861,9 +862,16 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 							return true;
 						}
 					});
-					addCommentsToUnit(javadocComments, res);
-					addCommentsToUnit(converter.notAttachedComments, res);
-					attachMissingComments(res, context, rawText, converter, compilerOptions);
+					Log log = Log.instance(context);
+					var previousSource = log.currentSourceFile();
+					try {
+						log.useSource(u.sourcefile);
+						addCommentsToUnit(javadocComments, res);
+						addCommentsToUnit(converter.notAttachedComments, res);
+						attachMissingComments(res, context, rawText, converter, compilerOptions);
+					} finally {
+						log.useSource(previousSource);
+					}
 					if ((flags & ICompilationUnit.ENABLE_STATEMENTS_RECOVERY) == 0) {
 						// remove all possible RECOVERED node
 						res.accept(new ASTVisitor(false) {
