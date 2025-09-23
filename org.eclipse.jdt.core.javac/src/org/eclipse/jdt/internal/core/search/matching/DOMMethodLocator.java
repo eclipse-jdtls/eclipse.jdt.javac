@@ -785,7 +785,11 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		if (receiverType != null && receiverType.isArray()) {
 			receiverType = messageSend.getAST().resolveWellKnownType(Object.class.getName());
 		}
-		boolean isVirtuallyInvoked = isVirtualInvoke(invocationOrDeclarationBinding);
+		boolean checkQualification = true;
+		if (this.pattern.findReferences && messageSend instanceof MethodInvocation) {
+			checkQualification = false;
+		}
+		boolean isVirtuallyInvoked = isVirtualInvoke(invocationOrDeclarationBinding, checkQualification);
 		boolean excluded = receiverType == null || receiverType.isArray() || receiverType.isIntersectionType();
 		if (isVirtuallyInvoked && !excluded) {
 			return true;
@@ -821,17 +825,25 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		return retLevel;
 	}
 
-	protected boolean isVirtualInvoke(IMethodBinding method) {
+	protected boolean isVirtualInvoke(IMethodBinding method, boolean checkDeclaringQualification) {
 		// This method makes absolutely zero sense to me.
-		String t = method == null ? null :
+		String pkgName = method == null ? null :
 			method.getDeclaringClass() == null ? null :
 				method.getDeclaringClass().getPackage() == null ? null :
 					method.getDeclaringClass().getPackage().getName();
 		boolean notStatic = !Modifier.isStatic(method.getModifiers());
 		boolean notPrivate = !Modifier.isPrivate(method.getModifiers());
+		boolean pkgVisible = isPackageVisible(method);
+		boolean subType = notStatic && notPrivate;
+		if( checkDeclaringQualification ) {
+			if (subType && this.pattern.declaringQualification != null && pkgName != null) {
+				subType = CharOperation.compareWith(this.pattern.declaringQualification, pkgName.toCharArray()) == 0;
+			}
+		}
+
 		boolean nonNullFocus = this.pattern.focus != null;
-		boolean packageMatch = CharOperation.equals(this.pattern.declaringPackageName, t.toCharArray());
-		boolean r = notStatic && notPrivate	&& !(isPackageVisible(method) && nonNullFocus && !packageMatch);
+		boolean packageMatch = CharOperation.equals(this.pattern.declaringPackageName, pkgName.toCharArray());
+		boolean r = subType	&& !(pkgVisible && nonNullFocus && !packageMatch);
 		return r;
 	}
 
