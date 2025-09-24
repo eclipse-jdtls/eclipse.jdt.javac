@@ -12,6 +12,8 @@ package org.eclipse.jdt.internal.javac.dom;
 
 import java.util.Objects;
 
+import javax.lang.model.type.ExecutableType;
+
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -23,13 +25,12 @@ import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.JCNoType;
-import com.sun.tools.javac.code.Type.MethodType;
 
 public abstract class JavacErrorMethodBinding extends JavacMethodBinding {
 
 	private Symbol originatingSymbol;
 
-	public JavacErrorMethodBinding(Symbol originatingSymbol, MethodType methodType, JavacBindingResolver resolver) {
+	public JavacErrorMethodBinding(Symbol originatingSymbol, ExecutableType methodType, JavacBindingResolver resolver) {
 		super(methodType, null, null, resolver);
 		this.originatingSymbol = originatingSymbol;
 	}
@@ -48,11 +49,11 @@ public abstract class JavacErrorMethodBinding extends JavacMethodBinding {
 			JavacTypeBinding.getKey(builder, resolver.getTypes().erasure(typeSymbol.type), false, this.resolver);
 		}
 		builder.append('(');
-		for (Type param : this.methodType.getParameterTypes()) {
-			JavacTypeBinding.getKey(builder, param, false, this.resolver);
+		for (var param : this.methodType.getParameterTypes()) {
+			JavacTypeBinding.getKey(builder, (Type)param, false, this.resolver);
 		}
 		builder.append(')');
-		Type returnType = this.methodType.getReturnType();
+		Type returnType = (Type)this.methodType.getReturnType();
 		if (returnType != null && !(returnType instanceof JCNoType)) {
 			JavacTypeBinding.getKey(builder, returnType, false, this.resolver);
 		}
@@ -93,7 +94,7 @@ public abstract class JavacErrorMethodBinding extends JavacMethodBinding {
 
 	@Override
 	public IMethodBinding getMethodDeclaration() {
-		return this.resolver.bindings.getErrorMethodBinding(this.resolver.getTypes().erasure(methodType).asMethodType(), originatingSymbol.type.tsym, null);
+		return this.resolver.bindings.getErrorMethodBinding(this.resolver.getTypes().erasure((Type)methodType).asMethodType(), originatingSymbol.type.tsym, null);
 	}
 
 	@Override

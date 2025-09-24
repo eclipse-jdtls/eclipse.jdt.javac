@@ -21,6 +21,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.lang.model.type.ExecutableType;
+
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
@@ -69,7 +71,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	private static final ITypeBinding[] NO_TYPE_PARAMS = new ITypeBinding[0];
 
 	public final MethodSymbol methodSymbol;
-	final MethodType methodType;
+	final ExecutableType /* MethodType or ForAll*/ methodType;
 	// allows to better identify parameterized method
 	final Type parentType;
 	final JavacBindingResolver resolver;
@@ -87,12 +89,12 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	 * @param parentType can be null, in which case <code>methodSymbol.owner.type</code> will be used instead
 	 * @param resolver
 	 */
-	public JavacMethodBinding(MethodType methodType, MethodSymbol methodSymbol, Type parentType, JavacBindingResolver resolver) {
+	public JavacMethodBinding(ExecutableType methodType, MethodSymbol methodSymbol, Type parentType, JavacBindingResolver resolver) {
 		this(methodType, methodSymbol, parentType, resolver, false, false, null);
 	}
 
-	public JavacMethodBinding(MethodType methodType, MethodSymbol methodSymbol, Type parentType, JavacBindingResolver resolver, boolean explicitSynthetic, boolean isDeclaration, List<Type> resolvedTypeArgs) {
-		this.methodType = methodType != null ? methodType : (methodSymbol != null ? methodSymbol.type.asMethodType() : null);
+	public JavacMethodBinding(ExecutableType methodType, MethodSymbol methodSymbol, Type parentType, JavacBindingResolver resolver, boolean explicitSynthetic, boolean isDeclaration, List<Type> resolvedTypeArgs) {
+		this.methodType = methodType != null ? methodType : (methodSymbol != null ? JavacBindingResolver.asExecutable(methodSymbol.type) : null);
 		this.methodSymbol = methodSymbol;
 		this.parentType = parentType == null && methodSymbol != null && methodSymbol.owner instanceof ClassSymbol classSymbol && JavacBindingResolver.isTypeOfType(classSymbol.type) ?
 				classSymbol.type : parentType;
@@ -129,16 +131,16 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return Objects.hash(this.resolver, this.methodSymbol, this.parentType, this.explicitSynthetic, this.isDeclaration) ^ hashCode(this.methodType);
 	}
 
-	private static boolean equals(MethodType second, MethodType first) {
+	private static boolean equals(ExecutableType second, ExecutableType first) {
 		return second == first ||
-				(Objects.equals(first.argtypes, second.argtypes) &&
-				Objects.equals(first.restype, second.restype) &&
-				Objects.equals(first.thrown, second.thrown) &&
-				Objects.equals(first.recvtype, second.recvtype) &&
-				Objects.equals(first.tsym, second.tsym));
+				(Objects.equals(first.getParameterTypes(), second.getParameterTypes()) &&
+				Objects.equals(first.getReturnType(), second.getReturnType()) &&
+				Objects.equals(first.getThrownTypes(), second.getThrownTypes()) &&
+				Objects.equals(first.getReceiverType(), second.getReceiverType()) &&
+				Objects.equals(declaringType(first), declaringType(second)));
 	}
-	private static int hashCode(MethodType methodType) {
-		return Objects.hash(methodType.tsym, methodType.argtypes, methodType.restype, methodType.thrown, methodType.recvtype);
+	private static int hashCode(ExecutableType methodType) {
+		return Objects.hash(declaringType(methodType), methodType.getParameterTypes(), methodType.getReturnType(), methodType.getThrownTypes(), methodType.getReceiverType());
 	}
 
 	@Override
@@ -232,9 +234,9 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	private IMethod computeUnresolvedJavaElement() {
 		Object possibleTypeBinding = null;
 		if (this.methodSymbol == null) {
-			possibleTypeBinding = this.resolver.bindings.getBinding(this.methodType.restype.tsym, this.methodType.restype);
+			possibleTypeBinding = this.resolver.bindings.getBinding(((Type)(this.methodType.getReturnType())).tsym, (Type)this.methodType.getReturnType());
 		} else {
-			possibleTypeBinding = this.resolver.bindings.getBinding(this.methodSymbol.owner, this.methodType);
+			possibleTypeBinding = this.resolver.bindings.getBinding(this.methodSymbol.owner, (Type)this.methodType);
 		}
 		if (possibleTypeBinding instanceof ITypeBinding typeBinding) {
 			if (typeBinding != null && typeBinding.getJavaElement() instanceof IType currentType) {
@@ -255,7 +257,8 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 								Signature.createTypeSignature(resolveTypeName(t, true), true))
 						.toArray(String[]::new);
 				} else {
-					parametersResolved = this.methodType.argtypes.stream()
+					parametersResolved = this.methodType.getParameterTypes().stream()
+							.map(Type.class::cast)
 							.map(t ->
 								t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
 									Signature.createTypeSignature(resolveTypeName(t, true), true))
@@ -431,11 +434,11 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		}
 	}
 
-	static void getKey(StringBuilder builder, MethodSymbol methodSymbol, MethodType methodType, Type parentType, JavacBindingResolver resolver) throws BindingKeyException {
+	static void getKey(StringBuilder builder, MethodSymbol methodSymbol, ExecutableType methodType, Type parentType, JavacBindingResolver resolver) throws BindingKeyException {
 		getKey(builder, methodSymbol, methodType, parentType, false, resolver);
 	}
 
-	static void getKey(StringBuilder builder, MethodSymbol methodSymbol, MethodType methodType, Type parentType, boolean useSlashes, JavacBindingResolver resolver) throws BindingKeyException {
+	static void getKey(StringBuilder builder, MethodSymbol methodSymbol, ExecutableType methodType, Type parentType, boolean useSlashes, JavacBindingResolver resolver) throws BindingKeyException {
 
 		if (parentType != null) {
 			JavacTypeBinding parentBinding = resolver.bindings.getTypeBinding(parentType);
@@ -462,10 +465,10 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			builder.append(methodSymbol.getSimpleName());
 		}
 		if (methodSymbolNonNullType) { // initializer
-			if (methodType != null && !methodType.getTypeArguments().isEmpty()) {
+			if (methodType != null && !methodType.getTypeVariables().isEmpty()) {
 				builder.append('<');
-				for (var typeParam : methodType.getTypeArguments()) {
-					JavacTypeBinding.getKey(builder, typeParam, false, true, useSlashes, resolver);
+				for (var typeParam : methodType.getTypeVariables()) {
+					JavacTypeBinding.getKey(builder, (Type)typeParam, false, true, useSlashes, resolver);
 				}
 				builder.append('>');
 			} else if (!methodSymbol.getTypeParameters().isEmpty()) {
@@ -478,7 +481,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			builder.append('(');
 			if (methodType != null) {
 				for (var param : methodType.getParameterTypes()) {
-					JavacTypeBinding.getKey(builder, param, false, true, true, resolver);
+					JavacTypeBinding.getKey(builder, (Type)param, false, true, true, resolver);
 				}
 			} else {
 				for (var param : methodSymbol.getParameters()) {
@@ -487,12 +490,13 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			}
 			builder.append(')');
 			if (methodType != null && !(methodType.getReturnType() instanceof JCNoType)) {
-				JavacTypeBinding.getKey(builder, methodType.getReturnType(), false, true, true, resolver);
+				JavacTypeBinding.getKey(builder, (Type)methodType.getReturnType(), false, true, true, resolver);
 			} else if (!(methodSymbol.getReturnType() instanceof JCNoType)) {
 				JavacTypeBinding.getKey(builder, methodSymbol.getReturnType(), false, true, true, resolver);
 			}
 			if (methodType != null) {
 				methodType.getThrownTypes().stream()
+					.map(Type.class::cast)
 					.map(resolver.bindings::getTypeBinding)
 					.map(JavacTypeBinding::getKey)
 					.map(k -> "|" + k)  // key wants "|", signature wants "^"
@@ -571,9 +575,9 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public ITypeBinding[] getParameterTypes() {
-		ITypeBinding[] res = new ITypeBinding[this.methodType.getParameterTypes().length()];
+		ITypeBinding[] res = new ITypeBinding[this.methodType.getParameterTypes().size()];
 		for (int i = 0; i < res.length; i++) {
-			Type paramType = methodType.getParameterTypes().get(i);
+			Type paramType = (Type)methodType.getParameterTypes().get(i);
 			ITypeBinding paramBinding = this.resolver.bindings.getTypeBinding(paramType);
 			if (paramBinding == null) {
 				// workaround javac missing recovery symbols for unresolved parameterized types
@@ -598,17 +602,18 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public ITypeBinding getDeclaredReceiverType() {
-		return this.resolver.bindings.getTypeBinding(this.methodType.getReceiverType());
+		return this.resolver.bindings.getTypeBinding((Type)this.methodType.getReceiverType());
 	}
 
 	@Override
 	public ITypeBinding getReturnType() {
-		return this.resolver.bindings.getTypeBinding(this.methodType.getReturnType(), null, this.methodSymbol, false);
+		return this.resolver.bindings.getTypeBinding((Type)this.methodType.getReturnType(), null, this.methodSymbol, false);
 	}
 
 	@Override
 	public ITypeBinding[] getExceptionTypes() {
 		return this.methodType.getThrownTypes().stream() //
+				.map(Type.class::cast)
 				.map(this.resolver.bindings::getTypeBinding) //
 				.toArray(ITypeBinding[]::new);
 	}
@@ -722,12 +727,12 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		if( this.methodSymbol != null ) {
 			methodSymbolType = this.methodSymbol.type;
 		} else {
-			methodSymbolType = methodType;
+			methodSymbolType = (Type)methodType;
 		}
 
 		// scrape the parameters
 		List<Type> paramTypes = methodSymbolType.getParameterTypes();
-		List<Type> methodTypeParamTypes = methodType.getParameterTypes();
+		List<Type> methodTypeParamTypes = (List<Type>) methodType.getParameterTypes();
 		for (int i = 0; i < paramTypes.size() && i < methodTypeParamTypes.size(); i++) {
 			ListBuffer<Type> originalTypes = new ListBuffer<>();
 			ListBuffer<Type> substitutedTypes = new ListBuffer<>();
@@ -744,7 +749,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			// also scrape the return type
 			ListBuffer<Type> originalTypes = new ListBuffer<>();
 			ListBuffer<Type> substitutedTypes = new ListBuffer<>();
-			this.resolver.getTypes().adapt(methodSymbolType.getReturnType(), methodType.getReturnType(), originalTypes, substitutedTypes);
+			this.resolver.getTypes().adapt(methodSymbolType.getReturnType(), (Type)methodType.getReturnType(), originalTypes, substitutedTypes);
 			List<Type> originalTypesList = originalTypes.toList();
 			List<Type> substitutedTypesList = substitutedTypes.toList();
 			for (int j = 0; j < originalTypesList.size(); j++) {
@@ -781,14 +786,14 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		// This method intentionally converts the type to its generic type,
 		// i.e. drops the type arguments
 		// i.e. <code>this.<String>getValue(12);</code> will be converted back to <code><T> T getValue(int i) {</code>
-		MethodType mt = (this.methodSymbol == null ? this.methodType : this.methodSymbol.baseSymbol().type.asMethodType());
+		ExecutableType mt = (this.methodSymbol == null ? this.methodType : (ExecutableType)this.methodSymbol.baseSymbol().type);
 		return this.resolver.bindings.getMethodBinding(mt, methodSymbol != null && methodSymbol.baseSymbol() instanceof MethodSymbol base ? base : methodSymbol, null, true, null);
 	}
 
 	@Override
 	public boolean isSubsignature(IMethodBinding otherMethod) {
 		if (otherMethod instanceof JavacMethodBinding otherJavacMethod) {
-			return resolver.getTypes().isSubSignature(this.methodType, otherJavacMethod.methodType);
+			return resolver.getTypes().isSubSignature((Type)this.methodType, (Type)otherJavacMethod.methodType);
 		}
 		return false;
 	}
@@ -890,4 +895,24 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return res;
 	}
 
+	private TypeSymbol declaringType() {
+		var declaring = declaringType(this.methodType);
+		if (declaring != null) {
+			return declaring;
+		}
+		if (this.methodSymbol != null && this.methodSymbol.owner instanceof TypeSymbol tsym) {
+			return tsym;
+		}
+		return null;
+	}
+
+	private static TypeSymbol declaringType(ExecutableType exec) {
+		if (exec instanceof MethodType method) {
+			return method.tsym;
+		}
+		if (exec instanceof ForAll forAll) {
+			return forAll.tsym;
+		}
+		return null;
+	}
 }
