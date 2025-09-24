@@ -1011,7 +1011,12 @@ public class DOMMethodLocator extends DOMPatternLocator {
 	 * matches a type in the declaring type names hierarchy.
 	 */
 	private boolean resolveLevelAsSuperInvocation(ITypeBinding type, ITypeBinding[] argumentTypes, char[][][] superTypeNames, boolean methodAlreadyVerified) {
-		char[][] compoundName = Arrays.stream(type.getQualifiedName().split("\\.")).map(String::toCharArray).toArray(char[][]::new);
+		String qn = type.getQualifiedName();
+		int firstTypeParam = qn.indexOf('<');
+		if( firstTypeParam != -1 ) {
+			qn = qn.substring(0, firstTypeParam);
+		}
+		char[][] compoundName = Arrays.stream(qn.split("\\.")).map(String::toCharArray).toArray(char[][]::new);
 		for (char[][] superTypeName : superTypeNames) {
 			if (CharOperation.equals(superTypeName, compoundName)) {
 				// need to verify if the type implements the pattern method
