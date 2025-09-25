@@ -1421,8 +1421,12 @@ public class JavacBindingResolver extends BindingResolver {
 	IVariableBinding resolveVariable(VariableDeclaration variable) {
 		resolve();
 		if (this.converter.domToJavac.get(variable) instanceof JCVariableDecl decl) {
+			com.sun.tools.javac.code.Type t1 = decl.type;
+			if( t1 == null && decl.vartype != null ) {
+				t1 = decl.vartype.type;
+			}
 			// the decl.type can be null when there are syntax errors
-			if ((decl.type != null && !decl.type.isErroneous()) || this.isRecoveringBindings()) {
+			if ((t1 != null && !t1.isErroneous()) || this.isRecoveringBindings()) {
 				if (decl.name != Names.instance(this.context).error) { // cannot recover if name is error
 					return this.bindings.getVariableBinding(decl.sym);
 				}

@@ -83,6 +83,7 @@ public class JavacUtils {
 				ILog.get().error(ex.getMessage(), ex);
 			}
 		}
+
 		var addExports = Arrays.stream(classpath) //
 				.filter(entry -> entry.getEntryKind() == IClasspathEntry.CPE_CONTAINER) //
 				.map(IClasspathEntry::getExtraAttributes)

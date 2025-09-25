@@ -21,11 +21,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,26 +41,31 @@ import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IProduct;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
+import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
 import org.eclipse.jdt.internal.compiler.batch.FileSystem.Classpath;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
 import org.eclipse.jdt.internal.compiler.env.IBinaryType;
+import org.eclipse.jdt.internal.compiler.env.IDependent;
 import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
 import org.eclipse.jdt.internal.compiler.env.ISourceType;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
@@ -707,51 +714,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				.filter(name -> !name.contains("test") && !name.contains("junit"))
 				 // continue as far as possible to get extra warnings about unused
 				.ifPresent(_ ->javacOptions.put("should-stop.ifError", CompileState.GENERATE.toString()));
-		var fileManager = (JavacFileManager)context.get(JavaFileManager.class);
+		JavacFileManager fileManager = (JavacFileManager)context.get(JavaFileManager.class);
 		List<JavaFileObject> fileObjects = new ArrayList<>(); // we need an ordered list of them
-		for (var sourceUnit : sourceUnits) {
-			File unitFile;
-			if (javaProject != null && javaProject.getResource() != null) {
-				// path is relative to the workspace, make it absolute
-				IResource asResource = javaProject.getProject().getParent().findMember(new String(sourceUnit.getFileName()));
-				if (asResource != null) {
-					unitFile = asResource.getLocation().toFile();
-				} else {
-					unitFile = new File(new String(sourceUnit.getFileName()));
-				}
-			} else {
-				unitFile = new File(new String(sourceUnit.getFileName()));
-			}
-			Path sourceUnitPath = null;
-			boolean storeAsClassFromJar = false;
-			if (!unitFile.getName().endsWith(".java") || sourceUnit.getFileName() == null || sourceUnit.getFileName().length == 0) {
-				String uri1 = unitFile.toURI().toString().replaceAll("%7C", "/");
-				if( uri1.endsWith(".class")) {
-					String[] split= uri1.split("/");
-					String lastSegment = split[split.length-1].replace(".class", ".java");
-					sourceUnitPath = Path.of(lastSegment);
-				}
-				if( sourceUnitPath == null ) {
-					storeAsClassFromJar = true;
-					if (sourceUnit instanceof ICompilationUnit modelUnit) {
-						sourceUnitPath = Path.of(new File(System.identityHashCode(sourceUnit) + "/" + modelUnit.getElementName()).toURI());
-					} else {
-						// This can cause trouble in case the name of the file is important
-						// eg module-info.java.
-						sourceUnitPath = Path.of(new File(System.identityHashCode(sourceUnit) + "/" + MOCK_NAME_FOR_CLASSES).toURI());
-					}
-				}
-			} else if (unitFile.getName().endsWith(".jar")) {
-				sourceUnitPath = Path.of(unitFile.toURI()).resolve(System.identityHashCode(sourceUnit) + "/" + MOCK_NAME_FOR_CLASSES);
-				storeAsClassFromJar = true;
-			} else {
-				sourceUnitPath = Path.of(unitFile.toURI());
-			}
-			storeAsClassFromJar |= unitFile.getName().endsWith(".jar");
-			var fileObject = fileManager.getJavaFileObject(sourceUnitPath);
-			if (storeAsClassFromJar) {
-				fileObjectsToJars.put(fileObject, unitFile);
-			}
+		for (org.eclipse.jdt.internal.compiler.env.ICompilationUnit sourceUnit : sourceUnits) {
+			char[] sourceUnitFileName = sourceUnit.getFileName();
+			JavaFileObject fileObject = cuToFileObject(javaProject, sourceUnitFileName, sourceUnit, fileManager, fileObjectsToJars);
 			fileManager.cache(fileObject, CharBuffer.wrap(sourceUnit.getContents()));
 			AST ast = createAST(compilerOptions, apiLevel, context, flags);
 			CompilationUnit res = ast.newCompilationUnit();
@@ -769,7 +736,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		options = replaceSafeSystemOption(options);
-
+		addSourcesWithMultipleTopLevelClasses(sourceUnits, fileObjects, javaProject, fileManager);
 		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
 		{
 			// don't know yet a better way to ensure those necessary flags get configured
@@ -821,6 +788,16 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						return null;
 					}
 					CompilationUnit res = filesToUnits.get(u.getSourceFile());
+					if( res == null ) {
+						/*
+						 * There are some files we were not asked to compile,
+						 * but we added them to the javac task because they
+						 * have multiple top-level types which would otherwise be
+						 * not able to be located. Without this, we would have incomplete
+						 * JCTree items or missing / error types.
+						 */
+						continue;
+					}
 					AST ast = res.ast;
 					JavacConverter converter = new JavacConverter(ast, u, context, rawText, docEnabled, focalPoint);
 					converter.populateCompilationUnit(res, u);
@@ -933,6 +910,166 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		return result;
+	}
+
+	private static JavaFileObject cuToFileObject(
+			IJavaProject javaProject,
+			char[] sourceUnitFileName,
+			Object sourceUnit,
+			JavacFileManager fileManager, Map<JavaFileObject, File> fileObjectsToJars) {
+		File unitFile;
+		if (javaProject != null && javaProject.getResource() != null) {
+			// path is relative to the workspace, make it absolute
+			IResource asResource = javaProject.getProject().getParent().findMember(new String(sourceUnitFileName));
+			if (asResource != null) {
+				unitFile = asResource.getLocation().toFile();
+			} else {
+				unitFile = new File(new String(sourceUnitFileName));
+			}
+		} else {
+			unitFile = new File(new String(sourceUnitFileName));
+		}
+		JavaFileObject fileObject = fileToJavaFileObject(unitFile, sourceUnitFileName, sourceUnit, fileManager, fileObjectsToJars);
+		return fileObject;
+	}
+
+	private static JavaFileObject fileToJavaFileObject(File unitFile,
+			char[] sourceUnitFileName,
+			Object sourceUnit,
+			JavacFileManager fileManager,
+			Map<JavaFileObject, File> fileObjectsToJars) {
+
+		Path sourceUnitPath = null;
+		boolean storeAsClassFromJar = false;
+		if (!unitFile.getName().endsWith(".java") || sourceUnitFileName == null || sourceUnitFileName.length == 0) {
+			String uri1 = unitFile.toURI().toString().replaceAll("%7C", "/");
+			if( uri1.endsWith(".class")) {
+				String[] split= uri1.split("/");
+				String lastSegment = split[split.length-1].replace(".class", ".java");
+				sourceUnitPath = Path.of(lastSegment);
+			}
+			if( sourceUnitPath == null ) {
+				storeAsClassFromJar = true;
+				if (sourceUnit instanceof ICompilationUnit modelUnit) {
+					sourceUnitPath = Path.of(new File(System.identityHashCode(sourceUnit) + "/" + modelUnit.getElementName()).toURI());
+				} else {
+					// This can cause trouble in case the name of the file is important
+					// eg module-info.java.
+					sourceUnitPath = Path.of(new File(System.identityHashCode(sourceUnit) + "/" + MOCK_NAME_FOR_CLASSES).toURI());
+				}
+			}
+		} else if (unitFile.getName().endsWith(".jar")) {
+			sourceUnitPath = Path.of(unitFile.toURI()).resolve(System.identityHashCode(sourceUnit) + "/" + MOCK_NAME_FOR_CLASSES);
+			storeAsClassFromJar = true;
+		} else {
+			sourceUnitPath = Path.of(unitFile.toURI());
+		}
+		storeAsClassFromJar |= unitFile.getName().endsWith(".jar");
+		JavaFileObject fileObject = fileManager.getJavaFileObject(sourceUnitPath);
+		if (storeAsClassFromJar && fileObjectsToJars != null) {
+			fileObjectsToJars.put(fileObject, unitFile);
+		}
+		return fileObject;
+	}
+
+
+
+	public static void addSourcesWithMultipleTopLevelClasses(
+			org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] src,
+			java.util.List<JavaFileObject> sourceFiles, IJavaProject javaProject,
+			JavacFileManager fileManager) {
+		if( javaProject == null )
+			return;
+
+		List<IJavaProject> javaProjects = Stream.of(src)
+				.map(x -> javaProject.getProject().getParent().findMember(new String(x.getFileName())))
+				.filter(x -> x != null)
+				.map(x -> x.getProject())
+				.filter(x -> x != null)
+				.filter(JavaProject::hasJavaNature)
+				.map(JavaCore::create).toList();
+		List<String> packages = Stream.of(src)
+				.map(x -> x.getPackageName())
+				.filter(x -> x != null)
+				.map(x -> CharOperation.toString(x))
+				.toList();
+
+		Set<IJavaProject> javaProjectsUnique = new HashSet<IJavaProject>(javaProjects);
+		for( IJavaProject jp1 : javaProjectsUnique ) {
+			boolean hasBuildState = jp1.hasBuildState();
+			if( !hasBuildState ) {
+				try {
+					List<ICompilationUnit> dualTypes = listCompilationUnitsWithMultipleTopLevelClasses(jp1, packages);
+					for(ICompilationUnit u : dualTypes) {
+						if(u instanceof IDependent ud) {
+							JavaFileObject jfo = cuToFileObject(javaProject, ud.getFileName(), u, fileManager, null);
+							if( jfo != null ) {
+								sourceFiles.add(jfo);
+							}
+						}
+					}
+				} catch(JavaModelException jme) {
+					// TODO
+					jme.printStackTrace();
+				}
+			}
+		}
+	}
+
+	private static ArrayList<IProject> listCompilationUnitsWithMultipleTopLevelClasses_locks = new ArrayList<>();
+	private static synchronized void listCompilationUnitsWithMultipleTopLevelClasses_addLock(IProject p) {
+		listCompilationUnitsWithMultipleTopLevelClasses_locks.add(p);
+	}
+	private static synchronized void listCompilationUnitsWithMultipleTopLevelClasses_removeLock(IProject p) {
+		listCompilationUnitsWithMultipleTopLevelClasses_locks.remove(p);
+	}
+	private static synchronized boolean listCompilationUnitsWithMultipleTopLevelClasses_isLocked(IProject p) {
+		return listCompilationUnitsWithMultipleTopLevelClasses_locks.contains(p);
+	}
+
+	private static List<ICompilationUnit> listCompilationUnitsWithMultipleTopLevelClasses(IJavaProject javaProject, List<String> packages) throws JavaModelException {
+		if( listCompilationUnitsWithMultipleTopLevelClasses_isLocked(javaProject.getProject())) {
+			return new ArrayList<>();
+		}
+
+		listCompilationUnitsWithMultipleTopLevelClasses_addLock(javaProject.getProject());
+		try {
+			return listCompilationUnitsWithMultipleTopLevelClasses_impl(javaProject, packages);
+		} finally {
+			listCompilationUnitsWithMultipleTopLevelClasses_removeLock(javaProject.getProject());
+		}
+	}
+
+	private static List<ICompilationUnit> listCompilationUnitsWithMultipleTopLevelClasses_impl(IJavaProject javaProject, List<String> packages) throws JavaModelException {
+		ArrayList<org.eclipse.jdt.core.ICompilationUnit> allUnits = new ArrayList<>();
+	    for (IPackageFragmentRoot root : javaProject.getPackageFragmentRoots()) {
+	        if (root.getKind() == IPackageFragmentRoot.K_SOURCE) {
+	            for (IJavaElement child : root.getChildren()) {
+	                if (child instanceof IPackageFragment) {
+	                    IPackageFragment pkg = (IPackageFragment) child;
+	                    if( packages != null && packages.contains(pkg.getElementName())) {
+		                    for (org.eclipse.jdt.core.ICompilationUnit unit : pkg.getCompilationUnits()) {
+	                    		allUnits.add(unit);
+		                    	try {
+			                    	unit.getChildren();
+		                    	} catch(JavaModelException t) {
+		                    		// ignore
+		                    	}
+		                    }
+	                    }
+	                }
+	            }
+	        }
+	    }
+
+		List<org.eclipse.jdt.core.ICompilationUnit> ret = new ArrayList<>();
+		for( org.eclipse.jdt.core.ICompilationUnit unit : allUnits ) {
+        	IType[] types = unit.getTypes();
+        	if( types != null && types.length > 1 ) {
+        		ret.add(unit);
+        	}
+		}
+	    return ret;
 	}
 
 	private List<String> replaceSafeSystemOption(List<String> options) {
