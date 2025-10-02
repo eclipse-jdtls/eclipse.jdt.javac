@@ -50,6 +50,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.SourceRange;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTRequestor;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -67,6 +68,8 @@ import org.eclipse.jdt.core.dom.IModuleBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.JavacBindingResolver;
+import org.eclipse.jdt.core.dom.JdtCoreDomPackagePrivateUtility;
 import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -426,6 +429,13 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			int len = enumConstantDeclaration.getLength();
 			if (enumConstantDeclaration.getAnonymousClassDeclaration() != null) {
 				len = enumConstantDeclaration.getAnonymousClassDeclaration().getStartPosition() - start;
+				String cuRawTextOrNull = findRawTextForNodesCompilationUnit(node);
+				if( cuRawTextOrNull != null && cuRawTextOrNull.length() > (start + len)) {
+					String substr = cuRawTextOrNull.substring(start, start + len);
+					String trimTrail = substr.stripTrailing();
+					int overage = substr.length() - trimTrail.length();
+					len -= overage;
+				}
 			}
 			return new FieldDeclarationMatch(DOMASTNodeUtils.getDeclaringJavaElement(node), accuracy, start, len,
 					getParticipant(locator), resource);
@@ -561,6 +571,14 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			|| node.getLocationInParent() == QualifiedName.NAME_PROPERTY) {
 			// more...?
 			return toMatch(locator, node.getParent(), accuracy, possibleMatch);
+		}
+		return null;
+	}
+
+	private String findRawTextForNodesCompilationUnit(ASTNode node) {
+		JavacBindingResolver resolver = JdtCoreDomPackagePrivateUtility.getJavacBindingResolverOrNull(node);
+		if( resolver != null ) {
+			return resolver.getConverterRawText();
 		}
 		return null;
 	}

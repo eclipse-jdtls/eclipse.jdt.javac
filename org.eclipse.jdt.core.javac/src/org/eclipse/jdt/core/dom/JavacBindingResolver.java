@@ -2208,6 +2208,10 @@ public class JavacBindingResolver extends BindingResolver {
 		return isRecoveringBindings;
 	}
 
+	public String getConverterRawText() {
+		return converter == null ? null : converter.rawText;
+	}
+
 	public static ExecutableType asExecutable(com.sun.tools.javac.code.Type t) {
 		return t instanceof ExecutableType exec ? exec : t.asMethodType();
 	}
