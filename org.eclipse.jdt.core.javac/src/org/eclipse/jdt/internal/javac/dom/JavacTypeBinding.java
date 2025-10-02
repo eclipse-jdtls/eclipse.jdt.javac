@@ -183,7 +183,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public boolean isDeprecated() {
-		return this.typeSymbol.isDeprecated();
+		return this.typeSymbol != null && this.typeSymbol.isDeprecated();
 	}
 
 	@Override
