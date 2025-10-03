@@ -24,8 +24,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.stream.StreamSupport;
 
 import javax.lang.model.element.ElementKind;
@@ -34,16 +34,11 @@ import javax.tools.JavaFileObject;
 import org.eclipse.core.runtime.ILog;
 
 import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.SymbolMetadata;
-import com.sun.tools.javac.code.Symtab;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.TypeTag;
-import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.code.Attribute.Array;
 import com.sun.tools.javac.code.Attribute.Compound;
 import com.sun.tools.javac.code.Attribute.Constant;
 import com.sun.tools.javac.code.Scope.WriteableScope;
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
@@ -52,9 +47,14 @@ import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
+import com.sun.tools.javac.code.SymbolMetadata;
+import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.TypeVar;
+import com.sun.tools.javac.code.TypeTag;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.comp.Annotate;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
@@ -714,7 +714,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 	}
 
 	String typeToSig(Type type) {
-		if (type == Type.noType) {
+		if (type == Type.noType || type.getTag() == TypeTag.ERROR) {
 			return null;
 		}
 		StringBuilder res = new StringBuilder();
