@@ -894,6 +894,7 @@ public class JavacProblemConverter {
 			case "compiler.err.record.cannot.declare.instance.fields" -> IProblem.RecordNonStaticFieldDeclarationInRecord;
 			case "compiler.err.else.without.if" -> IProblem.Syntax;
 			case "compiler.err.implicit.class.should.not.have.package.declaration" -> IProblem.Syntax;
+			case "compiler.err.cant.ref.non.effectively.final.var" -> IProblem.LocalMustBeEffectivelyFinal;
 			// next are javadoc; defaulting to JavadocUnexpectedText when no better problem could be found
 			case "compiler.err.dc.bad.entity" -> IProblem.JavadocUnexpectedText;
 			case "compiler.err.dc.bad.inline.tag" -> IProblem.JavadocUnexpectedText;
