@@ -143,6 +143,9 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 				res.append('.');
 			}
 			var name = domName();
+			if (name == null) {
+				return "";
+			}
 			String simpleName = name.isSimpleName() ?
 						((SimpleName)name).getIdentifier() :
 						((QualifiedName)name).getName().getIdentifier();
