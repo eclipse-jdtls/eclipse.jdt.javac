@@ -1683,7 +1683,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public boolean isTypeVariable() {
-		return this.type instanceof TypeVar;
+		return !isCapture() && this.type instanceof TypeVar;
 	}
 
 	@Override
@@ -1752,10 +1752,6 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					.map(ann -> ann + " ")
 					.collect(Collectors.joining())
 				+ getQualifiedName();
-	}
-
-	private boolean isClassFromJar(String name) {
-		return this.resolver.context.get(JavacCompilationUnitResolver.FILE_OBJECTS_TO_JAR_KEY).containsValue(new File(name));
 	}
 
 }

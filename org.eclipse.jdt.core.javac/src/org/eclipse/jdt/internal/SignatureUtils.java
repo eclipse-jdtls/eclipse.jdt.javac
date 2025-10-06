@@ -114,10 +114,21 @@ public class SignatureUtils {
 	 * @return the signature of the given type binding
 	 */
 	public static String getSignature(ITypeBinding typeBinding) {
+		if (typeBinding == null) {
+			return "";
+		}
 		if (typeBinding.isArray()) {
 			return Signature.createArraySignature(getSignature(typeBinding.getComponentType()), 1);
 		}
 		if (typeBinding.isWildcardType()) {
+		  var upper = typeBinding.getTypeBounds();
+		  if (upper != null && upper.length > 0) {
+		    return Signature.C_EXTENDS + Stream.of(upper).map(SignatureUtils::getSignature).collect(Collectors.joining());
+		  }
+		  var lower = typeBinding.getWildcard();
+		  if (lower != null) {
+		    return Signature.C_SUPER + SignatureUtils.getSignature(lower);
+		  }
 			// TODO if typeBinding.getBounds(): C_EXTENDS, C_SUPER
 			return Character.toString(Signature.C_STAR);
 		}
@@ -145,6 +156,11 @@ public class SignatureUtils {
 				+ Stream.of(typeBinding.getTypeParameters()).map(SignatureUtils::getSignature).collect(Collectors.joining())
 				+ Signature.C_GENERIC_END
 				+ Signature.C_NAME_END;
+		}
+		if (typeBinding.isCapture()) {
+			return Signature.C_CAPTURE
+				+ Stream.of(typeBinding.getTypeBounds()).map(SignatureUtils::getSignature).collect(Collectors.joining())
+				+ SignatureUtils.getSignature(typeBinding.getWildcard());
 		}
 		return SignatureUtils.getSignatureForTypeKey(typeBinding.getKey());
 	}

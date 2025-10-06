@@ -227,16 +227,18 @@ public class RegressionTests {
 			var modelMethod = (IMethod)domMethod.getJavaElement();
 			String signature = modelMethod.getSignature();
 			assertEquals(1, Signature.getParameterCount(signature));
-			Object[] mapProposal = new Object[] { null };
+			CompletionProposal[] mapProposal = new CompletionProposal[] { null };
 			unit.codeComplete(index + 1, new org.eclipse.jdt.core.CompletionRequestor() {
 				@Override
 				public void accept(CompletionProposal proposal) {
-					if (proposal.getCompletion() != null && new String(proposal.getCompletion()).equals("map")) {
+					if (proposal.getCompletion() != null && Set.of("map" /* DOM first */, "map()" /* Legacy */).contains(new String(proposal.getCompletion()))) {
 						mapProposal[0] = proposal;
 					}
 				}
 			});
 			assertNotNull(mapProposal[0]);
+			// ensure next line doesn't cause exception
+			Signature.toCharArray(mapProposal[0].getDeclarationSignature());
 		}
 	}
 
