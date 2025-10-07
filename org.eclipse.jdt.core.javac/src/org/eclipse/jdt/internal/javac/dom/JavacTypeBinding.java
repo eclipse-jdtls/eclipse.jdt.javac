@@ -1438,7 +1438,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					return new ITypeBinding[0];
 				}
 			}
-			Type bounds = typeVar.getUpperBound();
+			Type bounds = typeVar.isSuperBound() ? typeVar.getLowerBound() : typeVar.getUpperBound();
 			if (bounds instanceof IntersectionClassType intersectionType) {
 				return intersectionType.getBounds().stream() //
 						.filter(Type.class::isInstance) //
@@ -1450,10 +1450,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		} else if (this.type instanceof WildcardType wildcardType) {
 			boolean isUnbound = wildcardType.isUnbound();
 			boolean isSuperBound = wildcardType.isSuperBound();
-			if (wildcardType.type instanceof Type.TypeVar typeVar) {
-				return this.resolver.bindings.getTypeVariableBinding(typeVar, this.typeSymbol).getTypeBounds();
-			}
-			return new ITypeBinding[] { isUnbound || isSuperBound ?
+			return new ITypeBinding[] { isUnbound ?
 					this.resolver.resolveWellKnownType(Object.class.getName()) :
 					this.resolver.bindings.getTypeBinding(wildcardType.type) };
 		}
@@ -1688,7 +1685,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public boolean isUpperbound() {
-		return this.type.isExtendsBound();
+		return this.type != null && this.type.isExtendsBound();
 	}
 
 	@Override

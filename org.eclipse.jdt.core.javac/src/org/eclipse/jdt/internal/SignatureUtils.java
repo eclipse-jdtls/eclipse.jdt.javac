@@ -121,16 +121,12 @@ public class SignatureUtils {
 			return Signature.createArraySignature(getSignature(typeBinding.getComponentType()), 1);
 		}
 		if (typeBinding.isWildcardType()) {
-		  var upper = typeBinding.getTypeBounds();
-		  if (upper != null && upper.length > 0) {
-		    return Signature.C_EXTENDS + Stream.of(upper).map(SignatureUtils::getSignature).collect(Collectors.joining());
-		  }
-		  var lower = typeBinding.getWildcard();
-		  if (lower != null && lower != typeBinding) {
-		    return Signature.C_SUPER + SignatureUtils.getSignature(lower);
-		  }
-			// TODO if typeBinding.getBounds(): C_EXTENDS, C_SUPER
-			return Character.toString(Signature.C_STAR);
+			var bounds = typeBinding.getTypeBounds();
+			if (bounds.length == 0) {
+				return Character.toString(Signature.C_STAR);
+			}
+			return (typeBinding.isUpperbound() ? Signature.C_EXTENDS : Signature.C_SUPER)
+				+ Stream.of(bounds).map(SignatureUtils::getSignature).collect(Collectors.joining());
 		}
 		ITypeBinding[] typeBounds = typeBinding.getTypeBounds();
 		if (typeBinding.isTypeVariable() || typeBinding.isWildcardType()) {
