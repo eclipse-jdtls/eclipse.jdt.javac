@@ -126,7 +126,7 @@ public class SignatureUtils {
 		    return Signature.C_EXTENDS + Stream.of(upper).map(SignatureUtils::getSignature).collect(Collectors.joining());
 		  }
 		  var lower = typeBinding.getWildcard();
-		  if (lower != null) {
+		  if (lower != null && lower != typeBinding) {
 		    return Signature.C_SUPER + SignatureUtils.getSignature(lower);
 		  }
 			// TODO if typeBinding.getBounds(): C_EXTENDS, C_SUPER
@@ -144,7 +144,10 @@ public class SignatureUtils {
 			res.deleteCharAt(res.length() - 1);
 			return res.toString()
 				+ Signature.C_GENERIC_START
-				+ Stream.of(typeBinding.getTypeArguments()).map(SignatureUtils::getSignature).collect(Collectors.joining())
+				+ Stream.of(typeBinding.getTypeArguments())
+						.map(SignatureUtils::getSignature)
+						.map(sig -> "+Ljava.lang.Object;".equals(sig) ? "*" : sig)
+						.collect(Collectors.joining())
 				+ Signature.C_GENERIC_END
 				+ Signature.C_NAME_END;
 		}
@@ -177,7 +180,11 @@ public class SignatureUtils {
 	}
 
 	public static String getSignature(IMethodBinding methodBinding) {
-		return getSignatureForMethodKey(methodBinding.getKey());
+		return Signature.C_PARAM_START
+			+ Stream.of(methodBinding.getParameterTypes()).map(SignatureUtils::getSignature).collect(Collectors.joining())
+			+ Signature.C_PARAM_END
+			+ SignatureUtils.getSignature(methodBinding.getReturnType());
+			// exceptions? type params?
 	}
 
 	/**
@@ -187,7 +194,7 @@ public class SignatureUtils {
 	 * @return the signature of the given method binding as a character array
 	 */
 	public static char[] getSignatureChar(IMethodBinding methodBinding) {
-		return getSignatureForMethodKey(methodBinding.getKey()).toCharArray();
+		return getSignature(methodBinding).toCharArray();
 	}
 
 	public static char[] getSignatureChar(IMethod method) {
@@ -203,7 +210,7 @@ public class SignatureUtils {
 	public static String getSignatureForMethodKey(String key) {
 		String fullKey = key
 				.replace('/', '.')
-				.replace("<+Ljava.lang.Object;>", "<*>")
+				.replace("+Ljava.lang.Object;", "*")
 				.replace("<>;",  ";");
 		String removeName = fullKey.substring(fullKey.indexOf('('));
 		int firstException = removeName.indexOf('|');

@@ -13,7 +13,6 @@ package org.eclipse.jdt.core.tests.javac;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -227,18 +226,26 @@ public class RegressionTests {
 			var modelMethod = (IMethod)domMethod.getJavaElement();
 			String signature = modelMethod.getSignature();
 			assertEquals(1, Signature.getParameterCount(signature));
-			CompletionProposal[] mapProposal = new CompletionProposal[] { null };
+			Set<CompletionProposal> invalidProposals = new HashSet<>();
 			unit.codeComplete(index + 1, new org.eclipse.jdt.core.CompletionRequestor() {
 				@Override
 				public void accept(CompletionProposal proposal) {
-					if (proposal.getCompletion() != null && Set.of("map" /* DOM first */, "map()" /* Legacy */).contains(new String(proposal.getCompletion()))) {
-						mapProposal[0] = proposal;
+					if (proposal.getKind() != CompletionProposal.METHOD_REF) {
+						return;
+					}
+					try {
+						Signature.toCharArray(proposal.getDeclarationSignature());
+					} catch (Exception ex) {
+						invalidProposals.add(proposal);
+					}
+					try {
+						Signature.toCharArray(proposal.getSignature());
+					} catch (Exception ex) {
+						invalidProposals.add(proposal);
 					}
 				}
 			});
-			assertNotNull(mapProposal[0]);
-			// ensure next line doesn't cause exception
-			Signature.toCharArray(mapProposal[0].getDeclarationSignature());
+			assertEquals(Set.of(), invalidProposals);
 		}
 	}
 
