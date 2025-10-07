@@ -1512,12 +1512,12 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public boolean isAnnotation() {
-		return this.typeSymbol.isAnnotationType();
+		return this.typeSymbol != null && this.typeSymbol.isAnnotationType();
 	}
 
 	@Override
 	public boolean isAnonymous() {
-		return this.typeSymbol.isAnonymous();
+		return this.typeSymbol != null && this.typeSymbol.isAnonymous();
 	}
 
 	@Override
