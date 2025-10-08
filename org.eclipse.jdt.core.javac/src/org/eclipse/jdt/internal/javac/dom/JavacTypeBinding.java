@@ -1627,8 +1627,8 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		return isRawType(this.type);
 	}
 
-	private boolean isRawType(Type type2) {
-		return type2.isRaw();
+	private static boolean isRawType(Type type2) {
+		return type2 != null && type2.isRaw();
 	}
 
 	@Override
