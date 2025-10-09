@@ -769,11 +769,15 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			default: // fall through to unsupported operation exception
 			}
 		}
-		if (typeToBuild.isNullOrReference()) {
-			// should be null, since we've handled references
+		// failback
+		if (!typeToBuild.isErroneous()) {
+			String toAppend = typeToBuild.tsym.flatName().toString();
+			if (useSlashes) {
+				toAppend.replace('.', '/');
+			}
+			builder.append(toAppend);
 			return;
 		}
-		throw new UnsupportedOperationException("Unimplemented method 'getKey'");
 	}
 
 	@Override
