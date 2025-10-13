@@ -29,6 +29,8 @@ import java.util.Objects;
 import java.util.stream.StreamSupport;
 
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.type.PrimitiveType;
+import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileObject;
 
 import org.eclipse.core.runtime.ILog;
@@ -192,8 +194,21 @@ public class CachingClassSymbolClassReader extends ClassReader {
 				res.setData(ElementKind.EXCEPTION_PARAMETER);
 			} else if (isDataResourceVariable) {
 				res.setData(ElementKind.RESOURCE_VARIABLE);
-			} else {
-				res.setData(this.constantValue);
+			} else if (this.constantValue != null) {
+				Object o  = this.constantValue;
+				// In ClassReader AttributeReader(names.ConstantValue), we see that
+				// integer non-Long types are expected to be stored as Integers in symbol
+				if (res.type instanceof PrimitiveType primitive) {
+					if (TypeKind.BOOLEAN == primitive.getKind() && o instanceof Boolean b) {
+						// as per https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-2.html#jvms-2.3.4
+						o = Integer.valueOf(b.booleanValue() ? 1 : 0);
+					} else if (TypeKind.CHAR == primitive.getKind() && o instanceof Character c) {
+						o = Integer.valueOf((int)c.charValue());
+					} else if (TypeKind.BYTE == primitive.getKind() && o instanceof Byte b) {
+						o = Integer.valueOf((int)b.byteValue());
+					}
+				}
+				res.setData(o);
 			}
 			this.metadata.applyTo(res, reader);
 			reader.localAnnotate.normal(res, this.toAnnotate);
