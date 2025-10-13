@@ -403,7 +403,7 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 	}
 
 	private void collectProblemForFQN(String fqn, int startPos, int endPos, byte accessType, String memberName) {
-		if (fqn == null || fqn.equals(getCurrentUnitFQN())) {
+		if (fqn == null || fqn.isEmpty() || fqn.equals(getCurrentUnitFQN())) {
 			return;
 		}
 		if (startPos == -1) {
