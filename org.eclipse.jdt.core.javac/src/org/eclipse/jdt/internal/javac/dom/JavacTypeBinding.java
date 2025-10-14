@@ -680,9 +680,12 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				nameAsString = nameAsString.replace('.', '/');
 			}
 			nameAsString = nameAsString.replaceFirst("\\$([0-9]+)([A-Za-z$_][A-Za-z$_0-9]*)", "\\$$1\\$$2");
+			nameAsString = nameAsString.replaceFirst("\\$\\$", "\\$");
+
 			if (typeToBuild.tsym.isAnonymous()) {
 				ASTNode node = resolver.symbolToDeclaration.get(typeToBuild.tsym);
 				if (node != null && node.getParent() instanceof ClassInstanceCreation cic) {
+					nameAsString = nameAsString.replaceFirst("\\$([0-9]+)([A-Za-z$_][A-Za-z$_0-9]*)", "\\$$1");
 					nameAsString = nameAsString.replaceFirst("\\$([0-9]+)", "\\$" + cic.getType().getStartPosition());
 				}
 			} else if (!(typeToBuild.tsym.owner instanceof ClassSymbol)) {

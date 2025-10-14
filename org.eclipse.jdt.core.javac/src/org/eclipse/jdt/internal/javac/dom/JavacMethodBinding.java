@@ -325,7 +325,12 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		if (result.exists()) {
 			return result;
 		}
-		return declaredMethod(result).orElse(null);
+		Optional<IMethod> r1 = declaredMethod(result);
+		if( r1 != null && r1.isPresent())
+			return r1.get();
+		if( result != null )
+			return result;
+		return null;
 	}
 
 	private Optional<IMethod> declaredMethod(IMethod method) {
