@@ -395,8 +395,8 @@ public class JavacUtils {
 	private static Collection<File> classpathEntriesToFiles(JavaProject project, boolean source, Predicate<IClasspathEntry> select) {
 		try {
 			LinkedHashSet<File> res = new LinkedHashSet<>();
-			if( !project.exists())
-				return res;
+//			if( !project.exists())
+//				return res;
 
 			ArrayList<IClasspathEntry> seen = new ArrayList<>();
 			if (project.getModuleDescription() == null) {
