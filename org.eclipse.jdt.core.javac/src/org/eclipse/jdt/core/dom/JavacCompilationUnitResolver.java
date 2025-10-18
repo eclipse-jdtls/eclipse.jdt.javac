@@ -211,7 +211,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 		// parse source units
 		Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> res =
-				parse(sourceUnitList.toArray(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[]::new), apiLevel, compilerOptions, true, flags, (IJavaProject)null, null, -1, monitor);
+				parse(sourceUnitList.toArray(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[]::new), apiLevel, compilerOptions, true, flags, (IJavaProject)null, classpaths, null, -1, monitor);
 
 		for (var entry : res.entrySet()) {
 			CompilationUnit cu = entry.getValue();
@@ -361,7 +361,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			if (binding == null && arrayCount > 0) {
 				String elementKey = Signature.getElementType(bindingKey);
 				IBinding elementBinding = bindingMap.get(elementKey);
-				if (elementBinding instanceof ITypeBinding elementTypeBinding) {
+				if (elementBinding instanceof ITypeBinding) {
 					binding = elementBinding;
 				}
 			}
@@ -434,7 +434,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				parse(Arrays.stream(compilationUnits)
 						.map(org.eclipse.jdt.internal.compiler.env.ICompilationUnit.class::cast)
 						.toArray(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[]::new),
-					apiLevel, compilerOptions, resolveBindings, flags, compilationUnits[0].getJavaProject(), workingCopyOwner, -1, monitor)
+					apiLevel, compilerOptions, resolveBindings, flags, compilationUnits[0].getJavaProject(), null, workingCopyOwner, -1, monitor)
 				.entrySet().stream().collect(Collectors.toMap(entry -> (ICompilationUnit)entry.getKey(), entry -> entry.getValue()));
 			for (ICompilationUnit in : compilationUnits) {
 				CompilationUnit c = res.get(in);
@@ -448,7 +448,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		for (ICompilationUnit in : compilationUnits) {
 			if (in instanceof org.eclipse.jdt.internal.compiler.env.ICompilationUnit compilerUnit) {
 				res.put(in, parse(new org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] { compilerUnit },
-						apiLevel, compilerOptions, resolveBindings, flags, in.getJavaProject(), workingCopyOwner, -1, monitor).get(compilerUnit));
+						apiLevel, compilerOptions, resolveBindings, flags, in.getJavaProject(), null, workingCopyOwner, -1, monitor).get(compilerUnit));
 				res.get(in).setTypeRoot(in);
 			}
 		}
@@ -462,7 +462,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		for( int i = 0; i < sourceFilePaths.length; i++ ) {
 			org.eclipse.jdt.internal.compiler.env.ICompilationUnit ast = createSourceUnit(sourceFilePaths[i], encodings[i]);
 			Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> res =
-					parse(new org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] {ast}, apiLevel, compilerOptions, false, flags, (IJavaProject)null, null, -1, monitor);
+					parse(new org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] {ast}, apiLevel, compilerOptions, false, flags, (IJavaProject)null, null, null, -1, monitor);
 			CompilationUnit result = res.get(ast);
 			requestor.acceptAST(sourceFilePaths[i], result);
 		}
@@ -574,7 +574,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 		//CompilationUnit res2  = CompilationUnitResolver.getInstance().toCompilationUnit(sourceUnit, resolveBindings, project, classpaths, focalPoint, apiLevel, compilerOptions, typeRootWorkingCopyOwner, typeRootWorkingCopyOwner, flags, monitor);
 		CompilationUnit res = parse(pathToUnit.values().toArray(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[]::new),
-				apiLevel, compilerOptions, resolveBindings, flags | (resolveBindings ? AST.RESOLVED_BINDINGS : 0), project, typeRootWorkingCopyOwner, focalPoint, monitor).get(sourceUnit);
+				apiLevel, compilerOptions, resolveBindings, flags | (resolveBindings ? AST.RESOLVED_BINDINGS : 0), project, classpaths, typeRootWorkingCopyOwner, focalPoint, monitor).get(sourceUnit);
 		if (resolveBindings && focalPoint == -1) {
 			// force analysis and reports
 			resolveBindings(res, apiLevel);
@@ -590,7 +590,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 	};
 
 	private Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> parse(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] sourceUnits, int apiLevel,
-			Map<String, String> compilerOptions, boolean resolveBindings, int flags, IJavaProject javaProject, WorkingCopyOwner workingCopyOwner,
+			Map<String, String> compilerOptions, boolean resolveBindings, int flags, IJavaProject javaProject, List<Classpath> extraClasspath, WorkingCopyOwner workingCopyOwner,
 			int focalPoint, IProgressMonitor monitor) {
 		if (sourceUnits.length == 0) {
 			return Collections.emptyMap();
@@ -715,6 +715,16 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				 // continue as far as possible to get extra warnings about unused
 				.ifPresent(_ ->javacOptions.put("should-stop.ifError", CompileState.GENERATE.toString()));
 		JavacFileManager fileManager = (JavacFileManager)context.get(JavaFileManager.class);
+		if (javaProject == null && extraClasspath != null) {
+			try {
+				fileManager.setLocation(StandardLocation.CLASS_PATH, extraClasspath.stream()
+					.map(Classpath::getPath)
+					.map(File::new)
+					.toList());
+			} catch (IOException ex) {
+				ILog.get().error(ex.getMessage(), ex);
+			}
+		}
 		List<JavaFileObject> fileObjects = new ArrayList<>(); // we need an ordered list of them
 		for (org.eclipse.jdt.internal.compiler.env.ICompilationUnit sourceUnit : sourceUnits) {
 			char[] sourceUnitFileName = sourceUnit.getFileName();
