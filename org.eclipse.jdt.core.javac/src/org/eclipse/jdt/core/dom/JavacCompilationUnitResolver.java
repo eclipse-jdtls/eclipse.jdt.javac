@@ -651,18 +651,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					} catch (Exception ex) {
 						ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
 					}
-
-					AccessRestrictionTreeScanner accessScanner = null;
-					if (javaProject instanceof JavaProject internalJavaProject) {
-						try {
-							INameEnvironment environment = new SearchableEnvironment(internalJavaProject, (WorkingCopyOwner)null, false, JavaProject.NO_RELEASE);
-							accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(), new CompilerOptions(compilerOptions));
-							accessScanner.scan(unit, null);
-						} catch (JavaModelException javaModelException) {
-							// do nothing
-						}
-					}
-
 					List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
 					if (!unusedProblems.isEmpty()) {
 						addProblemsToDOM(dom, unusedProblems);
@@ -681,7 +669,17 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						}
 					}
 
-					if (accessScanner != null) {
+					if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
+						AccessRestrictionTreeScanner accessScanner = null;
+						if (javaProject instanceof JavaProject internalJavaProject) {
+							try {
+								INameEnvironment environment = new SearchableEnvironment(internalJavaProject, (WorkingCopyOwner)null, false, JavaProject.NO_RELEASE);
+								accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(), new CompilerOptions(compilerOptions));
+								accessScanner.scan(unit, null);
+							} catch (JavaModelException javaModelException) {
+								// do nothing
+							}
+						}
 						addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
 					}
 				}
