@@ -35,9 +35,56 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.JavacCompilationUnitResolver;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class CachingClassReaderTests {
+
+	@Ignore // currently ignored https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/1827
+	@Test
+	public void testInnerAnonymousWithTypeParams() throws Exception {
+		Path dir = Files.createTempDirectory(getClass().getName());
+		Path sourceFile = dir.resolve("A.java");
+		Files.write(sourceFile, """
+				class A<K, V> {
+					java.util.function.Function<K, V> m() {
+						return new java.util.function.Function<>() {
+							@Override
+							public V apply(K k) {
+								return null;
+							}
+						};
+					}
+				}
+				""".getBytes());
+		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+		StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+		Iterable<? extends JavaFileObject> compilationUnits1 = fileManager.getJavaFileObjectsFromPaths(List.of(sourceFile));
+		CharArrayWriter writer = new CharArrayWriter(2000);
+		assertTrue(new String(writer.toCharArray()), compiler.getTask(writer, fileManager, null, List.of("--release", "17"), null, compilationUnits1).call());
+		Path Bclass = dir.resolve("A.class");
+		assertTrue(Files.exists(Bclass));
+
+		String source = """
+				class I {
+					A<String, String> a = new A<>();
+				}
+				""";
+		// What we really want to test is calling CachingClassSymbolClassReader multiple times for A$B
+		// but as we prefer avoiding references to internal Javac types in tests, we just load the AST multiple times.
+		for (int i = 0; i < 2; i++) {
+			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+			parser.setSource(source.toCharArray());
+			parser.setUnitName("I.java");
+			parser.setEnvironment(new String[] { dir.toString() }, null, null, true);
+			parser.setResolveBindings(true);
+			try (var _ = withoutLoggedError()) {
+				var node = (CompilationUnit)parser.createAST(new NullProgressMonitor());
+				assertArrayEquals(new IProblem[0], node.getProblems());
+				node.getAST().resolveWellKnownType("A$1");
+			}
+		}
+	}
 
 	@Test
 	public void testIntersectionType() throws Exception {

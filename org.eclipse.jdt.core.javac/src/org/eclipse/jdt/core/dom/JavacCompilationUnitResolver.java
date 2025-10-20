@@ -614,7 +614,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					problemConverter.registerUnit(e.getSourceFile(), u);
 				}
 
-				if (e.getKind() == TaskEvent.Kind.ANALYZE && Options.instance(context).isSet(Option.XLINT)) {
+				if (e.getKind() == TaskEvent.Kind.ANALYZE && Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
 					final JavaFileObject file = e.getSourceFile();
 					final CompilationUnit dom = filesToUnits.get(file);
 					if (dom == null) {
@@ -698,12 +698,10 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits), ignoreModule);
 		Options javacOptions = Options.instance(context);
 		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
-		if ((focalPoint >= 0 || !resolveBindings) && (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
-			// most likely no need for linting
+		if (focalPoint >= 0 || (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
+			// most likely no need for more linting
 			// resolveBindings still seems requested for tests
-			javacOptions.remove(Option.XLINT.primaryName);
-			javacOptions.put(Option.XLINT_CUSTOM, "none");
-			javacOptions.remove(Option.XDOCLINT.primaryName);
+			javacOptions.put(Option.XLINT_CUSTOM, "raw");
 			javacOptions.put(Option.XDOCLINT_CUSTOM, "none");
 		}
 		javacOptions.put(Option.PROC, ProcessorConfig.isAnnotationProcessingEnabled(javaProject) ? "only" : "none");
