@@ -63,7 +63,7 @@ public class DOMPackageReferenceLocator extends DOMPatternLocator {
 				if( fullName != null ) {
 
 					IJavaElement je = fullName.resolveBinding().getJavaElement();
-					je = je.getAncestor(IJavaElement.PACKAGE_FRAGMENT);
+					je = je == null ? null : je.getAncestor(IJavaElement.PACKAGE_FRAGMENT);
 					if( je != null) {
 						IJavaProject otherProject = (IJavaProject)je.getAncestor(IJavaElement.JAVA_PROJECT);
 						if (otherProject == null || !otherProject.equals(this.locator.pattern.focus.getAncestor(IJavaElement.JAVA_PROJECT))) {
