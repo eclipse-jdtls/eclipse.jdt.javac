@@ -49,6 +49,7 @@ import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.SourceRange;
 import org.eclipse.jdt.core.WorkingCopyOwner;
+import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -198,12 +199,14 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 				if (pm != null) {
 					for (int i = 0; i < possibleMatches.length; i++) {
 						if (possibleMatches[i] == pm) {
+							IProblem[] problems = ast.getProblems();
 							domUnits[i] = ast;
 							nonNullDomIndexes.add(i);
 							locator.currentPossibleMatch = pm;
 							NodeSetWrapper wrapper = wrappedSets.get(possibleMatches[i].nodeSet);
-							ast.accept(new PatternLocatorVisitor(locator, wrapper));
-							return;
+							if( !hasAlreadyDefinedType(problems)) {
+								ast.accept(new PatternLocatorVisitor(locator, wrapper));
+							}
 						}
 					}
 				}
@@ -228,6 +231,15 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			}
 		}
 	}
+
+	protected boolean hasAlreadyDefinedType(IProblem[] problems) {
+		if (problems == null) return false;
+		for (int i = 0; i < problems.length; i++)
+			if (problems[i].getID() == IProblem.DuplicateTypes)
+				return true;
+		return false;
+	}
+
 
 	private NodeSetWrapper wrapNodeSet(MatchingNodeSet nodeSet) {
 		return new NodeSetWrapper(nodeSet.mustResolve);
