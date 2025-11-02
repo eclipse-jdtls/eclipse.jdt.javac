@@ -109,8 +109,11 @@ import com.sun.tools.javac.parser.Scanner;
 import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.parser.Tokens.TokenKind;
+import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.Visitor;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Context.Key;
 import com.sun.tools.javac.util.DiagnosticSource;
@@ -614,6 +617,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					problemConverter.registerUnit(e.getSourceFile(), u);
 				}
 
+				if (e.getKind() == TaskEvent.Kind.PARSE && focalPoint >= 0
+					&& e.getCompilationUnit() instanceof JCCompilationUnit u) {
+					trimNonFocusedContent(u, focalPoint);
+				}
+
 				if (e.getKind() == TaskEvent.Kind.ANALYZE && Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
 					final JavaFileObject file = e.getSourceFile();
 					final CompilationUnit dom = filesToUnits.get(file);
@@ -683,6 +691,26 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
 					}
 				}
+			}
+
+			private void trimNonFocusedContent(JCCompilationUnit compilationUnit, int focalPoint) {
+				if (focalPoint < 0) {
+					return;
+				}
+				compilationUnit.accept(new Visitor() {
+					@Override
+					public void visitBlock(JCBlock block) {
+						if (focalPoint < block.getStartPosition()
+							|| block.getEndPosition(compilationUnit.endPositions) < focalPoint) {
+							block.stats.clear();
+							// add a `throw new RuntimeException();` ?
+;						}
+					}
+					@Override
+					public void visitTree(JCTree that) {
+						// nothing special
+					}
+				});
 			}
 		});
 		// must be 1st thing added to context
