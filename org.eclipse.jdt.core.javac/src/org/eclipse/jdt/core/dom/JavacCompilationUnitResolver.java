@@ -854,23 +854,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				javac.genEndPos = false;
 				javac.lineDebugInfo = false;
 			}
-			boolean forceProblemDetection = (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) != 0;
-			boolean forceBindingRecovery = (flags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0;
-			var aptPath = fileManager.getLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH);
-			boolean aptPathForceAnalyze = (aptPath != null && aptPath.iterator().hasNext());
-			if (forceProblemDetection || forceBindingRecovery || aptPathForceAnalyze ) {
-				// Let's run analyze until it finishes without error
-				Throwable caught = null;
-				do {
-					caught = null;
-					try {
-						task.analyze();
-					} catch (Throwable t) {
-						caught = t;
-						ILog.get().error("Error while analyzing", t);
-					}
-				} while(caught != null);
-			}
 
 			Throwable cachedThrown = null;
 
@@ -999,6 +982,26 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					ILog.get().error(thrown.getMessage(), thrown);
 				}
 			}
+
+			boolean forceProblemDetection = (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) != 0;
+			boolean forceBindingRecovery = (flags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0;
+			var aptPath = fileManager.getLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH);
+			boolean aptPathForceAnalyze = (aptPath != null && aptPath.iterator().hasNext());
+			if (forceProblemDetection || forceBindingRecovery || aptPathForceAnalyze ) {
+				// Let's run analyze until it finishes without error
+				Throwable caught = null;
+				do {
+					caught = null;
+					try {
+						task.analyze();
+					} catch (Throwable t) {
+						caught = t;
+						ILog.get().error("Error while analyzing", t);
+					}
+				} while(caught != null);
+			}
+
+
 			if (!resolveBindings) {
 				destroy(context);
 			}

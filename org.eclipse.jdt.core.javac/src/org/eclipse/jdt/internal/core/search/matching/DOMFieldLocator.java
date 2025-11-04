@@ -114,9 +114,14 @@ public class DOMFieldLocator extends DOMPatternLocator {
 		if (this.fieldLocator.pattern.fineGrain != 0 ? matchesFineGrain(name) :
 			((this.fieldLocator.pattern.readAccess && DOMLocalVariableLocator.isRead(name))
 			|| (this.fieldLocator.pattern.writeAccess && DOMLocalVariableLocator.isWrite(name)))) {
-			int level = nodeSet.addMatch(name, getPossibleOrAccurateViaMustResolve());
-			if( level != IMPOSSIBLE_MATCH ) {
+			int possibleOrAccurate = getPossibleOrAccurateViaMustResolve();
+			if( possibleOrAccurate != IMPOSSIBLE_MATCH ) {
 				IBinding b = name.resolveBinding();
+				if( b != null && b instanceof IVariableBinding vb) {
+					if( !vb.isField() && !vb.isRecordComponent()) {
+						return toResponse(IMPOSSIBLE_MATCH);
+					}
+				}
 				if( b == null ) {
 					if( name instanceof SimpleName sn && name.getParent() instanceof QualifiedName qn && sn == qn.getQualifier()) {
 						boolean shadowed = methodHasShadowedVariable(name);
@@ -125,7 +130,7 @@ public class DOMFieldLocator extends DOMPatternLocator {
 					}
 				}
 			}
-			return toResponse(level, true);
+			return toResponse(possibleOrAccurate, true);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
 	}
