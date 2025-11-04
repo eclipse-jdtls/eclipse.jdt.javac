@@ -97,11 +97,13 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
+import com.sun.source.util.TreePath;
 import com.sun.tools.javac.api.JavacTool;
 import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.comp.CompileStates.CompileState;
 import com.sun.tools.javac.file.JavacFileManager;
+import com.sun.tools.javac.main.Arguments;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.main.Option.OptionKind;
 import com.sun.tools.javac.parser.JavadocTokenizer;
@@ -121,6 +123,8 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
+
+import jdk.javadoc.internal.doclint.DocLint;
 
 /**
  * Allows to create and resolve DOM ASTs using Javac
@@ -611,6 +615,71 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		final UnusedProblemFactory unusedProblemFactory = new UnusedProblemFactory(new DefaultProblemFactory(), compilerOptions);
 		var problemConverter = new JavacProblemConverter(compilerOptions, context);
 		DiagnosticListener<JavaFileObject> diagnosticListener = new ForwardDiagnosticsAsDOMProblems(filesToUnits, problemConverter);
+		// must be 1st thing added to context
+		context.put(DiagnosticListener.class, diagnosticListener);
+		Map<JavaFileObject, File> fileObjectsToJars = new HashMap<>();
+		context.put(FILE_OBJECTS_TO_JAR_KEY, fileObjectsToJars);
+		boolean docEnabled = JavaCore.ENABLED.equals(compilerOptions.get(JavaCore.COMPILER_DOC_COMMENT_SUPPORT));
+		// ignore module is a workaround for cases when we read a module-info.java from a library.
+		// Such units cause a failure later because their name is lost in ASTParser and Javac cannot treat them as modules
+		boolean ignoreModule = !Arrays.stream(sourceUnits).allMatch(u -> new String(u.getFileName()).endsWith("java"));
+		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits), ignoreModule);
+		Options javacOptions = Options.instance(context);
+		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
+		if (focalPoint >= 0) {
+			// Skip doclint by default, will be re-enabled in the TaskListener if focalPoint is in Javadoc
+			javacOptions.remove(Option.XDOCLINT.primaryName);
+			javacOptions.remove(Option.XDOCLINT_CUSTOM.primaryName);
+			// minimal linting, but "raw" still seems required
+			javacOptions.put(Option.XLINT_CUSTOM, "raw");
+		} else if ((flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
+			// minimal linting, but "raw" still seems required
+			javacOptions.put(Option.XLINT_CUSTOM, "raw");
+			// set minimal custom DocLint support to get DCComment bindings resolved
+			javacOptions.put(Option.XDOCLINT_CUSTOM, "reference");
+		}
+		javacOptions.put(Option.PROC, ProcessorConfig.isAnnotationProcessingEnabled(javaProject) ? "only" : "none");
+		Optional.ofNullable(Platform.getProduct())
+				.map(IProduct::getApplication)
+				// if application is not a test runner (so we don't have regressions with JDT test suite because of too many problems
+				.or(() -> Optional.ofNullable(System.getProperty("eclipse.application")))
+				.filter(name -> !name.contains("test") && !name.contains("junit"))
+				 // continue as far as possible to get extra warnings about unused
+				.ifPresent(_ ->javacOptions.put("should-stop.ifError", CompileState.GENERATE.toString()));
+		JavacFileManager fileManager = (JavacFileManager)context.get(JavaFileManager.class);
+		if (javaProject == null && extraClasspath != null) {
+			try {
+				fileManager.setLocation(StandardLocation.CLASS_PATH, extraClasspath.stream()
+					.map(Classpath::getPath)
+					.map(File::new)
+					.toList());
+			} catch (IOException ex) {
+				ILog.get().error(ex.getMessage(), ex);
+			}
+		}
+		List<JavaFileObject> fileObjects = new ArrayList<>(); // we need an ordered list of them
+		for (org.eclipse.jdt.internal.compiler.env.ICompilationUnit sourceUnit : sourceUnits) {
+			char[] sourceUnitFileName = sourceUnit.getFileName();
+			JavaFileObject fileObject = cuToFileObject(javaProject, sourceUnitFileName, sourceUnit, fileManager, fileObjectsToJars);
+			fileManager.cache(fileObject, CharBuffer.wrap(sourceUnit.getContents()));
+			AST ast = createAST(compilerOptions, apiLevel, context, flags);
+			CompilationUnit res = ast.newCompilationUnit();
+			result.put(sourceUnit, res);
+			filesToUnits.put(fileObject, res);
+			fileObjects.add(fileObject);
+		}
+
+		// some options needs to be passed to getTask() to be properly handled
+		// (just having them set in Options is sometimes not enough). So we
+		// turn them back into CLI arguments to pass them.
+		List<String> options = new ArrayList<>(toCLIOptions(javacOptions));
+		if (!configureAPTIfNecessary(fileManager)) {
+			options.add("-proc:none");
+		}
+
+		options = replaceSafeSystemOption(options);
+		addSourcesWithMultipleTopLevelClasses(sourceUnits, fileObjects, javaProject, fileManager);
+		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
 		MultiTaskListener.instance(context).add(new TaskListener() {
 			@Override
 			public void finished(TaskEvent e) {
@@ -621,6 +690,18 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				if (e.getKind() == TaskEvent.Kind.PARSE && focalPoint >= 0
 					&& e.getCompilationUnit() instanceof JCCompilationUnit u) {
 					trimNonFocusedContent(u, focalPoint);
+				}
+
+				var doclintOpts = Arguments.instance(context).getDocLintOpts();
+				if (e.getKind() == TaskEvent.Kind.ANALYZE &&
+					focalPoint >= 0 &&
+					doclintOpts == null &&
+					e.getCompilationUnit() instanceof JCCompilationUnit u &&
+					isInJavadoc(u, focalPoint)) {
+					// resolve doc comment bindings
+					DocLint doclint = (DocLint)DocLint.newDocLint();
+					doclint.init(task, doclintOpts.toArray(new String[doclintOpts.size()]));
+					doclint.scan(TreePath.getPath(u, u));
 				}
 
 				if (e.getKind() == TaskEvent.Kind.ANALYZE && Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
@@ -694,7 +775,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				}
 			}
 
-			private void trimNonFocusedContent(JCCompilationUnit compilationUnit, int focalPoint) {
+			private static void trimNonFocusedContent(JCCompilationUnit compilationUnit, int focalPoint) {
 				if (focalPoint < 0) {
 					return;
 				}
@@ -726,66 +807,30 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					}
 				});
 			}
-		});
-		// must be 1st thing added to context
-		context.put(DiagnosticListener.class, diagnosticListener);
-		Map<JavaFileObject, File> fileObjectsToJars = new HashMap<>();
-		context.put(FILE_OBJECTS_TO_JAR_KEY, fileObjectsToJars);
-		boolean docEnabled = JavaCore.ENABLED.equals(compilerOptions.get(JavaCore.COMPILER_DOC_COMMENT_SUPPORT));
-		// ignore module is a workaround for cases when we read a module-info.java from a library.
-		// Such units cause a failure later because their name is lost in ASTParser and Javac cannot treat them as modules
-		boolean ignoreModule = !Arrays.stream(sourceUnits).allMatch(u -> new String(u.getFileName()).endsWith("java"));
-		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits), ignoreModule);
-		Options javacOptions = Options.instance(context);
-		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
-		if (focalPoint >= 0 || (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
-			// most likely no need for more linting
-			// resolveBindings still seems requested for tests
-			javacOptions.put(Option.XLINT_CUSTOM, "raw");
-			javacOptions.put(Option.XDOCLINT_CUSTOM, "none");
-		}
-		javacOptions.put(Option.PROC, ProcessorConfig.isAnnotationProcessingEnabled(javaProject) ? "only" : "none");
-		Optional.ofNullable(Platform.getProduct())
-				.map(IProduct::getApplication)
-				// if application is not a test runner (so we don't have regressions with JDT test suite because of too many problems
-				.or(() -> Optional.ofNullable(System.getProperty("eclipse.application")))
-				.filter(name -> !name.contains("test") && !name.contains("junit"))
-				 // continue as far as possible to get extra warnings about unused
-				.ifPresent(_ ->javacOptions.put("should-stop.ifError", CompileState.GENERATE.toString()));
-		JavacFileManager fileManager = (JavacFileManager)context.get(JavaFileManager.class);
-		if (javaProject == null && extraClasspath != null) {
-			try {
-				fileManager.setLocation(StandardLocation.CLASS_PATH, extraClasspath.stream()
-					.map(Classpath::getPath)
-					.map(File::new)
-					.toList());
-			} catch (IOException ex) {
-				ILog.get().error(ex.getMessage(), ex);
+
+			private static boolean isInJavadoc(JCCompilationUnit u, int focalPoint) {
+				boolean[] res = new boolean[] { false };
+				u.accept(new TreeScanner() {
+					@Override
+					public void scan(JCTree tree) {
+						if (res[0]) {
+							return;
+						}
+						var comment = u.docComments.getComment(tree);
+						if (comment != null &&
+							comment.getPos().getStartPosition() < focalPoint &&
+							focalPoint < comment.getPos().getEndPosition(u.endPositions) &&
+							(comment.getStyle() == CommentStyle.JAVADOC_BLOCK ||
+							comment.getStyle() == CommentStyle.JAVADOC_LINE)) {
+							res[0] = true;
+							return;
+						}
+						super.scan(tree);
+					}
+				});
+				return res[0];
 			}
-		}
-		List<JavaFileObject> fileObjects = new ArrayList<>(); // we need an ordered list of them
-		for (org.eclipse.jdt.internal.compiler.env.ICompilationUnit sourceUnit : sourceUnits) {
-			char[] sourceUnitFileName = sourceUnit.getFileName();
-			JavaFileObject fileObject = cuToFileObject(javaProject, sourceUnitFileName, sourceUnit, fileManager, fileObjectsToJars);
-			fileManager.cache(fileObject, CharBuffer.wrap(sourceUnit.getContents()));
-			AST ast = createAST(compilerOptions, apiLevel, context, flags);
-			CompilationUnit res = ast.newCompilationUnit();
-			result.put(sourceUnit, res);
-			filesToUnits.put(fileObject, res);
-			fileObjects.add(fileObject);
-		}
-
-		// some options needs to be passed to getTask() to be properly handled
-		// (just having them set in Options is sometimes not enough). So we
-		// turn them back into CLI arguments to pass them.
-		List<String> options = new ArrayList<>(toCLIOptions(javacOptions));
-		if (!configureAPTIfNecessary(fileManager)) {
-			options.add("-proc:none");
-		}
-
-		options = replaceSafeSystemOption(options);
-		addSourcesWithMultipleTopLevelClasses(sourceUnits, fileObjects, javaProject, fileManager);
-		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
+		});
 		{
 			// don't know yet a better way to ensure those necessary flags get configured
 			var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
