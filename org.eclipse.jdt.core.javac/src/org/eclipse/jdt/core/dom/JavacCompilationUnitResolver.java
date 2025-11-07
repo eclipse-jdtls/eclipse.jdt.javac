@@ -687,9 +687,20 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					problemConverter.registerUnit(e.getSourceFile(), u);
 				}
 
-				if (e.getKind() == TaskEvent.Kind.PARSE && focalPoint >= 0
-					&& e.getCompilationUnit() instanceof JCCompilationUnit u) {
-					trimNonFocusedContent(u, focalPoint);
+				if (e.getKind() == TaskEvent.Kind.PARSE && e.getCompilationUnit() instanceof JCCompilationUnit u) {
+					if ((flags & ICompilationUnit.IGNORE_METHOD_BODIES) != 0) {
+						u.accept(new TreeScanner() {
+							@Override
+							public void visitMethodDef(JCMethodDecl method) {
+								if (method.body != null) {
+									method.body.stats = com.sun.tools.javac.util.List.nil();
+		;						}
+							}
+						});
+					}
+					if (focalPoint >= 0) {
+						trimNonFocusedContent(u, focalPoint);
+					}
 				}
 
 				var doclintOpts = Arguments.instance(context).getDocLintOpts();
