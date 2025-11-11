@@ -820,8 +820,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 
 
 		boolean isDecl = messageSend instanceof MethodDeclaration && invocationBinding.getMethodDeclaration() == invocationBinding;
+		boolean isLambdaExpr = messageSend instanceof LambdaExpression;
 		boolean findOnlyDeclarations = this.pattern.findDeclarations && !this.pattern.findReferences;
-		if( findOnlyDeclarations && !isDecl ) {
+		if( findOnlyDeclarations && !isDecl && !isLambdaExpr ) {
 			return IMPOSSIBLE_MATCH;
 		}
 		int invocationLevel = matchMethod(messageSend, invocationBinding, skipVerif, isDecl);
