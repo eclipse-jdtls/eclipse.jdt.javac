@@ -163,6 +163,11 @@ public class DOMFieldLocator extends DOMPatternLocator {
 							r = ancestor.getResource();
 						}
 					}
+				} else {
+					ancestor = je.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
+					if( ancestor instanceof IPackageFragmentRoot ipfr && ipfr.isArchive()) {
+						r = ipfr.getResource();
+					}
 				}
 			} catch (JavaModelException jme) {
 				// ignore
