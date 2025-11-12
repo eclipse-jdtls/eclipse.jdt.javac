@@ -1328,7 +1328,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			this.pattern instanceof DeclarationOfReferencedMethodsPattern &&
 			nodeBinding instanceof IMethodBinding binding &&
 			binding.getJavaElement() instanceof IMethod meth) {
-			MethodDeclarationMatch declMatch = new MethodDeclarationMatch(meth, refMatch.getAccuracy(), -1, -1, refMatch.getParticipant(), meth.getResource());
+			ISourceRange sr = meth.getNameRange();
+			MethodDeclarationMatch declMatch = new MethodDeclarationMatch(meth, refMatch.getAccuracy(),
+					sr == null ? -1 : sr.getOffset(), sr == null ? -1 : sr.getLength(), refMatch.getParticipant(), meth.getResource());
 			if (meth instanceof SourceMethod sourceMeth) {
 				ISourceRange nameRange = sourceMeth.getNameRange();
 				declMatch.setOffset(nameRange.getOffset());
