@@ -548,7 +548,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 				// Now we have only declarations, so you need to check type Params instead of type args.
 				ITypeBinding[] tmp = method.getTypeParameters();
 				if( tmp != null && tmp.length > 0 ) {
-					return goal != null && goal.length == tmp.length ? ERASURE_MATCH : IMPOSSIBLE_MATCH;
+					return goal != null && goal.length == tmp.length ? ACCURATE_MATCH : IMPOSSIBLE_MATCH;
 				}
 				return ERASURE_MATCH;
 			}
@@ -839,11 +839,12 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			if( !invocationBinding.isRawMethod() && this.locator.pattern.hasTypeParameters()) {
 				invocOrDeclLevel = findWeakerLevel(invocOrDeclLevel, ERASURE_MATCH);
 			}
+		} else {
+			if (invocationBinding.isRawMethod() && (this.locator.pattern.hasTypeArguments() || this.locator.pattern.hasTypeParameters())) {
+				invocOrDeclLevel = findWeakerLevel(invocOrDeclLevel, ERASURE_MATCH);
+			}
 		}
 
-		if (invocationBinding.isRawMethod() && (this.locator.pattern.hasTypeArguments() || this.locator.pattern.hasTypeParameters())) {
-			invocOrDeclLevel = findWeakerLevel(invocOrDeclLevel, ERASURE_MATCH);
-		}
 		// receiver type
 		if (this.pattern.declaringSimpleName == null && this.pattern.declaringQualification == null) {
 			// since any declaring class will do
