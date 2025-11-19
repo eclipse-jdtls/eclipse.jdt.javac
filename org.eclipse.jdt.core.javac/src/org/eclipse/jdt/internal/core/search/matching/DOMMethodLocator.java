@@ -1371,6 +1371,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		}
 		if( preferParamaterizedNode() ) {
 			if( node instanceof MethodInvocation iv) {
+				if( methodBinding != null ) {
+					updateMatch(methodBinding.getTypeArguments(), this.pattern.methodArguments, this.pattern.hasMethodParameters());
+				}
 				List<?> l = iv.typeArguments();
 				if( l != null && l.size() > 0 ) {
 					int start = ((ASTNode)l.get(0)).getStartPosition();
