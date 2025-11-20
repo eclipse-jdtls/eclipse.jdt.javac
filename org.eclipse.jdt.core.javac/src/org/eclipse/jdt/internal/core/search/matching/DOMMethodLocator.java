@@ -892,7 +892,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 				retval = declaringLevel;
 			} else if( isExactPattern || (!isErasurePattern && !isEquivPattern)) {
 				retval = IMPOSSIBLE_MATCH;
-			} else if( isEquivPattern && matchLevel == ERASURE_MATCH) {
+			} else if( isEquivPattern && (matchLevel == ERASURE_MATCH || matchLevel == INACCURATE_MATCH)) {
 				retval = IMPOSSIBLE_MATCH;
 			}
 		} else if (declaringFlavors != 0) {
