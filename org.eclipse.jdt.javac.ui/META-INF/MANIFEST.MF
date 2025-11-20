@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: User interface to control the Javac backend
+Bundle-SymbolicName: org.eclipse.jdt.javac.ui;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: org.eclipse.jdt.javac.ui.Activator
+Bundle-Vendor: Eclipse JDT over Javac project
+Require-Bundle: org.eclipse.ui,
+ org.eclipse.core.runtime,
+ org.eclipse.jdt.core.javac.configurator;bundle-version="1.0.0",
+ org.eclipse.ui.workbench;bundle-version="[3.137.0,4.0.0)"
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: org.eclipse.jdt.javac.ui
+Bundle-ActivationPolicy: lazy

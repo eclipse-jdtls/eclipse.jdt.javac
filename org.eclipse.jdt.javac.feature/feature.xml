@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="org.eclipse.jdt.javac.feature"
+      label="Javac backend for JDT integration in Eclipse IDE"
+      version="1.0.0.qualifier">
+
+   <plugin
+         id="org.eclipse.jdt.core.javac"
+         version="0.0.0"/>
+   <plugin
+         id="org.eclipse.jdt.core.javac.configurator"
+         version="0.0.0"/>
+   <plugin
+         id="org.eclipse.jdt.javac.ui"
+         version="0.0.0"/>
+
+</feature>

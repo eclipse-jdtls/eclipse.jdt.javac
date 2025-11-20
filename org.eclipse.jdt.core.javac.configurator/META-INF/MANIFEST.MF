@@ -1,0 +1,12 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: API to configure Javac backend
+Bundle-SymbolicName: org.eclipse.jdt.core.javac.configurator
+Bundle-Version: 1.0.0.qualifier
+Export-Package: org.eclipse.jdt.core.javac.configurator;x-friends:="org.eclipse.jdt.javac.ui"
+Bundle-Activator: org.eclipse.jdt.core.javac.configurator.JavacConfigurationActivator
+Bundle-Vendor: Eclipse JDT-LS
+Require-Bundle: org.eclipse.core.runtime
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: org.eclipse.jdt.core.javac.configurator
+Bundle-ActivationPolicy: lazy
