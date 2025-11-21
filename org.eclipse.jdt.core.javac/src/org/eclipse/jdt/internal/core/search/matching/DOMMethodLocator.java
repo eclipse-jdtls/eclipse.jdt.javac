@@ -1323,7 +1323,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		IMethodBinding methodBinding = nodeBinding instanceof IMethodBinding mb2 ? mb2 : null;
 		boolean isMethodBinding = methodBinding != null;
 		boolean mbIsRaw = isMethodBinding && methodBinding.isRawMethod();
-		ITypeBinding declaring = methodBinding.getDeclaringClass();
+		ITypeBinding declaring = isMethodBinding ? methodBinding.getDeclaringClass() : null;
 		boolean mbDeclaringIsRaw = isMethodBinding && declaring.isRawType();
 		boolean mbIsGeneric = isMethodBinding && methodBinding.isGenericMethod();
 		boolean mbIsParameterized = isMethodBinding && methodBinding.isParameterizedMethod();
