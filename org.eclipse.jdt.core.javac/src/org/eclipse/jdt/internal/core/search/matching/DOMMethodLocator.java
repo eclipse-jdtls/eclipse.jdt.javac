@@ -770,7 +770,12 @@ public class DOMMethodLocator extends DOMPatternLocator {
 							boolean eq = sigJ.equals(parameterTypeSignatures[j]);
 							boolean eq2 = parameterTypeSignatures[j].startsWith("Q") && sigJ.endsWith(parameterTypeSignatures[j].substring(1));
 							if( !eq && !eq2) {
-								failed = true;
+								// Let's do a more intensive search
+								String noDollarsFromBinding = sigJ.replaceAll("\\$", ".");
+								String noDollarsFromFocus = parameterTypeSignatures[j].replaceAll("\\$", ".");
+								boolean eq3 = parameterTypeSignatures[j].startsWith("Q") && noDollarsFromBinding.endsWith(noDollarsFromFocus.substring(1));
+								if( !eq3 )
+									failed = true;
 							}
 						}
 						if( !failed ) {
