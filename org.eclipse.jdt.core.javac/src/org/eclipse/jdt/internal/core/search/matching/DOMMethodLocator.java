@@ -719,14 +719,30 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		String typeName = !declaringPackage.isEmpty() && declaringQualification.length() > declaringPackage.length() && declaringQualification.startsWith(declaringPackage)
 				? declaringPackage + '.' + declaringQualification.substring(declaringPackage.length() + 1).replace('.', '$') + '$' + simpleName
 				: declaringQualification +  '.' + simpleName;
+		String[] parameterTypeSignaturesArr = null;
+		if( methodPattern.parametersTypeSignatures != null ) {
+			parameterTypeSignaturesArr =
+					Arrays.stream(methodPattern.parametersTypeSignatures)
+							.map(x -> x == null || x.length == 0 || x[0] == null ? "" : new String(x[0]))
+							.toArray(String[]::new);
+		}
 		if (typeName.startsWith(".")) {
 			typeName = typeName.substring(1);
 		}
 		var type = ast.resolveWellKnownType(typeName);
-		if (type != null) {
+		if (type != null ) {
 			for (IMethodBinding method : type.getDeclaredMethods()) {
-				if (Objects.equals(method.getJavaElement(), methodPattern.focus)) {
-					return method;
+				if( methodPattern.focus != null) {
+					// Pattern has a focus so we can check there
+					if (Objects.equals(method.getJavaElement(), methodPattern.focus)) {
+						return method;
+					}
+				} else {
+					// Have to do a manual match. Yuck
+					String selectorName = methodPattern.selector  == null ? null : new String(methodPattern.selector);
+					if( methodBindingMatchesNameAndParams(method, selectorName, parameterTypeSignaturesArr)) {
+						return method;
+					}
 				}
 			}
 		}
@@ -754,38 +770,50 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			found = JdtCoreDomPackagePrivateUtility.findUnresolvedBindingForType(ast, "Q" + typeName + ";");
 		}
 		if( found instanceof ITypeBinding tb && methodPattern.focus instanceof IMethod im) {
-			String needleName = im.getElementName();
-			String[] parameterTypeSignatures = im.getParameterTypes();
-			int parameterCount = parameterTypeSignatures.length;
-			IMethodBinding[] mb = tb.getDeclaredMethods();
-			for( int i = 0; i < mb.length; i++ ) {
-				String workingName = mb[i].getName();
-				if( workingName.equals(needleName)) {
-					ITypeBinding[] params = mb[i].getParameterTypes();
-					int l2 = params.length;
-					if( parameterCount == l2 ) {
-						boolean failed = false;
-						for( int j = 0; j < params.length && !failed; j++ ) {
-							String sigJ = SignatureUtils.getSignature(params[j]);
-							boolean eq = sigJ.equals(parameterTypeSignatures[j]);
-							boolean eq2 = parameterTypeSignatures[j].startsWith("Q") && sigJ.endsWith(parameterTypeSignatures[j].substring(1));
-							if( !eq && !eq2) {
-								// Let's do a more intensive search
-								String noDollarsFromBinding = sigJ.replaceAll("\\$", ".");
-								String noDollarsFromFocus = parameterTypeSignatures[j].replaceAll("\\$", ".");
-								boolean eq3 = parameterTypeSignatures[j].startsWith("Q") && noDollarsFromBinding.endsWith(noDollarsFromFocus.substring(1));
-								if( !eq3 )
-									failed = true;
-							}
-						}
-						if( !failed ) {
-							return mb[i];
-						}
-					}
-				}
+			return findMethodFromTypeBindingThatMatches(tb, im);
+		}
+		return null;
+	}
+
+	private IMethodBinding findMethodFromTypeBindingThatMatches(ITypeBinding tb, IMethod im) {
+		String needleName = im.getElementName();
+		String[] parameterTypeSignatures = im.getParameterTypes();
+		IMethodBinding[] mb = tb.getDeclaredMethods();
+		for( int i = 0; i < mb.length; i++ ) {
+			if( methodBindingMatchesNameAndParams(mb[i], needleName, parameterTypeSignatures)) {
+				return mb[i];
 			}
 		}
 		return null;
+	}
+
+	private boolean methodBindingMatchesNameAndParams(IMethodBinding mb, String needleName, String[] parameterTypeSignatures) {
+		int parameterCount = parameterTypeSignatures.length;
+		String workingName = mb.getName();
+		if( workingName.equals(needleName)) {
+			ITypeBinding[] params = mb.getParameterTypes();
+			int l2 = params.length;
+			if( parameterCount == l2 ) {
+				boolean failed = false;
+				for( int j = 0; j < params.length && !failed; j++ ) {
+					String sigJ = SignatureUtils.getSignature(params[j]);
+					boolean eq = sigJ.equals(parameterTypeSignatures[j]);
+					boolean eq2 = parameterTypeSignatures[j].startsWith("Q") && sigJ.endsWith(parameterTypeSignatures[j].substring(1));
+					if( !eq && !eq2) {
+						// Let's do a more intensive search
+						String noDollarsFromBinding = sigJ.replaceAll("\\$", ".");
+						String noDollarsFromFocus = parameterTypeSignatures[j].replaceAll("\\$", ".");
+						boolean eq3 = parameterTypeSignatures[j].startsWith("Q") && noDollarsFromBinding.endsWith(noDollarsFromFocus.substring(1));
+						if( !eq3 )
+							failed = true;
+					}
+				}
+				if( !failed ) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private int computeResolveLevel(org.eclipse.jdt.core.dom.ASTNode node, IBinding binding, MatchLocator locator) {
