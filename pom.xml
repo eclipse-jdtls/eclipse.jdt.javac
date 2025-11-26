@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>org.eclipse.jdt.javac</groupId>
+	<artifactId>parent</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.minimum.version>3.6.3</maven.minimum.version>
+		<tycho-version>5.0.0</tycho-version>
+		<tycho.scmUrl>scm:git:https://github.com/eclipse.jdt.ls/eclipse.jdt.javac.git</tycho.scmUrl>
+		<ui.test.vmargs></ui.test.vmargs>
+		<jgit.dirtyWorkingTree>error</jgit.dirtyWorkingTree>
+	</properties>
+
+	<organization>
+		<name>Eclipse JDT-LS project</name>
+		<url>https://projects.eclipse.org/projects/eclipse.jdt.ls</url>
+	</organization>
+	<inceptionYear>2023</inceptionYear>
+
+	<licenses>
+		<license>
+			<name>Eclipse Public License</name>
+			<url>https://www.eclipse.org/legal/epl-v20.html</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<modules>
+		<module>org.eclipse.jdt.core.javac</module>
+		<module>org.eclipse.jdt.core.javac.configurator</module>
+		<module>org.eclipse.jdt.core.tests.javac</module>
+		<module>org.eclipse.jdt.javac.ui</module>
+		<module>org.eclipse.jdt.javac.feature</module>
+		<module>repository</module>
+	</modules>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.eclipse.tycho</groupId>
+				<artifactId>tycho-maven-plugin</artifactId>
+				<version>${tycho-version}</version>
+				<extensions>true</extensions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-toolchains-plugin</artifactId>
+				<configuration>
+					<toolchains>
+						<jdk>
+							<id>JavaSE-25</id>
+						</jdk>
+					</toolchains>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.tycho</groupId>
+				<artifactId>target-platform-configuration</artifactId>
+				<version>${tycho-version}</version>
+				<configuration>
+					<executionEnvironment>JavaSE-25</executionEnvironment>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.tycho</groupId>
+				<artifactId>tycho-source-plugin</artifactId>
+				<version>${tycho-version}</version>
+				<executions>
+					<execution>
+						<id>plugin-source</id>
+						<goals>
+							<goal>plugin-source</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.tycho</groupId>
+				<artifactId>tycho-packaging-plugin</artifactId>
+				<configuration>
+					<sourceReferences>
+						<generate>true</generate>
+					</sourceReferences>
+				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>org.eclipse.tycho.extras</groupId>
+						<artifactId>tycho-sourceref-jgit</artifactId>
+						<version>${tycho-version}</version>
+					</dependency>
+				</dependencies>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.tycho.extras</groupId>
+				<artifactId>tycho-p2-extras-plugin</artifactId>
+				<version>${tycho-version}</version>
+				<executions>
+					<!-- Make sure we don't forget to bump version -->
+					<!--execution>
+						<id>compare-version-with-baseline</id>
+						<goals>
+							<goal>compare-version-with-baselines</goal>
+						</goals>
+						<configuration>
+							<skip>${tycho.p2.baseline.skip}</skip>
+							<baselines>
+								<url>https://download.eclipse.org/TODO</url>
+							</baselines>
+						</configuration>
+					</execution-->
+				</executions>
+			</plugin>
+		</plugins>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.eclipse.tycho</groupId>
+					<artifactId>tycho-packaging-plugin</artifactId>
+					<version>${tycho-version}</version>
+					<dependencies>
+						<dependency>
+							<groupId>org.eclipse.tycho</groupId>
+							<artifactId>tycho-buildtimestamp-jgit</artifactId>
+							<version>${tycho-version}</version>
+						</dependency>
+					</dependencies>
+					<configuration>
+						<timestampProvider>jgit</timestampProvider>
+						<jgit.ignore>pom.xml</jgit.ignore>
+						<jgit.dirtyWorkingTree>${jgit.dirtyWorkingTree}</jgit.dirtyWorkingTree>
+					</configuration>
+				</plugin>
+				<!--plugin>
+					<groupId>org.eclipse.tycho</groupId>
+					<artifactId>tycho-p2-plugin</artifactId>
+					<version>${tycho-version}</version>
+					<configuration>
+						<baselineRepositories>
+							<repository>
+								<url>https://download.eclipse.org/TODO</url>
+							</repository>
+						</baselineRepositories>
+					</configuration>
+				</plugin-->
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<profiles>
+		<profile>
+			<!-- This profile prevents local maven builds from failing if uncommitted changes are present -->
+			<id>local-dev</id>
+			<activation>
+				<property>
+					<name>!env.CI</name>
+				</property>
+			</activation>
+			<properties>
+				<jgit.dirtyWorkingTree>warning</jgit.dirtyWorkingTree>
+			</properties>
+		</profile>
+		<profile>
+			<id>sign</id>
+			<build>
+				<!-- TODO -->
+			</build>
+		</profile>
+	</profiles>
+
+	<repositories>
+		<!-- Consider a target-platform instead -->
+		<repository>
+			<id>sdk-i-builds</id>
+			<layout>p2</layout>
+			<url>https://download.eclipse.org/eclipse/updates/I-builds/</url>
+		</repository>
+	</repositories>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<!--
+				listing maven central first ensures that maven will query maven central first and
+				only uses other repositories as fallback, which reduces download/build times.
+				This is a workaround for https://issues.apache.org/jira/browse/MNG-6763
+			 -->
+			<id>central</id>
+			<url>https://repo.maven.apache.org/maven2/</url>
+			<snapshots><enabled>false</enabled></snapshots>
+			<releases><enabled>true</enabled></releases>
+		</pluginRepository>
+		<pluginRepository>
+			<!-- org.eclipse.cbi.maven.plugins:eclipse-jarsigner-plugin not present in central maven repo -->
+			<id>cbi</id>
+			<url>https://repo.eclipse.org/content/groups/cbi</url>
+			<snapshots><enabled>true</enabled></snapshots>
+			<releases><enabled>true</enabled></releases>
+		</pluginRepository>
+		<pluginRepository>
+			<id>tycho-snapshots</id>
+			<url>https://repo.eclipse.org/content/repositories/tycho-snapshots/</url>
+			<snapshots><enabled>true</enabled></snapshots>
+			<releases><enabled>false</enabled></releases>
+		</pluginRepository>
+		<pluginRepository>
+			<id>dash-licenses-snapshots</id>
+			<url>https://repo.eclipse.org/content/repositories/dash-licenses-snapshots/</url>
+			<snapshots><enabled>true</enabled></snapshots>
+			<releases><enabled>false</enabled></releases>
+		</pluginRepository>
+	</pluginRepositories>
+
+</project>

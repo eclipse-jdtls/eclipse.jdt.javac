@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <category-def name="Javac backend for Eclipse JDT" label="Javac backend for Eclipse JDT"/>
+   <feature id="org.eclipse.jdt.javac.feature">
+      <category name="Javac backend for Eclipse JDT"/>
+   </feature>
+</site>

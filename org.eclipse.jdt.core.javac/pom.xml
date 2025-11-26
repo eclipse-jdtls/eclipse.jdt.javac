@@ -9,9 +9,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <artifactId>eclipse.jdt.core</artifactId>
-    <groupId>org.eclipse.jdt</groupId>
-    <version>4.38.0-SNAPSHOT</version>
+    <artifactId>parent</artifactId>
+    <groupId>org.eclipse.jdt.javac</groupId>
+    <version>0.0.1-SNAPSHOT</version>
   </parent>
   <artifactId>org.eclipse.jdt.core.javac</artifactId>
   <version>1.0.0-SNAPSHOT</version>
