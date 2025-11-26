@@ -733,10 +733,23 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					doclint.scan(TreePath.getPath(u, u));
 				}
 
-				if (e.getKind() == TaskEvent.Kind.ANALYZE && Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
+				if (e.getKind() == TaskEvent.Kind.ANALYZE) {
 					final JavaFileObject file = e.getSourceFile();
 					final CompilationUnit dom = filesToUnits.get(file);
 					if (dom == null) {
+						return;
+					}
+					if (Stream.of(dom.getProblems()).anyMatch(problem -> problem.isError())) {
+						// don't bother; a severe error has already been reported
+						return;
+					}
+
+					// check if the diagnostics are actually enabled before trying to collect them
+					var objectCompilerOptions = new CompilerOptions(compilerOptions);
+					boolean unusedImportIgnored = objectCompilerOptions.getSeverityString(CompilerOptions.UnusedImport).equals(CompilerOptions.IGNORE);
+					boolean unusedPrivateMemberIgnored = objectCompilerOptions.getSeverityString(CompilerOptions.UnusedPrivateMember).equals(CompilerOptions.IGNORE);
+					if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")
+							&& unusedImportIgnored && unusedPrivateMemberIgnored) {
 						return;
 					}
 
