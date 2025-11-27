@@ -25,12 +25,14 @@ import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.Initializer;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JavacBindingResolver.BindingKeyException;
 import org.eclipse.jdt.core.dom.LambdaExpression;
@@ -239,7 +241,21 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 			return builder.toString();
 		} else if (this.variableSymbol.owner instanceof MethodSymbol methodSymbol) {
 			Type.MethodType toUse = methodSymbol.type instanceof Type.MethodType methodType ? methodType : null;
-			JavacMethodBinding.getKey(builder, methodSymbol, toUse, null, true, this.resolver);
+
+			ASTNode variable = this.resolver.findDeclaringNode(this);
+			ASTNode maybeInitializer = DOMCompletionUtils.findParent(variable, new int[] { ASTNode.INITIALIZER, ASTNode.METHOD_DECLARATION });
+			if (maybeInitializer instanceof Initializer initializer) {
+				// static initializer except the static keyword is missing
+				JavacTypeBinding.getKey(builder, resolver.getTypes().erasure(methodSymbol.owner.type), false, false, true, resolver);
+				AbstractTypeDeclaration atd = (AbstractTypeDeclaration)initializer.getParent();
+				// FIXME: should it be the index only including initializers?
+				int index = atd.bodyDeclarations().indexOf(initializer);
+				builder.append('#');
+				builder.append(index);
+			} else {
+				JavacMethodBinding.getKey(builder, methodSymbol, toUse, null, true, this.resolver);
+			}
+
 			// no need to get it right, just get it right enough
 			if (!isUnique()) {
 				builder.append(this.variableSymbol.pos);
