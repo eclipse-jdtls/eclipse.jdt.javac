@@ -30,6 +30,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Annotation;
+import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -228,6 +229,32 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 			return null;
 		}
 	}
+	static class BlockBasedIndexVisitor extends ASTVisitor {
+		public int numBlocks = 0;
+		public boolean foundBlock = false;
+
+		private ASTNode cursor;
+
+		public BlockBasedIndexVisitor(ASTNode cursor) {
+			this.cursor = cursor;
+		}
+
+		@Override
+		public void preVisit(ASTNode node) {
+			if (node == this.cursor) {
+				foundBlock = true;
+			}
+			super.preVisit(node);
+		}
+
+		@Override
+		public boolean visit(Block block) {
+			if (!foundBlock) {
+				numBlocks++;
+			}
+			return false;
+		}
+	}
 	private String getKeyImpl() throws BindingKeyException {
 		StringBuilder builder = new StringBuilder();
 		if (this.variableSymbol.owner instanceof TypeSymbol classSymbol) {
@@ -248,8 +275,31 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 			Type.MethodType toUse = methodSymbol.type instanceof Type.MethodType methodType ? methodType : null;
 
 			ASTNode variable = this.resolver.findDeclaringNode(this);
-			ASTNode maybeInitializer = DOMCompletionUtils.findParent(variable, new int[] { ASTNode.INITIALIZER, ASTNode.METHOD_DECLARATION });
-			if (maybeInitializer instanceof Initializer initializer) {
+
+			// block based indices
+			ASTNode prevVarOrBlock = variable;
+			ASTNode cursor1 = variable;
+			ASTNode cursor2 = variable.getParent();
+			List<Integer> indices = new ArrayList<>();
+			while (cursor2 != null && !(cursor2 instanceof MethodDeclaration) && !(cursor2 instanceof Initializer)) {
+				if (cursor2 instanceof Block block) {
+					int index = block.statements().indexOf(cursor1);
+					BlockBasedIndexVisitor myASTVisitor = new BlockBasedIndexVisitor(prevVarOrBlock);
+					for (int i = 0; i < index + 1; i++) {
+						ASTNode child = (ASTNode)block.statements().get(i);
+						child.accept(myASTVisitor);
+					}
+					indices.add(myASTVisitor.numBlocks);
+					prevVarOrBlock = block;
+				}
+				cursor1 = cursor2;
+				cursor2 = cursor1.getParent();
+			}
+			if (!indices.isEmpty()) {
+				indices.removeFirst();
+			}
+
+			if (cursor2 instanceof Initializer initializer) {
 				// static initializer except the static keyword is missing
 				JavacTypeBinding.getKey(builder, resolver.getTypes().erasure(methodSymbol.owner.type), false, false, true, resolver);
 				AbstractTypeDeclaration atd = (AbstractTypeDeclaration)initializer.getParent();
@@ -261,13 +311,19 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 				JavacMethodBinding.getKey(builder, methodSymbol, toUse, null, true, this.resolver);
 			}
 
-			// no need to get it right, just get it right enough
-			if (!isUnique()) {
-				builder.append("#");
-				builder.append(this.variableSymbol.pos);
+			for (int i = indices.size() - 1; i >= 0; i--) {
+				builder.append('#');
+				builder.append(indices.get(0));
 			}
+
 			builder.append("#");
 			builder.append(this.variableSymbol.name);
+
+			if (!isUnique()) {
+				builder.append('#');
+				builder.append(this.variableSymbol.pos);
+			}
+
 			// FIXME: is it possible for the javac AST to contain multiple definitions of the same variable?
 			// If so, we will need to distinguish them (@see org.eclipse.jdt.internal.compiler.lookup.LocalVariableBinding)
 			return builder.toString();
@@ -277,8 +333,8 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 
 	private boolean isUnique() {
 		ASTNode variable = this.resolver.findDeclaringNode(this);
-		MethodDeclaration parentMethod = (MethodDeclaration)DOMCompletionUtils.findParent(variable, new int[] { ASTNode.METHOD_DECLARATION });
-		if (parentMethod == null) {
+		Block parentBlock = (Block)DOMCompletionUtils.findParent(variable, new int[] { ASTNode.BLOCK });
+		if (parentBlock == null) {
 			return true;
 		}
 		final String variableName = getName().toString();
@@ -298,9 +354,13 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 				}
 				return super.visit(node);
 			}
+			@Override
+			public boolean visit(Block block) {
+				return block == parentBlock;
+			}
 		}
 		UniquenessVisitor uniquenessVisitor = new UniquenessVisitor();
-		parentMethod.accept(uniquenessVisitor);
+		parentBlock.accept(uniquenessVisitor);
 		return uniquenessVisitor.isUnique;
 	}
 
