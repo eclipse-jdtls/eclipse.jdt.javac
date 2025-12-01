@@ -36,6 +36,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.IAnnotatable;
+import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -474,6 +475,25 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 				}
 			}
 			IJavaElement local = DOMASTNodeUtils.getLocalJavaElement(node);
+			ASTNode annotAncestor = getAnnotationAncestor(node);
+			if( annotAncestor != null ) {
+				String domAnnotName = ((Annotation)annotAncestor).getTypeName().toString();
+				if( domAnnotName != null ) {
+					try {
+						boolean matchFound = false;
+						IAnnotation[] all = ((IAnnotatable)local).getAnnotations();
+						for(int i = 0; i < all.length && !matchFound; i++ ) {
+							String annotName = all[i].getElementName();
+							if( domAnnotName.equals(annotName)) {
+								local = all[i];
+								matchFound = true;
+							}
+						}
+					} catch( JavaModelException jme) {
+
+					}
+				}
+			}
 			IJavaElement[] otherJavaElements = DOMASTNodeUtils.getLocalOrOtherJavaElements(node, false);
 			//boolean localElementIsWithinAnnotation = DOMASTNodeUtils.annotationBetweenNodeAndLocalElement(node);
 			if (!Objects.equals(local, enclosing)) {
@@ -596,6 +616,18 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 		}
 		return null;
 	}
+
+	private Annotation getAnnotationAncestor(ASTNode node) {
+		ASTNode working = node;
+		while(working != null ) {
+			if( working instanceof Annotation a) {
+				return a;
+			}
+			working = working.getParent();
+		}
+		return null;
+	}
+
 
 	private boolean isAnonymousIType(IJavaElement type) {
 		boolean isAnonymous = false;

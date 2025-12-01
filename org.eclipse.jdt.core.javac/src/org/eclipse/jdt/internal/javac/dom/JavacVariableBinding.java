@@ -10,12 +10,15 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.javac.dom;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import javax.lang.model.element.ElementKind;
 
 import org.eclipse.core.runtime.ILog;
+import org.eclipse.jdt.core.IAnnotation;
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMethod;
@@ -26,9 +29,11 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -157,7 +162,7 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 			parent = method;
 			if (isParameter()) {
 				if (method instanceof LambdaMethod parentLambda && this.resolver.findDeclaringNode(this) instanceof VariableDeclaration decl) {
-					return new LocalVariable(parentLambda, getName(),
+					return new DOMLocalVariable(parentLambda, getName(),
 							decl.getStartPosition(), decl.getStartPosition() + decl.getLength() - 1,
 							decl.getName().getStartPosition(), decl.getName().getStartPosition() + decl.getName().getLength() - 1,
 							Signature.createTypeSignature(getType().getQualifiedName(), true),
@@ -430,27 +435,73 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 		return (this.variableSymbol.flags() & Flags.EFFECTIVELY_FINAL) != 0;
 	}
 
+	public static class DOMLocalVariable extends LocalVariable {
+
+		public DOMLocalVariable(JavaElement parent, String name, int declarationSourceStart, int declarationSourceEnd,
+				int nameStart, int nameEnd, String typeSignature, Annotation[] annotations, int flags,
+				boolean isParameter, Annotation[][] annotationsOnDimensions) {
+			super(parent, name, declarationSourceStart, declarationSourceEnd, nameStart, nameEnd,
+					typeSignature, null,
+					flags, isParameter, null);
+			localSetAnnots(annotations);
+		}
+
+		public DOMLocalVariable(JavaElement parent, String name, int declarationSourceStart, int declarationSourceEnd,
+				int nameStart, int nameEnd, String typeSignature, Annotation[] annotations, int flags,
+				boolean isParameter) {
+			super(parent, name, declarationSourceStart, declarationSourceEnd, nameStart, nameEnd, typeSignature, null,
+					flags, isParameter);
+			localSetAnnots(annotations);
+		}
+
+		private void localSetAnnots(Annotation[] annotations) {
+			List<IAnnotation> jdt = new ArrayList<>();
+			for( int i = 0; i < annotations.length; i++ ) {
+				org.eclipse.jdt.internal.core.Annotation a1 = JavacVariableBindingAnnotUtil.modelAnnotation(annotations[i], this);
+				if( a1 != null ) {
+					jdt.add(a1);
+				}
+			}
+			this.annotations = jdt.toArray(new IAnnotation[jdt.size()]);
+		}
+	}
+
 	private static LocalVariable toLocalVariable(VariableDeclarationFragment fragment, JavaElement parent) {
-		if (fragment.getParent() instanceof VariableDeclarationStatement variableDeclaration) {
-			return new LocalVariable(parent,
+		ASTNode parentNode = fragment.getParent();
+		List mods = null;
+		if( parentNode instanceof VariableDeclarationStatement vds) {
+			mods = vds.modifiers();
+		} else if( parentNode instanceof VariableDeclarationExpression vde) {
+			mods = vde.modifiers();
+		}
+		List<Annotation> annots = new ArrayList<>();
+		if( mods != null ) {
+			for( Object o : mods ) {
+				if( o instanceof IExtendedModifier iem && iem.isAnnotation()) {
+					annots.add((Annotation)iem);
+				}
+			}
+		}
+		if (parentNode instanceof VariableDeclarationStatement variableDeclaration) {
+			return new DOMLocalVariable(parent,
 				fragment.getName().getIdentifier(),
 				variableDeclaration.getStartPosition(),
 				variableDeclaration.getStartPosition() + variableDeclaration.getLength() - 1,
 				fragment.getName().getStartPosition(),
 				fragment.getName().getStartPosition() + fragment.getName().getLength() - 1,
 				Util.getSignature(variableDeclaration.getType()),
-				null, // I don't think we need this, also it's the ECJ's annotation node
+				annots.toArray(new Annotation[annots.size()]),
 				toModelFlags(variableDeclaration.getModifiers(), false),
 				false);
-		} else if (fragment.getParent() instanceof VariableDeclarationExpression variableDeclaration) {
-			return new LocalVariable(parent,
+		} else if (parentNode instanceof VariableDeclarationExpression variableDeclaration) {
+			return new DOMLocalVariable(parent,
 					fragment.getName().getIdentifier(),
 					variableDeclaration.getStartPosition(),
 					variableDeclaration.getStartPosition() + variableDeclaration.getLength() - 1,
 					fragment.getName().getStartPosition(),
 					fragment.getName().getStartPosition() + fragment.getName().getLength() - 1,
 					Util.getSignature(variableDeclaration.getType()),
-					null, // I don't think we need this, also it's the ECJ's annotation node
+					annots.toArray(new Annotation[annots.size()]),
 					toModelFlags(variableDeclaration.getModifiers(), false),
 					false);
 		}
