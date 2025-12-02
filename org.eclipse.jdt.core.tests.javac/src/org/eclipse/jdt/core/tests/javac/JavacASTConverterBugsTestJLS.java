@@ -24,7 +24,6 @@ import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.tests.dom.ASTConverterBugsTest;
-import org.eclipse.jdt.core.tests.dom.ASTConverterBugsTestSetup;
 
 import junit.framework.Test;
 import junit.framework.TestSuite;
