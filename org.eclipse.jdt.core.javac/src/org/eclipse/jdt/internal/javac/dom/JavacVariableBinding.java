@@ -263,6 +263,7 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 
 			// no need to get it right, just get it right enough
 			if (!isUnique()) {
+				builder.append("#");
 				builder.append(this.variableSymbol.pos);
 			}
 			builder.append("#");

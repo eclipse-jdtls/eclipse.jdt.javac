@@ -685,11 +685,17 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					nameAsString = nameAsString.replaceFirst("\\$([0-9]+)([A-Za-z$_][A-Za-z$_0-9]*)", "\\$$1");
 					nameAsString = nameAsString.replaceFirst("\\$([0-9]+)", "\\$" + cic.getType().getStartPosition());
 				}
-			} else if (!(typeToBuild.tsym.owner instanceof ClassSymbol)) {
+			} else if(nameAsString.contains("$")){
 				// local type
 				ASTNode node = resolver.symbolToDeclaration.get(typeToBuild.tsym);
 				if (node instanceof TypeDeclaration localTypeDecl && localTypeDecl.getName() != null && localTypeDecl.getName().getStartPosition() >= 0) {
-					nameAsString = nameAsString.replaceFirst("\\$([0-9]+)", "\\$" + localTypeDecl.getName().getStartPosition());
+					String newSuffix = "\\$" + localTypeDecl.getName().getStartPosition() + "\\$" + localTypeDecl.getName().getFullyQualifiedName();
+					String n2 = nameAsString.replaceFirst("\\$([0-9]+)\\$.*", newSuffix);
+					if( nameAsString.equals(n2)) {
+						// No change. Try with just the single dollar sign replacement
+						n2 = nameAsString.replaceFirst("\\$([0-9]+)", "\\$" + localTypeDecl.getName().getStartPosition());
+					}
+					nameAsString = n2;
 				}
 			}
 			currentTypeSignature += nameAsString;
