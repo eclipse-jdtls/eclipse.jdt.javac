@@ -257,34 +257,9 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 			List<Integer> indices = new ArrayList<>();
 			while (cursor2 != null && !(cursor2 instanceof MethodDeclaration) && !(cursor2 instanceof Initializer)) {
 				if (cursor2 instanceof Block block) {
-					int index = block.statements().indexOf(cursor1);
-					final ASTNode finalizedCursor = prevVarOrBlock;
-					class MyASTVisitor extends ASTVisitor {
-						public int numBlocks = 0;
-						public boolean foundBlock = false;
-
-						@Override
-						public void preVisit(ASTNode node) {
-							if (node == finalizedCursor) {
-								foundBlock = true;
-							}
-							super.preVisit(node);
-						}
-
-						@Override
-						public boolean visit(Block block) {
-							if (!foundBlock) {
-								numBlocks++;
-							}
-							return false;
-						}
-					};
-					MyASTVisitor visityBoi = new MyASTVisitor();
-					for (int i = 0; i < index + 1; i++) {
-						ASTNode child  =(ASTNode)block.statements().get(i);
-						child.accept(visityBoi);
-					}
-					indices.add(visityBoi.numBlocks);
+					BlockIndexVisitor blockIndexVisitor = new BlockIndexVisitor(block, prevVarOrBlock);
+					block.accept(blockIndexVisitor);
+					indices.add(blockIndexVisitor.numBlocks);
 					prevVarOrBlock = block;
 				}
 				cursor1 = cursor2;
@@ -325,6 +300,45 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 		}
 		throw new UnsupportedOperationException("unhandled `Symbol` subclass " + this.variableSymbol.owner.getClass().toString());
 	}
+
+	/**
+	 * Figure out the index of the given child block in the given parent block
+	 */
+	private static class BlockIndexVisitor extends ASTVisitor {
+		public int numBlocks = 0;
+		public boolean foundBlock = false;
+		private ASTNode childBlock;
+		private ASTNode parentBlock;
+
+		public BlockIndexVisitor(ASTNode parentBlock, ASTNode childBlock) {
+			this.parentBlock = parentBlock;
+			this.childBlock = childBlock;
+		}
+
+		@Override
+		public void preVisit(ASTNode node) {
+			if (node == childBlock) {
+				foundBlock = true;
+			}
+			super.preVisit(node);
+		}
+
+		@Override
+		public boolean preVisit2(ASTNode node) {
+			return !foundBlock;
+		}
+
+		@Override
+		public boolean visit(Block block) {
+			if (block == this.parentBlock) {
+				return true;
+			}
+			if (!foundBlock) {
+				numBlocks++;
+			}
+			return false;
+		}
+	};
 
 	private boolean isUnique() {
 		ASTNode variable = this.resolver.findDeclaringNode(this);
