@@ -2331,8 +2331,10 @@ class JavacConverter {
 			if( uniqueCaseFound ) {
 				return convertSuperConstructorInvocation((JCMethodInvocation)jcExpressionStatement.getExpression());
 			}
-			ExpressionStatement res = this.ast.newExpressionStatement(convertExpression(jcExpressionStatement.getExpression()));
+			Expression e = convertExpression(jcExpressionStatement.getExpression());
+			ExpressionStatement res = this.ast.newExpressionStatement(e);
 			commonSettings(res, javac);
+			res.setSourceRange(e.getStartPosition(), e.getLength());
 			return res;
 		}
 		if (javac instanceof JCVariableDecl jcVariableDecl) {
