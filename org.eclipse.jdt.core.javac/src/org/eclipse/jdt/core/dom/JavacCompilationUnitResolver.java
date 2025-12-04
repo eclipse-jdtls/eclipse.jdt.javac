@@ -394,7 +394,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			if (binding == null) {
 				CustomBindingKeyParser bkp = new CustomBindingKeyParser(bindingKey);
 				bkp.parse(true);
-				ITypeBinding type = bindingResolver.resolveWellKnownType(bkp.compoundName);
+				ITypeBinding type = bindingResolver.resolveTypeFromContext(bkp.compoundName);
 				if (type != null) {
 					if (Objects.equals(bindingKey, type.getKey())) {
 						binding = type;

@@ -41,6 +41,7 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JdtCoreDomPackagePrivateUtility;
 import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MemberValuePair;
@@ -729,7 +730,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		if (typeName.startsWith(".")) {
 			typeName = typeName.substring(1);
 		}
-		var type = ast.resolveWellKnownType(typeName);
+
+		JavacBindingResolver br = JdtCoreDomPackagePrivateUtility.getJavacBindingResolverOrNull(ast);
+		var type = br == null ? ast.resolveWellKnownType(typeName) : br.resolveTypeFromContext(typeName, false);
 		if (type != null ) {
 			for (IMethodBinding method : type.getDeclaredMethods()) {
 				if( methodPattern.focus != null) {
@@ -1332,7 +1335,8 @@ public class DOMMethodLocator extends DOMPatternLocator {
 	private IMethodBinding getMethodBindingFromPattern(AST context) {
 		if (this.pattern.focus instanceof IMethod method) {
 			var type = method.getDeclaringType().getFullyQualifiedName('$');
-			var typeBinding = context.resolveWellKnownType(type);
+			JavacBindingResolver br = JdtCoreDomPackagePrivateUtility.getJavacBindingResolverOrNull(context);
+			var typeBinding = br == null ? context.resolveWellKnownType(type) : br.resolveTypeFromContext(type, false);
 			if (typeBinding != null) {
 				var res = Arrays.stream(typeBinding.getDeclaredMethods())
 					.filter(child -> Objects.equals(method.getElementName(), child.getName()))

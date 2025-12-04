@@ -1870,6 +1870,12 @@ public class JavacBindingResolver extends BindingResolver {
 
 	@Override
 	public ITypeBinding resolveWellKnownType(String typeName) {
+		return resolveTypeFromContext(typeName, true);
+	}
+	public ITypeBinding resolveTypeFromContext(String typeName) {
+		return resolveTypeFromContext(typeName, false);
+	}
+	public ITypeBinding resolveTypeFromContext(String typeName, boolean wellKnownOnly) {
 		resolve(); // could be skipped, but this method is used by ReconcileWorkingCopyOperation to generate errors
 		com.sun.tools.javac.code.Symtab symtab = com.sun.tools.javac.code.Symtab.instance(this.context);
 		com.sun.tools.javac.code.Type type = switch (typeName) {
@@ -1892,9 +1898,10 @@ public class JavacBindingResolver extends BindingResolver {
 		case "java.lang.Class" -> symtab.classType;
 		case "java.lang.Cloneable" -> symtab.cloneableType;
 		case "java.io.Serializable" -> symtab.serializableType;
+		case "java.lang.AssertionError" -> symtab.assertionErrorType;
 		default -> null;
 		};
-		if (type == null) {
+		if (type == null && !wellKnownOnly) {
 			ClassFinder finder = ClassFinder.instance(context);
 			Modules modules = Modules.instance(context);
 			Names names = Names.instance(context);
