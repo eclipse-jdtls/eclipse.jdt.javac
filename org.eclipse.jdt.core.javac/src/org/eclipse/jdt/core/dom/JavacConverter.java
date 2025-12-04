@@ -2334,7 +2334,8 @@ class JavacConverter {
 			Expression e = convertExpression(jcExpressionStatement.getExpression());
 			ExpressionStatement res = this.ast.newExpressionStatement(e);
 			commonSettings(res, javac);
-			res.setSourceRange(e.getStartPosition(), e.getLength());
+			if( e instanceof ClassInstanceCreation)
+				res.setSourceRange(e.getStartPosition(), e.getLength());
 			return res;
 		}
 		if (javac instanceof JCVariableDecl jcVariableDecl) {
