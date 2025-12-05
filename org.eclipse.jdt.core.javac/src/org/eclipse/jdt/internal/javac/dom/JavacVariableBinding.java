@@ -456,14 +456,16 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 		}
 
 		private void localSetAnnots(Annotation[] annotations) {
-			List<IAnnotation> jdt = new ArrayList<>();
-			for( int i = 0; i < annotations.length; i++ ) {
-				org.eclipse.jdt.internal.core.Annotation a1 = JavacVariableBindingAnnotUtil.modelAnnotation(annotations[i], this);
-				if( a1 != null ) {
-					jdt.add(a1);
+			if( annotations != null ) {
+				List<IAnnotation> jdt = new ArrayList<>();
+				for( int i = 0; i < annotations.length; i++ ) {
+					org.eclipse.jdt.internal.core.Annotation a1 = JavacVariableBindingAnnotUtil.modelAnnotation(annotations[i], this);
+					if( a1 != null ) {
+						jdt.add(a1);
+					}
 				}
+				this.annotations = jdt.toArray(new IAnnotation[jdt.size()]);
 			}
-			this.annotations = jdt.toArray(new IAnnotation[jdt.size()]);
 		}
 	}
 
