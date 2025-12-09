@@ -2788,9 +2788,13 @@ public class DOMCompletionEngine implements ICompletionEngine {
 					SimpleName simpleName = (SimpleName) node;
 					if (!(simpleName.getParent() instanceof SimpleType)
 							&& !(simpleName.getParent() instanceof FieldAccess fieldAccess && fieldAccess.getName() == simpleName)
-							&& !(simpleName.getParent() instanceof QualifiedName qualifiedName && qualifiedName.getName() == simpleName)
-							&& simpleName.resolveBinding().isRecovered()) {
-						names.add(simpleName.toString());
+							&& !(simpleName.getParent() instanceof QualifiedName qualifiedName && qualifiedName.getName() == simpleName)) {
+						if( simpleName != null ) {
+							IBinding b = simpleName.resolveBinding();
+							if( b != null && b.isRecovered()) {
+								names.add(simpleName.toString());
+							}
+						}
 					}
 				});
 			}
