@@ -1104,9 +1104,13 @@ public class JavacBindingResolver extends BindingResolver {
 		if( javacElement instanceof JCVariableDecl jcvd ) {
 			javacElement = jcvd.init;
 		}
-		if(javacElement instanceof JCNewClass jcExpr && !jcExpr.constructor.type.isErroneous()) {
-			List<com.sun.tools.javac.code.Type> typeArgs = streamOfTreeType(jcExpr.typeargs);
-			return this.bindings.getMethodBinding(asExecutable(jcExpr.constructor.type), (MethodSymbol)jcExpr.constructor, null, true, typeArgs);
+		if(javacElement instanceof JCNewClass jcExpr ) {
+			boolean constructorExists = jcExpr != null && jcExpr.constructor != null;
+			boolean constructorTypeExists = constructorExists && jcExpr.constructor.type != null;
+			if( constructorExists && constructorTypeExists && !jcExpr.constructor.type.isErroneous()) {
+				List<com.sun.tools.javac.code.Type> typeArgs = streamOfTreeType(jcExpr.typeargs);
+				return this.bindings.getMethodBinding(asExecutable(jcExpr.constructor.type), (MethodSymbol)jcExpr.constructor, null, true, typeArgs);
+			}
 		}
 		return null;
 	}
