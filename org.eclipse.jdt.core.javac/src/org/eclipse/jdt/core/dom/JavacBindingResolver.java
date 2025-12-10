@@ -2308,6 +2308,6 @@ public class JavacBindingResolver extends BindingResolver {
 	}
 
 	public static ExecutableType asExecutable(com.sun.tools.javac.code.Type t) {
-		return t instanceof ExecutableType exec ? exec : t.asMethodType();
+		return t instanceof ExecutableType exec ? exec : t == null ? null : t.asMethodType();
 	}
 }

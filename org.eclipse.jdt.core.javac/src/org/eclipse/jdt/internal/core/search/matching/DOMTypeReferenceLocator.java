@@ -556,7 +556,9 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 				}
 			} else if (toAnalyse instanceof QualifiedName qn) {
 				if (this.matchLocator.pattern instanceof TypeReferencePattern typePattern) {
-					if (!new String(typePattern.qualification).equals(qn.getQualifier().toString())) {
+					String s1 = typePattern == null || typePattern.qualification == null ? null : new String(typePattern.qualification);
+					String s2 = qn == null || qn.getQualifier() == null ? null : qn.getQualifier().toString();
+					if (!Objects.equals(s1, s2)) {
 						return toResponse(IMPOSSIBLE_MATCH);
 					}
 				}
