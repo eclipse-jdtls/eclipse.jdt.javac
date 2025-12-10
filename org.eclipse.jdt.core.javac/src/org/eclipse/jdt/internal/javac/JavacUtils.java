@@ -186,20 +186,22 @@ public class JavacUtils {
 		if (limitModules != null && !limitModules.isBlank()) {
 			options.put(Option.LIMIT_MODULES, limitModules);
 		}
-		if (!options.isSet(Option.RELEASE) && javaProject instanceof JavaProject jp && jp.exists()) {
-			try {
-				IType systemType = javaProject.findType(Object.class.getName());
-				if (systemType != null) {
-					IJavaElement element = systemType.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
-					IPath path = element.getPath();
-					if (path != null && path.toFile().exists()) {
-						if(!nineOrLater ) {
-							options.put( Option.BOOT_CLASS_PATH, path.toFile().getAbsolutePath());
+		if (!options.isSet(Option.RELEASE) && javaProject instanceof JavaProject jp ) {
+			if( jp.getProject() != null && jp.exists() ) {
+				try {
+					IType systemType = javaProject.findType(Object.class.getName());
+					if (systemType != null) {
+						IJavaElement element = systemType.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT);
+						IPath path = element.getPath();
+						if (path != null && path.toFile().exists()) {
+							if(!nineOrLater ) {
+								options.put( Option.BOOT_CLASS_PATH, path.toFile().getAbsolutePath());
+							}
 						}
 					}
+				} catch (JavaModelException ex) {
+					ILog.get().error(ex.getMessage(), ex);
 				}
-			} catch (JavaModelException ex) {
-				ILog.get().error(ex.getMessage(), ex);
 			}
 		}
 
@@ -310,7 +312,7 @@ public class JavacUtils {
 						.toList());
 				classpathEnabled = true;
 			}
-			if (!classpathEnabled && javaProject.exists()) {
+			if (!classpathEnabled && javaProject.getProject() != null && javaProject.exists()) {
 //				Set<JavaProject> moduleProjects = Set.of();
 				IClasspathEntry[] expandedClasspath = javaProject.getExpandedClasspath();
 				Set<JavaProject> moduleProjects = Stream.of(expandedClasspath)
@@ -414,7 +416,9 @@ public class JavacUtils {
 				}
 			}
 			Queue<IClasspathEntry> toProcess = new LinkedList<>();
-			toProcess.addAll(Arrays.asList(project.resolveClasspath(project.getExpandedClasspath())));
+			if( project.getProject() != null ) {
+				toProcess.addAll(Arrays.asList(project.resolveClasspath(project.getExpandedClasspath())));
+			}
 			while (!toProcess.isEmpty()) {
 				IClasspathEntry current = toProcess.poll();
 				if (current.getEntryKind() == IClasspathEntry.CPE_PROJECT && select.test(current)) {

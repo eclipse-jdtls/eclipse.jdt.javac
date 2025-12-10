@@ -1196,7 +1196,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			return;
 
 		List<IJavaProject> javaProjects = Stream.of(src)
-				.map(x -> javaProject.getProject().getParent().findMember(new String(x.getFileName())))
+				.map(x -> javaProject.getProject() == null ? null : javaProject.getProject().getParent().findMember(new String(x.getFileName())))
 				.filter(x -> x != null)
 				.map(x -> x.getProject())
 				.filter(x -> x != null)
