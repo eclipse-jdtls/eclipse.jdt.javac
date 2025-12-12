@@ -274,23 +274,21 @@ public class JavacUtils {
 				}
 			}
 
+			Iterable<? extends File> srcPathLocationList = null;
 			if (compilerConfig != null && !isEmpty(compilerConfig.sourcepaths())) {
-				fileManager.setLocation(StandardLocation.SOURCE_PATH,
-					compilerConfig.sourcepaths()
-						.stream()
-						.map(File::new)
-						.toList());
+				srcPathLocationList = compilerConfig.sourcepaths().stream().map(x -> new File(x)).toList();
 			} else {
-				fileManager.setLocation(StandardLocation.SOURCE_PATH, classpathEntriesToFiles(javaProject, true, entry -> (isTest || !entry.isTest())));
+				srcPathLocationList = classpathEntriesToFiles(javaProject, true, entry -> (isTest || !entry.isTest()));
 			}
+			fileManager.setLocation(StandardLocation.SOURCE_PATH, srcPathLocationList);
 
 			boolean moduleSourcePathEnabled = false;
 			if (compilerConfig != null && !isEmpty(compilerConfig.moduleSourcepaths())) {
-				fileManager.setLocation(StandardLocation.MODULE_SOURCE_PATH,
-					compilerConfig.moduleSourcepaths()
+				Iterable<? extends File> msp = compilerConfig.moduleSourcepaths()
 						.stream()
 						.map(File::new)
-						.toList());
+						.toList();
+				fileManager.setLocation(StandardLocation.MODULE_SOURCE_PATH,msp);
 				moduleSourcePathEnabled = true;
 			}
 
@@ -358,9 +356,12 @@ public class JavacUtils {
 					for (IJavaProject requiredModuleProject : moduleProjects) {
 						IPath moduleFileLocation = requiredModuleProject.getModuleDescription().getResource().getLocation();
 						if (moduleFileLocation.toFile().isFile()) {
-							fileManager.setLocationForModule(StandardLocation.MODULE_SOURCE_PATH,
-									requiredModuleProject.getModuleDescription().getElementName(),
-									List.of(moduleFileLocation.removeLastSegments(1).toPath()));
+							String elName = requiredModuleProject.getModuleDescription().getElementName();
+							List<java.nio.file.Path> p1 = List.of(moduleFileLocation.removeLastSegments(1).toPath());
+							if( isModuleSourcePath(moduleFileLocation.toPath(), elName)) {
+								fileManager.setLocationForModule(StandardLocation.MODULE_SOURCE_PATH,
+									elName, p1);
+							}
 						}
 					}
 				}
@@ -369,6 +370,26 @@ public class JavacUtils {
 			ILog.get().error(ex.getMessage(), ex);
 		}
 	}
+
+	  // Named constants
+    private static final boolean MODULE_SOURCE_PATH = true;
+    private static final boolean NORMAL_SOURCE_PATH = false;
+
+    /**
+     * Determines whether this module-info.java should be treated
+     * as a module-source-path layout or normal source path.
+     *
+     * @param moduleInfoPath path to module-info.java
+     * @param moduleName the name declared inside module-info.java
+     * @return MODULE_SOURCE_PATH or NORMAL_SOURCE_PATH
+     */
+    public static boolean isModuleSourcePath(java.nio.file.Path moduleInfoPath, String moduleName) {
+    	java.nio.file.Path parent = moduleInfoPath.getParent();
+        if (parent == null) return NORMAL_SOURCE_PATH; // defensive
+        return parent.getFileName().toString().equals(moduleName)
+                ? MODULE_SOURCE_PATH
+                : NORMAL_SOURCE_PATH;
+    }
 
 	private static Collection<? extends File> outDirectories(JavaProject javaProject, Predicate<IClasspathEntry> select) {
 		LinkedHashSet<File> res = new LinkedHashSet<>();

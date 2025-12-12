@@ -45,6 +45,7 @@ import javax.tools.Diagnostic;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
@@ -1062,20 +1063,40 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			char[] sourceUnitFileName,
 			Object sourceUnit,
 			JavacFileManager fileManager, Map<JavaFileObject, File> fileObjectsToJars) {
-		File unitFile;
+		File unitFile = null;
+		boolean virtual = false;
+		String sufn = new String(sourceUnitFileName);
 		if (javaProject != null && javaProject.getResource() != null) {
 			// path is relative to the workspace, make it absolute
-			IResource asResource = javaProject.getProject().getParent().findMember(new String(sourceUnitFileName));
+			IResource asResource = javaProject.getProject().getParent().findMember(sufn);
 			if (asResource != null) {
 				unitFile = asResource.getLocation().toFile();
 			} else {
+				// Can't find the file, let's go virtual
+				virtual = true;
 				unitFile = new File(new String(sourceUnitFileName));
 			}
 		} else {
 			unitFile = new File(new String(sourceUnitFileName));
 		}
-		JavaFileObject fileObject = fileToJavaFileObject(unitFile, sourceUnitFileName, sourceUnit, fileManager, fileObjectsToJars);
-		return fileObject;
+		if( unitFile != null ) {
+			return fileToJavaFileObject(unitFile, sourceUnitFileName, sourceUnit, fileManager, fileObjectsToJars);
+		}
+		if( virtual ) {
+			String contents = null;
+			if( sourceUnit instanceof org.eclipse.jdt.internal.compiler.env.ICompilationUnit cu1) {
+				contents = new String(cu1.getContents());
+			} else if( sourceUnit instanceof ICompilationUnit cu2) {
+				try {
+					contents = cu2.getSource();
+				} catch(JavaModelException jme) {
+
+				}
+			}
+			if( contents != null )
+				return new VirtualSourceFile(sufn, contents);
+		}
+		return null;
 	}
 
 	private static JavaFileObject fileToJavaFileObject(File unitFile,
@@ -1127,6 +1148,21 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			fileObjectsToJars.put(fileObject, unitFile);
 		}
 		return fileObject;
+	}
+
+	public static final class VirtualSourceFile extends SimpleJavaFileObject {
+
+	    private final CharSequence source;
+
+	    public VirtualSourceFile(String pathLikeName, CharSequence source) {
+	        super(URI.create("mem:///" + pathLikeName), Kind.SOURCE);
+	        this.source = source;
+	    }
+
+	    @Override
+	    public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+	        return source;
+	    }
 	}
 
 	public static class JavaFileObjectWrapper implements JavaFileObject {
