@@ -1070,12 +1070,16 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		if (javaProject != null && javaProject.getResource() != null) {
 			// path is relative to the workspace, make it absolute
 			IResource asResource = javaProject.getProject().getParent().findMember(sufn);
+
 			if (asResource != null) {
 				unitFile = asResource.getLocation().toFile();
 			} else {
-				// Can't find the file, let's go virtual
-				virtual = true;
-				unitFile = new File(new String(sourceUnitFileName));
+				try {
+					URI.create("mem:///" + sufn);
+					virtual = true;
+				} catch(IllegalArgumentException iae) {
+					unitFile = new File(new String(sourceUnitFileName));
+				}
 			}
 		} else {
 			unitFile = new File(new String(sourceUnitFileName));
