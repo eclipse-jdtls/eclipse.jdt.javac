@@ -1074,6 +1074,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			} else {
 				// Can't find the file, let's go virtual
 				virtual = true;
+				unitFile = new File(new String(sourceUnitFileName));
 			}
 		} else {
 			unitFile = new File(new String(sourceUnitFileName));
