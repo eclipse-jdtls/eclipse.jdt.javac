@@ -17,9 +17,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import javax.tools.FileObject;
 import javax.tools.JavaFileManager;
 
 import org.eclipse.core.runtime.ILog;
+import org.eclipse.jdt.core.dom.JavacCompilationUnitResolver.VirtualSourceFile;
 
 import com.sun.tools.javac.api.ClientCodeWrapper;
 import com.sun.tools.javac.file.FSInfo;
@@ -96,4 +98,13 @@ public class CachingJarsJavaFileManager extends JavacFileManager {
 		}
 		return res;
 	}
+
+    @Override
+	public boolean contains(Location location, FileObject fo) throws IOException {
+    	if( fo instanceof VirtualSourceFile vsf ) {
+    		return true;
+    	}
+    	return super.contains(location,  fo);
+    }
+
 }

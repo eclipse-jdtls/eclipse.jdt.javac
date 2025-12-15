@@ -708,7 +708,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					URI uri = sourcefile.toUri();
 					String fileName = null;
 					try {
-						fileName = Paths.get(uri).getFileName().toString();
+						fileName = Paths.get(uri.getPath()).getFileName().toString();
 					} catch (IllegalArgumentException e) {
 						// probably: uri is not a valid path
 					}

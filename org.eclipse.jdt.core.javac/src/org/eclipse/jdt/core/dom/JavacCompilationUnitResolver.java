@@ -616,7 +616,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	};
 
-	private Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> parse(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] sourceUnits, int apiLevel,
+	private Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit>
+		parse(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] sourceUnits, int apiLevel,
 			Map<String, String> compilerOptions, boolean resolveBindings, int flags, IJavaProject javaProject, List<Classpath> extraClasspath, WorkingCopyOwner workingCopyOwner,
 			int focalPoint, IProgressMonitor monitor) {
 		if (sourceUnits.length == 0) {
