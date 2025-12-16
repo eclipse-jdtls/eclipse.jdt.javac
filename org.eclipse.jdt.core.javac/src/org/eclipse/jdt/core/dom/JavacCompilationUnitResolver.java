@@ -1073,6 +1073,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 			if (asResource != null) {
 				unitFile = asResource.getLocation().toFile();
+			} else if(sufn != null && new File(sufn).exists()) {
+				unitFile = new File(sufn);
 			} else {
 				try {
 					URI.create("mem:///" + sufn);
