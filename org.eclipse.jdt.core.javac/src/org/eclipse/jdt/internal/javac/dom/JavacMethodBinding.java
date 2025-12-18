@@ -368,16 +368,60 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	 * @return the key including the exception suffix
 	 */
 	private String computeKeyWithThrowsFromJavadoc(IMethod method) {
-		String[] exceptions = null;
+		String[] exceptionsFromMethod = null;
 		try {
-			exceptions = method.getExceptionTypes();
+			exceptionsFromMethod = method.getExceptionTypes();
 		} catch (JavaModelException ex) {
+			exceptionsFromMethod = new String[0];
 		}
-		if (exceptions == null || exceptions.length == 0) {
-			exceptions = Arrays.stream(getExceptionTypes()).map(ITypeBinding::getKey).toArray(String[]::new);
-		}
-		String exceptionsAsString = Arrays.stream(exceptions).map(t -> '|' + t.replace('.', '/')).collect(Collectors.joining());
-		return getKey() + exceptionsAsString;
+
+		String[] exceptionsFromType = Arrays.stream(getExceptionTypes()).map(ITypeBinding::getKey).toArray(String[]::new);
+		String[] unmatched = filterUnmatchedSourceExceptions(exceptionsFromMethod, exceptionsFromType);
+
+		String exceptionsAsString = Arrays.stream(unmatched).map(t -> '|' + t.replace('.', '/')).collect(Collectors.joining());
+		String e2 = getKey() + exceptionsAsString;
+		return e2;
+	}
+
+	static String[] filterUnmatchedSourceExceptions(
+	        String[] unresolved,
+	        String[] resolved) {
+
+	    Set<String> resolvedSimpleNames = Arrays.stream(resolved)
+	        .map(Signature::getElementType)
+	        .map(JavacMethodBinding::simpleNameFromSignature)
+	        .collect(Collectors.toSet());
+
+	    return Arrays.stream(unresolved)
+	        .filter(u -> {
+	            String simple = simpleNameFromSignature(u);
+	            return !resolvedSimpleNames.contains(simple);
+	        })
+	        .toArray(String[]::new);
+	}
+
+	static String simpleNameFromSignature(String sig) {
+	    // Remove generic wrapper
+	    sig = Signature.getElementType(sig);
+
+	    // Remove leading Q / L and trailing ;
+	    if ((sig.startsWith("Q") || sig.startsWith("L")) && sig.endsWith(";")) {
+	        sig = sig.substring(1, sig.length() - 1);
+	    }
+
+	    // Handle JVM slashes
+	    int slash = sig.lastIndexOf('/');
+	    if (slash >= 0) {
+	        sig = sig.substring(slash + 1);
+	    }
+
+	    // Handle dotted names just in case
+	    int dot = sig.lastIndexOf('.');
+	    if (dot >= 0) {
+	        sig = sig.substring(dot + 1);
+	    }
+
+	    return sig;
 	}
 
 	private IMethod getJavaElementForAnnotationTypeMemberDeclaration(IType currentType, AnnotationTypeMemberDeclaration annotationTypeMemberDeclaration) {
