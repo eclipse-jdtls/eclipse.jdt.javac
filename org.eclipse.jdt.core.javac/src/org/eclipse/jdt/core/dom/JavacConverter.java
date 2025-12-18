@@ -569,12 +569,14 @@ class JavacConverter {
 		}
 		if (expression instanceof JCAnnotatedType jcat) {
 			Name n = toName(jcat.underlyingType, extraSettings);
-			commonSettings(n, jcat.underlyingType);
+			if( extraSettings == null )
+				commonSettings(n, jcat.underlyingType);
 			return n;
 		}
 		if (expression instanceof JCTypeApply jcta) {
 			Name n = toName(jcta.clazz, extraSettings);
-			commonSettings(n, jcta.clazz);
+			if( extraSettings == null )
+				commonSettings(n, jcta.clazz);
 			return n;
 		}
 		throw new UnsupportedOperationException("toName for " + expression + " (" + expression == null ? "null" : expression.getClass().getName() + ")");
