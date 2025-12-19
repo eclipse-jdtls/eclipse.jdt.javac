@@ -17,6 +17,7 @@ import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 
 import com.sun.tools.javac.code.Attribute;
@@ -36,7 +37,13 @@ public abstract class JavacMemberValuePairBinding implements IMemberValuePairBin
 
 	public JavacMemberValuePairBinding(IMethodBinding defaultAnnotationMethod, JavacBindingResolver resolver) {
 		this.method = (JavacMethodBinding)defaultAnnotationMethod;
-		this.value = defaultAnnotationMethod.getDefaultValue();
+		Object v = defaultAnnotationMethod.getDefaultValue();
+		ITypeBinding tb = defaultAnnotationMethod.getReturnType();
+		if( v == null && tb != null && tb.isArray() ) {
+			this.value = new Object[0];
+		} else {
+			this.value = v;
+		}
 		this.resolver = resolver;
 	}
 
