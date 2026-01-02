@@ -94,6 +94,7 @@ import org.eclipse.jdt.internal.core.JavaProject;
 import org.eclipse.jdt.internal.core.SearchableEnvironment;
 import org.eclipse.jdt.internal.core.dom.ICompilationUnitResolver;
 import org.eclipse.jdt.internal.core.index.IndexLocation;
+import org.eclipse.jdt.internal.core.search.DOMASTNodeUtils;
 import org.eclipse.jdt.internal.core.search.IndexQueryRequestor;
 import org.eclipse.jdt.internal.core.search.JavaSearchParticipant;
 import org.eclipse.jdt.internal.core.search.matching.MatchLocator;
@@ -939,6 +940,18 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						System.arraycopy(javadocProblems, 0, newProblems, initialSize, javadocProblems.length);
 						res.setProblems(newProblems);
 					}
+
+					for( IProblem p : res.getProblems()) {
+						int id = p.getID() & IProblem.IgnoreCategoriesMask;
+						if( id == 231 ) {
+							ASTNode found = NodeFinder.perform(res, p.getSourceStart(), p.getSourceEnd() - p.getSourceStart());
+							ASTNode enclosing = DOMASTNodeUtils.getEnclosingJavaElementNode(found);
+							if( enclosing != null ) {
+								enclosing.setFlags(enclosing.getFlags() | ASTNode.MALFORMED);
+							}
+						}
+					}
+
 					List<org.eclipse.jdt.core.dom.Comment> javadocComments = new ArrayList<>();
 					res.accept(new ASTVisitor(true) {
 						@Override

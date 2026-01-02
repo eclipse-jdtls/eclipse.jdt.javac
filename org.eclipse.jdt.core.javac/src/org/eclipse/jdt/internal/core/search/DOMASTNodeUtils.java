@@ -66,6 +66,17 @@ public class DOMASTNodeUtils {
 		if (node == null) {
 			return null;
 		}
+		ASTNode enclosing = getEnclosingJavaElementNode(node);
+		if( enclosing != null ) {
+			return getDeclaringJavaElement(enclosing);
+		}
+		return null;
+	}
+
+	public static ASTNode getEnclosingJavaElementNode(ASTNode node) {
+		if (node == null) {
+			return null;
+		}
 		if (node instanceof AbstractTypeDeclaration
 			|| node instanceof MethodDeclaration
 			|| node instanceof FieldDeclaration
@@ -79,13 +90,14 @@ public class DOMASTNodeUtils {
 			|| node instanceof LambdaExpression
 			|| node.getLocationInParent() == FieldDeclaration.FRAGMENTS_PROPERTY
 			|| node.getLocationInParent() == RecordDeclaration.RECORD_COMPONENTS_PROPERTY) {
-			return getDeclaringJavaElement(node);
+			return node;
 		}
 		if (node instanceof ClassInstanceCreation newInst && newInst.getAnonymousClassDeclaration() != null) {
-			return getDeclaringJavaElement(newInst.getAnonymousClassDeclaration());
+			return (newInst.getAnonymousClassDeclaration());
 		}
-		return getEnclosingJavaElement(node.getParent());
+		return getEnclosingJavaElementNode(node.getParent());
 	}
+
 
 
 	public static boolean annotationBetweenNodeAndLocalElement(ASTNode node) {
