@@ -905,7 +905,6 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	@Override
 	public boolean isSyntheticRecordMethod() {
 		return this.explicitSynthetic || (!this.methodSymbol.isStatic()
-				&& !isConstructor()
 				&& (this.methodSymbol != null && (this.methodSymbol.flags() & (Flags.GENERATED_MEMBER | Flags.SYNTHETIC | Flags.RECORD)) != 0)
 				&& getDeclaringClass().isRecord());
 	}
