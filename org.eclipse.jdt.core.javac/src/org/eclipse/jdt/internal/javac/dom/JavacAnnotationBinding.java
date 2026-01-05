@@ -12,6 +12,9 @@ package org.eclipse.jdt.internal.javac.dom;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -23,6 +26,7 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 
@@ -119,7 +123,15 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 	@Override
 	public IMemberValuePairBinding[] getAllMemberValuePairs() {
 		IMemberValuePairBinding[] declared = getDeclaredMemberValuePairs();
-		var implicitDefaultMethods = new ArrayList<>(Arrays.asList(getAnnotationType().getDeclaredMethods()));
+		List<IMethodBinding> implicitDefaultMethods = new ArrayList<>(Arrays.asList(getAnnotationType().getDeclaredMethods()));
+		Collections.sort(implicitDefaultMethods, new Comparator<IMethodBinding>() {
+			@Override
+			public int compare(IMethodBinding o1, IMethodBinding o2) {
+				String s1 = o1.getName();
+				String s2 = o2.getName();
+				return Comparator.nullsFirst(String::compareTo).compare(s1, s2);
+			}
+		});
 		var explicitedMethods = Arrays.stream(declared).map(IMemberValuePairBinding::getMethodBinding).toList();
 		implicitDefaultMethods.removeAll(explicitedMethods);
 		if (implicitDefaultMethods.isEmpty()) {
