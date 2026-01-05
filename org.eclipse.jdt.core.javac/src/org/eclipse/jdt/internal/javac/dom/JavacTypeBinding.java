@@ -468,7 +468,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		String base = null;
 		if(t.getEnclosingType() instanceof ClassType enclosingClass) {
 			if(enclosingClass != null && enclosingClass.tsym != null && (isParameterizedType(t) || isRawType(t) || (isGenericType(enclosingClass) && !Modifier.isStatic(getModifiers())))) {
-				base1 = getGenericTypeSignature(enclosingClass, enclosingClass.tsym, false);
+				base1 = getGenericTypeSignature(enclosingClass, enclosingClass.tsym, true);
 				base = removeTrailingSemicolon(base1);
 				if (base.endsWith("<>")) { // loose
 					base = base.substring(0, base.length());
