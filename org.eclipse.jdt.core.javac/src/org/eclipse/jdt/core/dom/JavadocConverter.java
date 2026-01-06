@@ -553,6 +553,20 @@ class JavadocConverter {
 	}
 
 	private Stream<IDocElement> convertElementGroup(DCTree[] javac) {
+		if( javac.length > 1 && javac[0] != null && javac[0] instanceof DCErroneous && javac[0].toString().startsWith("{@snippet")) {
+			// handle special case of an invalid snippet
+			if( javac[javac.length-1] != null && javac[javac.length-1].toString().endsWith("}")) {
+				// Combine as a single snippet TAG_ELEMENT
+				TagElement res = this.ast.newTagElement();
+				String tagName = "@snippet";
+				res.setTagName(tagName);
+				int start = this.docComment.getSourcePosition(javac[0].getStartPosition());
+				int endPosition = this.docComment.getSourcePosition(javac[javac.length - 1].getEndPosition());
+				res.setSourceRange(start, endPosition - start);
+				res.setProperty(TagProperty.TAG_PROPERTY_SNIPPET_IS_VALID, false);
+				return Stream.of(res);
+			}
+		}
 		return splitLines(javac).filter(x -> x.length != 0).flatMap(this::toTextOrTag);
 	}
 	private Stream<IDocElement> toTextOrTag(Region line) {
