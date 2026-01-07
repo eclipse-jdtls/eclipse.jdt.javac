@@ -756,125 +756,76 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						return;
 					}
 
-					final TypeElement currentTopLevelType = e.getTypeElement();
-					UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>() {
-						@Override
-						public Void visitClass(ClassTree node, Void p) {
-							if (node instanceof JCClassDecl classDecl) {
-								/**
-								 * If a Java file contains multiple top-level types, it will
-								 * trigger multiple ANALYZE taskEvents for the same compilation
-								 * unit. Each ANALYZE taskEvent corresponds to the completion
-								 * of analysis for a single top-level type. Therefore, in the
-								 * ANALYZE task event listener, we only visit the class and nested
-								 * classes that belong to the currently analyzed top-level type.
-								 */
-								if (Objects.equals(currentTopLevelType, classDecl.sym)
-									|| !(classDecl.sym.owner instanceof PackageSymbol)) {
-									return super.visitClass(node, p);
-								} else {
-									return null; // Skip if it does not belong to the currently analyzed top-level type.
-								}
+					handleAnalyzeEvent(compilerOptions, context, unusedProblemFactory, e, dom, javaProject);
+				}
+			}
+
+			private static void handleAnalyzeEvent(Map<String, String> compilerOptions, Context context,
+					final UnusedProblemFactory unusedProblemFactory, TaskEvent e,
+					final CompilationUnit dom, IJavaProject javaProject) {
+				final TypeElement currentTopLevelType = e.getTypeElement();
+				UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>() {
+					@Override
+					public Void visitClass(ClassTree node, Void p) {
+						if (node instanceof JCClassDecl classDecl) {
+							/**
+							 * If a Java file contains multiple top-level types, it will
+							 * trigger multiple ANALYZE taskEvents for the same compilation
+							 * unit. Each ANALYZE taskEvent corresponds to the completion
+							 * of analysis for a single top-level type. Therefore, in the
+							 * ANALYZE task event listener, we only visit the class and nested
+							 * classes that belong to the currently analyzed top-level type.
+							 */
+							if (Objects.equals(currentTopLevelType, classDecl.sym)
+								|| !(classDecl.sym.owner instanceof PackageSymbol)) {
+								return super.visitClass(node, p);
+							} else {
+								return null; // Skip if it does not belong to the currently analyzed top-level type.
 							}
-
-							return super.visitClass(node, p);
 						}
-					};
-					final CompilationUnitTree unit = e.getCompilationUnit();
-					try {
-						scanner.scan(unit, null);
-					} catch (Exception ex) {
-						ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
-					}
-					List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
-					if (!unusedProblems.isEmpty()) {
-						addProblemsToDOM(dom, unusedProblems);
-					}
 
-					List<CategorizedProblem> unusedImports = scanner.getUnusedImports(unusedProblemFactory);
-					List<? extends Tree> topTypes = unit.getTypeDecls();
-					int typeCount = topTypes.size();
-					// Once all top level types of this Java file have been resolved,
-					// we can report the unused import to the DOM.
-					if (typeCount <= 1) {
+						return super.visitClass(node, p);
+					}
+				};
+				final CompilationUnitTree unit = e.getCompilationUnit();
+				try {
+					scanner.scan(unit, null);
+				} catch (Exception ex) {
+					ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
+				}
+				List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
+				if (!unusedProblems.isEmpty()) {
+					addProblemsToDOM(dom, unusedProblems);
+				}
+
+				List<CategorizedProblem> unusedImports = scanner.getUnusedImports(unusedProblemFactory);
+				List<? extends Tree> topTypes = unit.getTypeDecls();
+				int typeCount = topTypes.size();
+				// Once all top level types of this Java file have been resolved,
+				// we can report the unused import to the DOM.
+				if (typeCount <= 1) {
+					addProblemsToDOM(dom, unusedImports);
+				} else if (typeCount > 1 && topTypes.get(typeCount - 1) instanceof JCClassDecl lastType) {
+					if (Objects.equals(currentTopLevelType, lastType.sym)) {
 						addProblemsToDOM(dom, unusedImports);
-					} else if (typeCount > 1 && topTypes.get(typeCount - 1) instanceof JCClassDecl lastType) {
-						if (Objects.equals(currentTopLevelType, lastType.sym)) {
-							addProblemsToDOM(dom, unusedImports);
-						}
 					}
+				}
 
-					if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
-						AccessRestrictionTreeScanner accessScanner = null;
-						if (javaProject instanceof JavaProject internalJavaProject) {
-							try {
-								INameEnvironment environment = new SearchableEnvironment(internalJavaProject, (WorkingCopyOwner)null, false, JavaProject.NO_RELEASE);
-								accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(), new CompilerOptions(compilerOptions));
-								accessScanner.scan(unit, null);
-							} catch (JavaModelException javaModelException) {
-								// do nothing
-							}
+				if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
+					AccessRestrictionTreeScanner accessScanner = null;
+					if (javaProject instanceof JavaProject internalJavaProject) {
+						try {
+							INameEnvironment environment = new SearchableEnvironment(internalJavaProject, (WorkingCopyOwner)null, false, JavaProject.NO_RELEASE);
+							accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(), new CompilerOptions(compilerOptions));
+							accessScanner.scan(unit, null);
+						} catch (JavaModelException javaModelException) {
+							// do nothing
 						}
-						addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
 					}
+					addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
 				}
 			}
 
-			private static void trimNonFocusedContent(JCCompilationUnit compilationUnit, int focalPoint) {
-				if (focalPoint < 0) {
-					return;
-				}
-				compilationUnit.accept(new TreeScanner() {
-					@Override
-					public void visitMethodDef(JCMethodDecl method) {
-						if (method.body != null &&
-							(focalPoint < method.getStartPosition()
-							|| method.getEndPosition(compilationUnit.endPositions) < focalPoint)) {
-							method.body.stats = com.sun.tools.javac.util.List.nil();
-							// add a `throw new RuntimeException();` ?
-;						}
-					}
-					@Override
-					public void scan(JCTree tree) {
-						var comment = compilationUnit.docComments.getComment(tree);
-						if (comment != null &&
-							(focalPoint < comment.getPos().getStartPosition() || comment.getPos().getEndPosition(compilationUnit.endPositions) < focalPoint)) {
-							compilationUnit.docComments.putComment(tree, new com.sun.tools.javac.parser.Tokens.Comment() {
-								@Override public boolean isDeprecated() { return comment.isDeprecated(); }
-								@Override public CommentStyle getStyle() { return comment.getStyle(); }
-								@Override public int getSourcePos(int index) { return comment.getSourcePos(index); }
-								@Override public DiagnosticPosition getPos() { return comment.getPos(); }
-								@Override public com.sun.tools.javac.parser.Tokens.Comment stripIndent() { return comment.stripIndent(); }
-								@Override public String getText() { return ""; }
-							});
-						}
-						super.scan(tree);
-					}
-				});
-			}
-
-			private static boolean isInJavadoc(JCCompilationUnit u, int focalPoint) {
-				boolean[] res = new boolean[] { false };
-				u.accept(new TreeScanner() {
-					@Override
-					public void scan(JCTree tree) {
-						if (res[0]) {
-							return;
-						}
-						var comment = u.docComments.getComment(tree);
-						if (comment != null &&
-							comment.getPos().getStartPosition() < focalPoint &&
-							focalPoint < comment.getPos().getEndPosition(u.endPositions) &&
-							(comment.getStyle() == CommentStyle.JAVADOC_BLOCK ||
-							comment.getStyle() == CommentStyle.JAVADOC_LINE)) {
-							res[0] = true;
-							return;
-						}
-						super.scan(tree);
-					}
-				});
-				return res[0];
-			}
 		});
 		{
 			// don't know yet a better way to ensure those necessary flags get configured
@@ -907,6 +858,17 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				if (sourceUnits.length == 1 && focalPoint >= 0) {
 					JavacUtils.trimUnvisibleContent(u, focalPoint, context);
 				}
+				CompilationUnit res = filesToUnits.get(u.getSourceFile());
+				if( res == null ) {
+					/*
+					 * There are some files we were not asked to compile,
+					 * but we added them to the javac task because they
+					 * have multiple top-level types which would otherwise be
+					 * not able to be located. Without this, we would have incomplete
+					 * JCTree items or missing / error types.
+					 */
+					continue;
+				}
 				try {
 					String rawText = null;
 					try {
@@ -914,17 +876,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					} catch( IOException ioe) {
 						ILog.get().error(ioe.getMessage(), ioe);
 						return null;
-					}
-					CompilationUnit res = filesToUnits.get(u.getSourceFile());
-					if( res == null ) {
-						/*
-						 * There are some files we were not asked to compile,
-						 * but we added them to the javac task because they
-						 * have multiple top-level types which would otherwise be
-						 * not able to be located. Without this, we would have incomplete
-						 * JCTree items or missing / error types.
-						 */
-						continue;
 					}
 					AST ast = res.ast;
 					JavacConverter converter = new JavacConverter(ast, u, context, rawText, docEnabled, focalPoint);
@@ -941,46 +892,10 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						res.setProblems(newProblems);
 					}
 
-					for( IProblem p : res.getProblems()) {
-						int id = p.getID() & IProblem.IgnoreCategoriesMask;
-						if( id == 231 ) {
-							ASTNode found = NodeFinder.perform(res, p.getSourceStart(), p.getSourceEnd() - p.getSourceStart());
-							ASTNode enclosing = DOMASTNodeUtils.getEnclosingJavaElementNode(found);
-							if( enclosing != null ) {
-								enclosing.setFlags(enclosing.getFlags() | ASTNode.MALFORMED);
-							}
-						}
-					}
+					markProblemNodesMalformed(res);
 
 					List<org.eclipse.jdt.core.dom.Comment> javadocComments = new ArrayList<>();
-					res.accept(new ASTVisitor(true) {
-						@Override
-						public void postVisit(ASTNode node) { // fix some positions
-							if( node.getParent() != null ) {
-								int myStart = node.getStartPosition();
-								int myEnd = myStart + node.getLength();
-								int parentStart = node.getParent().getStartPosition();
-								int parentEnd = parentStart + node.getParent().getLength();
-								int newParentStart = parentStart;
-								int newParentEnd = parentEnd;
-								if( parentStart != -1 && myStart >= 0 && myStart < parentStart) {
-									newParentStart = myStart;
-								}
-								if( parentEnd != -1 && myStart >= 0 && myEnd > parentEnd) {
-									newParentEnd = myEnd;
-								}
-								if( newParentStart != -1 && newParentEnd != -1 &&
-										parentStart != newParentStart || parentEnd != newParentEnd) {
-									node.getParent().setSourceRange(newParentStart, newParentEnd - newParentStart);
-								}
-							}
-						}
-						@Override
-						public boolean visit(Javadoc javadoc) {
-							javadocComments.add(javadoc);
-							return true;
-						}
-					});
+					depthFirstFixNodePositions(res, javadocComments);
 					Log log = Log.instance(context);
 					var previousSource = log.currentSourceFile();
 					try {
@@ -992,36 +907,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						log.useSource(previousSource);
 					}
 					if ((flags & ICompilationUnit.ENABLE_STATEMENTS_RECOVERY) == 0) {
-						// remove all possible RECOVERED node
-						res.accept(new ASTVisitor(false) {
-							private boolean reject(ASTNode node) {
-								return (node.getFlags() & ASTNode.RECOVERED) != 0
-									|| (node instanceof FieldDeclaration field && field.fragments().isEmpty())
-									|| (node instanceof VariableDeclarationStatement decl && decl.fragments().isEmpty());
-							}
-
-							@Override
-							public boolean preVisit2(ASTNode node) {
-								if (reject(node)) {
-									StructuralPropertyDescriptor prop = node.getLocationInParent();
-									if ((prop instanceof SimplePropertyDescriptor simple && !simple.isMandatory())
-										|| (prop instanceof ChildPropertyDescriptor child && !child.isMandatory())
-										|| (prop instanceof ChildListPropertyDescriptor)) {
-										node.delete();
-									} else if (node.getParent() != null) {
-										node.getParent().setFlags(node.getParent().getFlags() | ASTNode.RECOVERED);
-									}
-									return false; // branch will be cut, no need to inspect deeper
-								}
-								return true;
-							}
-
-							@Override
-							public void postVisit(ASTNode node) {
-								// repeat on postVisit so trimming applies bottom-up
-								preVisit2(node);
-							}
-						});
+						removeRecoveredNodes(res);
 					}
 					if (resolveBindings) {
 						JavacBindingResolver resolver = new JavacBindingResolver(javaProject, task, context, converter, workingCopyOwner, javacCompilationUnits);
@@ -1040,23 +926,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				}
 			}
 
-			boolean forceProblemDetection = (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) != 0;
-			boolean forceBindingRecovery = (flags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0;
-			var aptPath = fileManager.getLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH);
-			boolean aptPathForceAnalyze = (aptPath != null && aptPath.iterator().hasNext());
-			if (forceProblemDetection || forceBindingRecovery || aptPathForceAnalyze ) {
-				// Let's run analyze until it finishes without error
-				Throwable caught = null;
-				do {
-					caught = null;
-					try {
-						task.analyze();
-					} catch (Throwable t) {
-						caught = t;
-						ILog.get().error("Error while analyzing", t);
-					}
-				} while(caught != null);
-			}
+			conditionallyAnalyzeTask(resolveBindings, flags, fileManager, task);
 
 
 			if (!resolveBindings) {
@@ -1070,6 +940,162 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		return result;
+	}
+
+
+	private static void trimNonFocusedContent(JCCompilationUnit compilationUnit, int focalPoint) {
+		if (focalPoint < 0) {
+			return;
+		}
+		compilationUnit.accept(new TreeScanner() {
+			@Override
+			public void visitMethodDef(JCMethodDecl method) {
+				if (method.body != null &&
+					(focalPoint < method.getStartPosition()
+					|| method.getEndPosition(compilationUnit.endPositions) < focalPoint)) {
+					method.body.stats = com.sun.tools.javac.util.List.nil();
+					// add a `throw new RuntimeException();` ?
+;						}
+			}
+			@Override
+			public void scan(JCTree tree) {
+				var comment = compilationUnit.docComments.getComment(tree);
+				if (comment != null &&
+					(focalPoint < comment.getPos().getStartPosition() || comment.getPos().getEndPosition(compilationUnit.endPositions) < focalPoint)) {
+					compilationUnit.docComments.putComment(tree, new com.sun.tools.javac.parser.Tokens.Comment() {
+						@Override public boolean isDeprecated() { return comment.isDeprecated(); }
+						@Override public CommentStyle getStyle() { return comment.getStyle(); }
+						@Override public int getSourcePos(int index) { return comment.getSourcePos(index); }
+						@Override public DiagnosticPosition getPos() { return comment.getPos(); }
+						@Override public com.sun.tools.javac.parser.Tokens.Comment stripIndent() { return comment.stripIndent(); }
+						@Override public String getText() { return ""; }
+					});
+				}
+				super.scan(tree);
+			}
+		});
+	}
+
+	private static boolean isInJavadoc(JCCompilationUnit u, int focalPoint) {
+		boolean[] res = new boolean[] { false };
+		u.accept(new TreeScanner() {
+			@Override
+			public void scan(JCTree tree) {
+				if (res[0]) {
+					return;
+				}
+				var comment = u.docComments.getComment(tree);
+				if (comment != null &&
+					comment.getPos().getStartPosition() < focalPoint &&
+					focalPoint < comment.getPos().getEndPosition(u.endPositions) &&
+					(comment.getStyle() == CommentStyle.JAVADOC_BLOCK ||
+					comment.getStyle() == CommentStyle.JAVADOC_LINE)) {
+					res[0] = true;
+					return;
+				}
+				super.scan(tree);
+			}
+		});
+		return res[0];
+	}
+
+	private void markProblemNodesMalformed(CompilationUnit res) {
+		for( IProblem p : res.getProblems()) {
+			int id = p.getID() & IProblem.IgnoreCategoriesMask;
+			if( id == 231 ) {
+				ASTNode found = NodeFinder.perform(res, p.getSourceStart(), p.getSourceEnd() - p.getSourceStart());
+				ASTNode enclosing = DOMASTNodeUtils.getEnclosingJavaElementNode(found);
+				if( enclosing != null ) {
+					enclosing.setFlags(enclosing.getFlags() | ASTNode.MALFORMED);
+				}
+			}
+		}
+	}
+
+	private void depthFirstFixNodePositions(CompilationUnit res,
+			List<org.eclipse.jdt.core.dom.Comment> javadocComments) {
+		res.accept(new ASTVisitor(true) {
+			@Override
+			public void postVisit(ASTNode node) { // fix some positions
+				if( node.getParent() != null ) {
+					int myStart = node.getStartPosition();
+					int myEnd = myStart + node.getLength();
+					int parentStart = node.getParent().getStartPosition();
+					int parentEnd = parentStart + node.getParent().getLength();
+					int newParentStart = parentStart;
+					int newParentEnd = parentEnd;
+					if( parentStart != -1 && myStart >= 0 && myStart < parentStart) {
+						newParentStart = myStart;
+					}
+					if( parentEnd != -1 && myStart >= 0 && myEnd > parentEnd) {
+						newParentEnd = myEnd;
+					}
+					if( newParentStart != -1 && newParentEnd != -1 &&
+							parentStart != newParentStart || parentEnd != newParentEnd) {
+						node.getParent().setSourceRange(newParentStart, newParentEnd - newParentStart);
+					}
+				}
+			}
+			@Override
+			public boolean visit(Javadoc javadoc) {
+				javadocComments.add(javadoc);
+				return true;
+			}
+		});
+	}
+
+	private void removeRecoveredNodes(CompilationUnit res) {
+		// remove all possible RECOVERED node
+		res.accept(new ASTVisitor(false) {
+			private boolean reject(ASTNode node) {
+				return (node.getFlags() & ASTNode.RECOVERED) != 0
+					|| (node instanceof FieldDeclaration field && field.fragments().isEmpty())
+					|| (node instanceof VariableDeclarationStatement decl && decl.fragments().isEmpty());
+			}
+
+			@Override
+			public boolean preVisit2(ASTNode node) {
+				if (reject(node)) {
+					StructuralPropertyDescriptor prop = node.getLocationInParent();
+					if ((prop instanceof SimplePropertyDescriptor simple && !simple.isMandatory())
+						|| (prop instanceof ChildPropertyDescriptor child && !child.isMandatory())
+						|| (prop instanceof ChildListPropertyDescriptor)) {
+						node.delete();
+					} else if (node.getParent() != null) {
+						node.getParent().setFlags(node.getParent().getFlags() | ASTNode.RECOVERED);
+					}
+					return false; // branch will be cut, no need to inspect deeper
+				}
+				return true;
+			}
+
+			@Override
+			public void postVisit(ASTNode node) {
+				// repeat on postVisit so trimming applies bottom-up
+				preVisit2(node);
+			}
+		});
+	}
+
+	private void conditionallyAnalyzeTask(boolean resolveBindings, int flags, JavacFileManager fileManager,
+			JavacTask task) {
+		boolean forceProblemDetection = (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) != 0;
+		boolean forceBindingRecovery = (flags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0;
+		var aptPath = fileManager.getLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH);
+		boolean aptPathForceAnalyze = (aptPath != null && aptPath.iterator().hasNext());
+		if (resolveBindings || forceProblemDetection || forceBindingRecovery || aptPathForceAnalyze ) {
+			// Let's run analyze until it finishes without error
+			Throwable caught = null;
+			do {
+				caught = null;
+				try {
+					task.analyze();
+				} catch (Throwable t) {
+					caught = t;
+					ILog.get().error("Error while analyzing", t);
+				}
+			} while(caught != null);
+		}
 	}
 
 	private static JavaFileObject cuToFileObject(
@@ -1410,7 +1436,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	}
 
-	private void addProblemsToDOM(CompilationUnit dom, Collection<CategorizedProblem> problems) {
+	private static void addProblemsToDOM(CompilationUnit dom, Collection<CategorizedProblem> problems) {
 		if (problems == null) {
 			return;
 		}
