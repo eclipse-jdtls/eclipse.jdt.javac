@@ -535,7 +535,25 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 				builder.append('>');
 			}
 			builder.append('(');
+
+			boolean isNestedClass = methodSymbol.owner instanceof Symbol.ClassSymbol
+			        && (methodSymbol.owner.owner instanceof Symbol.ClassSymbol || (
+			        		methodSymbol.owner.owner instanceof Symbol.MethodSymbol &&
+			        		methodSymbol.owner.owner.owner instanceof Symbol.ClassSymbol)
+			        	);
+			Symbol declaringClassSym = !isNestedClass ? null :
+				methodSymbol.owner.owner instanceof Symbol.ClassSymbol abc ? abc :
+					methodSymbol.owner.owner.owner instanceof Symbol.ClassSymbol abc2 ? abc2 : null;
+			boolean isDeclaringStatic = isNestedClass && (methodSymbol.owner.flags() & Flags.STATIC) != 0;
+			boolean needSynthetics = methodSymbol.isConstructor()
+					&& isNestedClass
+					&& !isDeclaringStatic;
 			if (methodType != null) {
+				if( needSynthetics && declaringClassSym != null) {
+					builder.append("L");
+					builder.append(declaringClassSym.getSimpleName().toString());
+					builder.append(";");
+				}
 				for (var param : methodType.getParameterTypes()) {
 					JavacTypeBinding.getKey(builder, (Type)param, false, true, true, resolver);
 				}
