@@ -39,23 +39,25 @@ pipeline {
 		}
 		stage('Build, install, tests Javac-based JDT') {
 			steps {
-				sh """#!/bin/bash -x
-					mkdir -p $WORKSPACE/tmp
-					
-					unset JAVA_TOOL_OPTIONS
-					unset _JAVA_OPTIONS
-					# force qualifier to start with `z` so we identify it more easily and it always seem more recent than upstrea
-					mvn verify --batch-mode -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
-						-Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" \
-						-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-						--fail-at-end -Ptest-on-javase-25 -Pbree-libs -DfailIfNoTests=false -DexcludedGroups=org.junit.Ignore -DproviderHint=junit47 \
-						-Dmaven.test.failure.ignore=true -Dmaven.test.error.ignore=true
+				wrap([$class: 'Xvnc', useXauthority: true]) {
+					sh """#!/bin/bash -x
+						mkdir -p $WORKSPACE/tmp
+						
+						unset JAVA_TOOL_OPTIONS
+						unset _JAVA_OPTIONS
+						# force qualifier to start with `z` so we identify it more easily and it always seem more recent than upstrea
+						mvn verify --batch-mode -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
+							-Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" \
+							-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
+							--fail-at-end -Ptest-on-javase-25 -Pbree-libs -DfailIfNoTests=false -DexcludedGroups=org.junit.Ignore -DproviderHint=junit47 \
+							-Dmaven.test.failure.ignore=true -Dmaven.test.error.ignore=true
 """
+				}
 			}
 			post {
 				always {
 					archiveArtifacts artifacts: '*.log,*/target/work/data/.metadata/*.log,*/tests/target/work/data/.metadata/*.log,apiAnalyzer-workspace/.metadata/*.log,repository/target/repository/**,**/target/artifactcomparison/**', allowEmptyArchive: true
-					junit 'org.eclipse.jdt.core.tests.javac/target/surefire-reports/*.xml'
+					junit 'org.eclipse.jdt.core.tests.javac*/target/surefire-reports/*.xml'
 					discoverGitReferenceBuild referenceJob: 'eclipse.jdt.javac/main'
 					//recordIssues ignoreQualityGate:true, tool: junitParser(pattern: 'org.eclipse.jdt.core.tests.javac/target/surefire-reports/*.xml'), qualityGates: [[threshold: 1, type: 'DELTA', unstable: true]]
 				}

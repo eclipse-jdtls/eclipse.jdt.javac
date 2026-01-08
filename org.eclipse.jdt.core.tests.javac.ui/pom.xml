@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (c) 2026 IBM Corp. and others.
+  All rights reserved. This program and the accompanying materials
+  are made available under the terms of the Eclipse Distribution License v1.0
+  which accompanies this distribution, and is available at
+  http://www.eclipse.org/org/documents/edl-v10.php
+
+  Contributors:
+     IBM Corp. - initial implementation
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<artifactId>parent</artifactId>
+		<groupId>org.eclipse.jdt.javac</groupId>
+		<version>0.0.1-SNAPSHOT</version>
+	</parent>
+	<artifactId>org.eclipse.jdt.core.tests.javac.ui</artifactId>
+	<version>0.1.0-SNAPSHOT</version>
+	<packaging>eclipse-test-plugin</packaging>
+	<profiles>
+		<profile>
+			<id>test-on-javase-25</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-toolchains-plugin</artifactId>
+						<configuration>
+							<toolchains>
+								<jdk>
+									<id>JavaSE-25</id>
+								</jdk>
+							</toolchains>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.eclipse.tycho</groupId>
+						<artifactId>tycho-surefire-plugin</artifactId>
+						<configuration>
+							<argLine>${tycho.surefire.argLine}</argLine>
+							<useUIHarness>true</useUIHarness>
+							<useUIThread>true</useUIThread>
+							<providerHint>junit4</providerHint>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+			<properties>
+				<tycho.surefire.argLine>--add-modules ALL-SYSTEM -Dcompliance=21 -DCompilationUnit.DOM_BASED_OPERATIONS=true -DICompletionEngineProvider=org.eclipse.jdt.core.dom.DOMCompletionEngineProvider -DSourceIndexer.DOM_BASED_INDEXER=true -DICompilationUnitResolver=org.eclipse.jdt.core.dom.JavacCompilationUnitResolver -DAbstractImageBuilder.compiler=org.eclipse.jdt.internal.javac.JavacCompiler -DAbstractImageBuilder.compilerFactory=org.eclipse.jdt.internal.javac.JavacCompilerFactory -DMatchLocator.DOM_BASED_MATCH=true -DIJavaSearchDelegate=org.eclipse.jdt.internal.core.search.DOMJavaSearchDelegate --add-opens jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-opens jdk.javadoc/jdk.javadoc.internal.doclint=ALL-UNNAMED --add-opens jdk.javadoc/jdk.javadoc.internal.doclets.formats.html.taglets.snippet=ALL-UNNAMED --add-opens jdk.javadoc/jdk.javadoc.internal.doclets.formats.html.taglets=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.platform=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.resources=ALL-UNNAMED --add-opens jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens jdk.zipfs/jdk.nio.zipfs=ALL-UNNAMED --add-opens java.compiler/javax.tools=ALL-UNNAMED -Xss16m</tycho.surefire.argLine>
+			</properties>
+		</profile>
+	</profiles>
+</project>

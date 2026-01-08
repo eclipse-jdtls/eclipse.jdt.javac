@@ -35,6 +35,7 @@
 		<module>org.eclipse.jdt.core.javac</module>
 		<module>org.eclipse.jdt.core.javac.configurator</module>
 		<module>org.eclipse.jdt.core.tests.javac</module>
+		<module>org.eclipse.jdt.core.tests.javac.ui</module>
 		<module>org.eclipse.jdt.javac.ui</module>
 		<module>org.eclipse.jdt.javac.feature</module>
 		<module>repository</module>
