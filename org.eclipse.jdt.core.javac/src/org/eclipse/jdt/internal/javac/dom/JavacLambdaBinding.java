@@ -20,11 +20,13 @@ import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.internal.SignatureUtils;
@@ -33,13 +35,18 @@ import org.eclipse.jdt.internal.core.LambdaFactory;
 import org.eclipse.jdt.internal.core.LambdaMethod;
 import org.eclipse.jdt.internal.core.LambdaUtils;
 
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.tree.JCTree.JCLambda;
+
 public class JavacLambdaBinding extends JavacMethodBinding {
 
 	private LambdaExpression declaration;
+	private JCLambda jcLambda;
 
-	public JavacLambdaBinding(JavacMethodBinding methodBinding, LambdaExpression declaration) {
+	public JavacLambdaBinding(JavacMethodBinding methodBinding, LambdaExpression declaration, JCLambda lambda) {
 		super(methodBinding.methodType, methodBinding.methodSymbol, methodBinding.parentType, methodBinding.resolver);
 		this.declaration = declaration;
+		this.jcLambda = lambda;
 	}
 
 	@Override
@@ -97,6 +104,40 @@ public class JavacLambdaBinding extends JavacMethodBinding {
 			.map(VariableDeclaration::getName)
 			.map(SimpleName::getIdentifier)
 			.toArray(String[]::new);
+	}
+	@Override
+	public ITypeBinding[] getParameterTypes() {
+		ITypeBinding[] res = new ITypeBinding[this.methodType.getParameterTypes().size()];
+		boolean allFound = false;
+		if( this.jcLambda != null ) {
+			allFound = true;
+			List<Type> paramTypes = jcLambda.params.stream().map(p -> p.sym.type).toList();
+			for (int i = 0; i < res.length; i++) {
+				Type paramType = paramTypes.get(i);
+				ITypeBinding paramBinding = this.resolver.bindings.getTypeBinding(paramType);
+				if (paramBinding == null) {
+					allFound = false;
+				}
+				res[i] = paramBinding;
+			}
+		}
+
+		if( !allFound ) {
+			for (int i = 0; i < res.length; i++) {
+				Type paramType = (Type)methodType.getParameterTypes().get(i);
+				ITypeBinding paramBinding = this.resolver.bindings.getTypeBinding(paramType);
+				if (paramBinding == null) {
+					// workaround javac missing recovery symbols for unresolved parameterized types
+					if (this.resolver.findDeclaringNode(this) instanceof MethodDeclaration methodDecl) {
+						if (methodDecl.parameters().get(i) instanceof SingleVariableDeclaration paramDeclaration) {
+							paramBinding = this.resolver.resolveType(paramDeclaration.getType());
+						}
+					}
+				}
+				res[i] = paramBinding;
+			}
+		}
+		return res;
 	}
 
 }

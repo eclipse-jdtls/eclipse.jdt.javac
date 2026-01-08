@@ -368,8 +368,10 @@ public class JavacBindingResolver extends BindingResolver {
 		}
 		//
 		private Map<JavacLambdaBinding, JavacLambdaBinding> lambdaBindings = new HashMap<>();
-		public JavacLambdaBinding getLambdaBinding(JavacMethodBinding javacMethodBinding, LambdaExpression lambda) {
-			JavacLambdaBinding newInstance = new JavacLambdaBinding(javacMethodBinding, lambda);
+		public JavacLambdaBinding getLambdaBinding(JavacMethodBinding javacMethodBinding,
+				LambdaExpression lambda, JCTree jcLambda) {
+			JCLambda jcl = jcLambda instanceof JCLambda jcl2 ? jcl2 : null;
+			JavacLambdaBinding newInstance = new JavacLambdaBinding(javacMethodBinding, lambda, jcl);
 			lambdaBindings.putIfAbsent(newInstance, newInstance);
 			return lambdaBindings.get(newInstance);
 		}
@@ -1060,7 +1062,7 @@ public class JavacBindingResolver extends BindingResolver {
 		if (javacElement instanceof JCLambda jcLambda) {
 			JavacTypeBinding typeBinding = this.bindings.getTypeBinding(jcLambda.type);
 			if (typeBinding != null && typeBinding.getFunctionalInterfaceMethod() instanceof JavacMethodBinding methodBinding) {
-				return this.bindings.getLambdaBinding(methodBinding, lambda);
+				return this.bindings.getLambdaBinding(methodBinding, lambda, jcLambda);
 			}
 		}
 		return null;
