@@ -119,6 +119,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	private static final ITypeBinding[] NO_TYPE_ARGUMENTS = new ITypeBinding[0];
 
+	private Type initialType;
+	private TypeSymbol initialTypeSymbol;
+
 	final JavacBindingResolver resolver;
 	public final TypeSymbol typeSymbol;
 	protected final Types types;
@@ -137,6 +140,10 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				type = typeSymbol.type;
 			}
 		}
+
+		this.initialType = type;
+		this.initialTypeSymbol = typeSymbol;
+
 		this.isGeneric = type != null && type.isParameterized() && likelyGeneric;
 		this.backupOwner = backupOwner;
 		this.typeSymbol = (typeSymbol == null || typeSymbol.kind == Kind.ERR) && type != null? type.tsym : typeSymbol;
@@ -1501,7 +1508,12 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			return this.resolver.bindings.getTypeBinding(capturedType.wildcard);
 		}
 		if( this.type instanceof WildcardType) {
-			return this;
+			return new JavacTypeBinding(this.type, this.typeSymbol, this.alternatives, this.backupOwner, this.isGeneric, this.resolver) {
+				@Override
+				public boolean isCapture() {
+					return false; // Not a capture anymore, now just a wildcard
+				}
+			};
 		}
 		return null;
 	}
