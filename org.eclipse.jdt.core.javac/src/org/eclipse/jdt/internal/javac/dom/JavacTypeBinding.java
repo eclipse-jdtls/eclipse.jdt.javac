@@ -1533,10 +1533,10 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	public boolean isCapture() {
 		if( this.type instanceof Type.CapturedType )
 			return true;
-		if( this.type instanceof WildcardType wct) {
-			if( wct.isExtendsBound())
-				return true;
-		}
+//		if( this.type instanceof WildcardType wct) {
+//			if( wct.isExtendsBound())
+//				return true;
+//		}
 		return false;
 	}
 
