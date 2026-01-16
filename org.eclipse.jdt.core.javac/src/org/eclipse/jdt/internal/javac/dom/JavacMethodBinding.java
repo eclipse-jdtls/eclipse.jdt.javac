@@ -254,16 +254,12 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 				if( this.methodSymbol != null && this.methodSymbol.baseSymbol() instanceof MethodSymbol base) {
 					parametersResolved = base.params().stream()
 						.map(varSymbol -> varSymbol.type)
-						.map(t ->
-							t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
-								Signature.createTypeSignature(resolveTypeName(t, true), true))
+						.map(t -> resolveTypeToName(t))
 						.toArray(String[]::new);
 				} else {
 					parametersResolved = this.methodType.getParameterTypes().stream()
 							.map(Type.class::cast)
-							.map(t ->
-								t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
-									Signature.createTypeSignature(resolveTypeName(t, true), true))
+							.map(t -> resolveTypeToName(t))
 							.toArray(String[]::new);
 				}
 				parametersResolved = maybeTrimEnumConstructorArgs(parametersResolved);
@@ -279,9 +275,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 				if( this.methodSymbol != null ) {
 						parametersNotResolved = this.methodSymbol.params().stream()
 						.map(varSymbol -> varSymbol.type)
-						.map(t ->
-							t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
-								Signature.createTypeSignature(resolveTypeName(t, false), false))
+						.map(t -> resolveTypeToName(t))
 						.toArray(String[]::new);
 				}
 				parametersNotResolved = maybeTrimEnumConstructorArgs(parametersNotResolved);
@@ -296,6 +290,18 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			}
 		}
 		return null;
+	}
+
+	private String resolveTypeToName(Type t) {
+		if( t instanceof TypeVar typeVar ) {
+			return Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";";
+		}
+		String resolvedName = resolveTypeName(t, true);
+		if( "<any>".equals(resolvedName)) {
+			return Signature.createTypeSignature("java.lang.Object", true);
+		}
+		// check whether a better constructor exists for it
+		return  Signature.createTypeSignature(resolvedName, true);
 	}
 
 	private IMethod getJavaElementForMethodDeclaration(IType currentType, MethodDeclaration methodDeclaration) {
@@ -660,10 +666,14 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			ITypeBinding paramBinding = this.resolver.bindings.getTypeBinding(paramType);
 			if (paramBinding == null) {
 				// workaround javac missing recovery symbols for unresolved parameterized types
-				if (this.resolver.findDeclaringNode(this) instanceof MethodDeclaration methodDecl) {
+				ASTNode declaring = this.resolver.findDeclaringNode(this);
+				if (declaring instanceof MethodDeclaration methodDecl) {
 					if (methodDecl.parameters().get(i) instanceof SingleVariableDeclaration paramDeclaration) {
 						paramBinding = this.resolver.resolveType(paramDeclaration.getType());
 					}
+				} else if( declaring == null ) {
+					// We can't have nulls, they are VERY BAD!!!
+					paramBinding = this.resolver.resolveWellKnownType("java.lang.Object");
 				}
 			}
 			res[i] = paramBinding;
