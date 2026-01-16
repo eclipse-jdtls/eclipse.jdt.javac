@@ -941,7 +941,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 			conditionallyAnalyzeTask(resolveBindings, flags, fileManager, task);
 			if( resolveBindings ) {
-				//discoverMissingErrors(result);
+				discoverMissingErrors(result);
 			}
 
 			if (!resolveBindings) {
@@ -974,7 +974,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						String jcZeroMsg = jcZero.getMessage();
 						List<JavacProblem> additionalProblems =  missing.stream().map(x -> {
 							ITypeBinding declaringClaz = x.getDeclaringClass();
-							String params = String.join( ",", Arrays.stream(x.getParameterTypes()).map(q -> q.getName()).toList());
+							String params = String.join( ",", Arrays.stream(x.getParameterTypes())
+									.map(q -> {
+										String s = q == null ? "java.lang.Object" : q.getName();
+										return s;
+									}).toList());
 							String methodSigPlainText = x.getName() + "(" +params + ")";
 							List<String> args = Arrays.asList(jcZero.getArguments());
 							String[] newArgs = new String[] {args.get(0), methodSigPlainText, declaringClaz.getQualifiedName()};
@@ -983,7 +987,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						List<IProblem> oldProblems = new ArrayList<>(Arrays.asList(r.getProblems()));
 						oldProblems.remove(zero);
 						oldProblems.addAll(additionalProblems);
-						//r.setProblems((IProblem[]) oldProblems.toArray(new IProblem[oldProblems.size()]));
+						r.setProblems((IProblem[]) oldProblems.toArray(new IProblem[oldProblems.size()]));
 					}
 				}
 			}
@@ -1005,7 +1009,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			if( tb1.isInterface()) {
 				List<IMethodBinding> mb3 = typeToMethods.get(tb1).stream().filter(
 						x -> org.eclipse.jdt.core.dom.Modifier.isAbstract(x.getModifiers())
-						|| org.eclipse.jdt.core.dom.Modifier.isStatic(x.getModifiers())).toList();
+						&&  !org.eclipse.jdt.core.dom.Modifier.isStatic(x.getModifiers())).toList();
 				allMissing.addAll(mb3);
 			} else {
 				if( org.eclipse.jdt.core.dom.Modifier.isAbstract(tb.getModifiers())) {
