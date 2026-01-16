@@ -63,6 +63,7 @@ import com.sun.tools.javac.code.Type.ForAll;
 import com.sun.tools.javac.code.Type.JCNoType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.TypeVar;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.util.ListBuffer;
 
 public abstract class JavacMethodBinding implements IMethodBinding {
@@ -906,6 +907,41 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return false;
 	}
 
+	public boolean isImplOf(JavacMethodBinding javacMethod) {
+		if (this == javacMethod) {
+			return false;
+		}
+		if( this.methodSymbol.isStatic() || javacMethod.methodSymbol.isStatic())
+			return false;
+
+		if( this.methodSymbol == null ) {
+			return javacMethod.methodSymbol == null;
+		}
+
+		return Objects.equals(this.methodSymbol.name, javacMethod.methodSymbol.name)
+			&& implementsInterfaceMethod(javacMethod.methodSymbol, this.methodSymbol,
+					this.methodSymbol.owner instanceof ClassSymbol cs ? cs : null, this.resolver.getTypes());
+
+	}
+	/**
+	 * Returns true if implMethod is the method that satisfies ifaceMethod
+	 * in the context of the given class.
+	 */
+	static boolean implementsInterfaceMethod(
+	        MethodSymbol ifaceMethod,
+	        MethodSymbol implMethod,
+	        ClassSymbol contextClass,
+	        Types types) {
+
+	    if (ifaceMethod == null || implMethod == null || contextClass == null) {
+	        return false;
+	    }
+
+	    MethodSymbol resolved =
+	            ifaceMethod.implementation(contextClass, types, true);
+
+	    return resolved != null && resolved == implMethod;
+	}
 	@Override
 	public IVariableBinding[] getSyntheticOuterLocals() {
 		if( this.methodSymbol == null ) {
@@ -998,4 +1034,5 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		}
 		return null;
 	}
+
 }

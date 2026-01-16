@@ -105,11 +105,13 @@ import org.eclipse.jdt.internal.javac.AvoidNPEJavacTypes;
 import org.eclipse.jdt.internal.javac.CachingClassSymbolClassReader;
 import org.eclipse.jdt.internal.javac.CachingJDKPlatformArguments;
 import org.eclipse.jdt.internal.javac.CachingJarsJavaFileManager;
+import org.eclipse.jdt.internal.javac.JavacProblem;
 import org.eclipse.jdt.internal.javac.JavacProblemConverter;
 import org.eclipse.jdt.internal.javac.JavacUtils;
 import org.eclipse.jdt.internal.javac.ProcessorConfig;
 import org.eclipse.jdt.internal.javac.UnusedProblemFactory;
 import org.eclipse.jdt.internal.javac.UnusedTreeScanner;
+import org.eclipse.jdt.internal.javac.dom.JavacMethodBinding;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -938,7 +940,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			}
 
 			conditionallyAnalyzeTask(resolveBindings, flags, fileManager, task);
-
+			if( resolveBindings ) {
+				//discoverMissingErrors(result);
+			}
 
 			if (!resolveBindings) {
 				destroy(context);
@@ -951,6 +955,115 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		return result;
+	}
+
+
+	private void discoverMissingErrors(
+			Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> result) {
+		for( CompilationUnit r : result.values()) {
+			List<IProblem> missingMethods = Arrays.stream(r.getProblems()).filter(x -> x.getID() == IProblem.AbstractMethodMustBeImplemented).toList();
+			boolean isMissingMethods = missingMethods.size() > 0;
+			if( isMissingMethods ) {
+				IProblem zero = missingMethods.get(0);
+				ASTNode node = NodeFinder.perform(r, zero.getSourceStart(), zero.getSourceEnd() - zero.getSourceStart());
+				if( node != null && zero instanceof JavacProblem jcZero) {
+					IBinding b = DOMASTNodeUtils.getBinding(node);
+					// Find all missing methods in this class
+					if( b != null && b instanceof ITypeBinding tb && !org.eclipse.jdt.core.dom.Modifier.isAbstract(tb.getModifiers())) {
+						List<IMethodBinding> missing = findAllMissingMethodsInType(tb);
+						String jcZeroMsg = jcZero.getMessage();
+						List<JavacProblem> additionalProblems =  missing.stream().map(x -> {
+							ITypeBinding declaringClaz = x.getDeclaringClass();
+							String params = String.join( ",", Arrays.stream(x.getParameterTypes()).map(q -> q.getName()).toList());
+							String methodSigPlainText = x.getName() + "(" +params + ")";
+							List<String> args = Arrays.asList(jcZero.getArguments());
+							String[] newArgs = new String[] {args.get(0), methodSigPlainText, declaringClaz.getQualifiedName()};
+							return JavacProblem.cloneWithMessage(jcZero, jcZeroMsg, newArgs);
+						}).toList();
+						List<IProblem> oldProblems = new ArrayList<>(Arrays.asList(r.getProblems()));
+						oldProblems.remove(zero);
+						oldProblems.addAll(additionalProblems);
+						//r.setProblems((IProblem[]) oldProblems.toArray(new IProblem[oldProblems.size()]));
+					}
+				}
+			}
+
+		}
+
+	}
+
+
+	private List<IMethodBinding> findAllMissingMethodsInType(ITypeBinding tb) {
+		List<IMethodBinding> allMissing = new ArrayList<>();
+		List<ITypeBinding> allSupers = findAllSuperclassAndInterfaceBindings(tb);
+		HashMap<ITypeBinding, List<IMethodBinding>> typeToMethods = new HashMap<>();
+		for(ITypeBinding tb1 : allSupers ) {
+			typeToMethods.put(tb1, Arrays.asList(tb1.getDeclaredMethods()));
+		}
+
+		for(ITypeBinding tb1 : allSupers ) {
+			if( tb1.isInterface()) {
+				List<IMethodBinding> mb3 = typeToMethods.get(tb1).stream().filter(
+						x -> org.eclipse.jdt.core.dom.Modifier.isAbstract(x.getModifiers())
+						|| org.eclipse.jdt.core.dom.Modifier.isStatic(x.getModifiers())).toList();
+				allMissing.addAll(mb3);
+			} else {
+				if( org.eclipse.jdt.core.dom.Modifier.isAbstract(tb.getModifiers())) {
+					Stream<IMethodBinding> simb = typeToMethods.get(tb1).stream();
+					allMissing.addAll(simb.filter(x -> org.eclipse.jdt.core.dom.Modifier.isAbstract(x.getModifiers())).toList());
+				}
+			}
+		}
+
+		// Some marked as "missing" are actually interface methods implemented in a superclass
+		for(ITypeBinding tb1 : allSupers ) {
+			if( tb1.isClass()) {
+				Stream<IMethodBinding> simb = typeToMethods.get(tb1).stream()
+						.filter(x -> !org.eclipse.jdt.core.dom.Modifier.isAbstract(x.getModifiers()));
+				List<IMethodBinding> inClass = simb.toList();
+				List<IMethodBinding> toRemove = new ArrayList<>();
+				for( IMethodBinding mb4 : inClass ) {
+					for( IMethodBinding oneMissing : allMissing ) {
+						if( oneMissing instanceof JavacMethodBinding oneMissingJavac
+								&& mb4 instanceof JavacMethodBinding mb4Javac ) {
+							if( mb4Javac.isImplOf(oneMissingJavac)) {
+								toRemove.add(oneMissingJavac);
+							}
+						} else if( mb4.overrides(oneMissing)) {
+							toRemove.add(oneMissing);
+						}
+					}
+				}
+				allMissing.removeAll(toRemove);
+			}
+		}
+		return allMissing;
+	}
+
+	// Copied from TypeArgumentMatchingUtility
+	private static List<ITypeBinding> findAllSuperclassAndInterfaceBindings(ITypeBinding binding) {
+		List<ITypeBinding> ret = new ArrayList<>();
+		if( binding == null )
+			return ret;
+		fillAllSuperclassAndInterfaceBindings(binding, ret);
+		return ret;
+	}
+	private static void fillAllSuperclassAndInterfaceBindings(ITypeBinding binding, List<ITypeBinding> list) {
+		if( binding == null )
+			return;
+		ITypeBinding[] ifaces = binding.getInterfaces();
+		for( int q = 0; q < ifaces.length; q++ ) {
+			ITypeBinding oneInterface = ifaces[q];
+			if( oneInterface != null ) {
+				list.add(oneInterface);
+				fillAllSuperclassAndInterfaceBindings(oneInterface, list);
+			}
+		}
+		ITypeBinding superClaz = binding.getSuperclass();
+		if( superClaz != null ) {
+			list.add(superClaz);
+			fillAllSuperclassAndInterfaceBindings(superClaz, list);
+		}
 	}
 
 
