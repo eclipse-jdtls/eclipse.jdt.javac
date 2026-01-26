@@ -2182,10 +2182,22 @@ class JavacConverter {
 				PrefixExpression res = this.ast.newPrefixExpression();
 				commonSettings(res, literal);
 
-				String fromSrc = this.rawText.substring(res.getStartPosition()+1, res.getStartPosition() + res.getLength());
+				int start = res.getStartPosition();
+				int end = start + res.getLength();
+				start++; // skip the negative sign
+
+				String fromSrc = this.rawText.substring(start, end);
+				int leadingSpaces = fromSrc.length() - fromSrc.stripLeading().length();
+				int trailing = fromSrc.length() - fromSrc.stripTrailing().length();
+
 				NumberLiteral operand = this.ast.newNumberLiteral();
 				commonSettings(operand, literal);
-				operand.setToken(fromSrc);
+				if( leadingSpaces == 0 && trailing == 0 ) {
+					operand.setToken(fromSrc);
+				} else {
+					String newToken = this.rawText.substring(start + leadingSpaces, end - trailing);
+					operand.setToken(newToken);
+				}
 
 				res.setOperand(operand);
 				res.setOperator(Operator.MINUS);
