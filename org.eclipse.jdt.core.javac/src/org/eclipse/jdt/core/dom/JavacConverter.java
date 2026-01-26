@@ -3476,7 +3476,11 @@ class JavacConverter {
 			super(true);
 			String s = null;
 			try {
-				s = JavacConverter.this.javacCompilationUnit.getSourceFile().getCharContent(true).toString();
+				if( JavacConverter.this.rawText != null ) {
+					s = JavacConverter.this.rawText;
+				} else {
+					s = JavacConverter.this.javacCompilationUnit.getSourceFile().getCharContent(true).toString();
+				}
 			} catch (IOException ex) {
 				ILog.get().error(ex.getMessage(), ex);
 			}
