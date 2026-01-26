@@ -237,6 +237,10 @@ class JavacConverter {
 	}
 
 	private int[] toLineEndPosTable(LineMap lineMap, int fileLength) {
+		if( lineMap == null ) {
+			return new int[0];
+		}
+
 		List<Integer> lineEnds = new ArrayList<>();
 		int line = 1;
 		try {
