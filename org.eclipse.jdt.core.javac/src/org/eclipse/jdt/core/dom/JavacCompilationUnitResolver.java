@@ -633,6 +633,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		AvoidNPEJavacTypes.preRegister(context);
 		Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> result = new HashMap<>(sourceUnits.length, 1.f);
 		Map<JavaFileObject, CompilationUnit> filesToUnits = new HashMap<>();
+		Map<JavaFileObject, org.eclipse.jdt.internal.compiler.env.ICompilationUnit> filesToSrcUnits = new HashMap<>();
 		final UnusedProblemFactory unusedProblemFactory = new UnusedProblemFactory(new DefaultProblemFactory(), compilerOptions);
 		var problemConverter = new JavacProblemConverter(compilerOptions, context);
 		DiagnosticListener<JavaFileObject> diagnosticListener = new ForwardDiagnosticsAsDOMProblems(filesToUnits, problemConverter);
@@ -687,6 +688,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			CompilationUnit res = ast.newCompilationUnit();
 			result.put(sourceUnit, res);
 			filesToUnits.put(fileObject, res);
+			filesToSrcUnits.put(fileObject, sourceUnit);
 			fileObjects.add(fileObject);
 		}
 
@@ -874,8 +876,17 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					try {
 						rawText = u.getSourceFile().getCharContent(true).toString();
 					} catch( IOException ioe) {
-						ILog.get().error(ioe.getMessage(), ioe);
-						return null;
+						org.eclipse.jdt.internal.compiler.env.ICompilationUnit srcUnit = filesToSrcUnits.get(u.getSourceFile());
+						if( srcUnit != null ) {
+							char[] contents = srcUnit.getContents();
+							if( contents != null && contents.length != 0) {
+								rawText = new String(contents);
+							}
+						}
+						if( rawText == null ) {
+							ILog.get().error(ioe.getMessage(), ioe);
+							continue;
+						}
 					}
 					AST ast = res.ast;
 					JavacConverter converter = new JavacConverter(ast, u, context, rawText, docEnabled, focalPoint);
