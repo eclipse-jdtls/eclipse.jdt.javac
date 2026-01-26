@@ -1214,6 +1214,8 @@ class JavacConverter {
 
 
 	private void setJavadocForNode(JCTree javac, ASTNode node) {
+		if( this.javacCompilationUnit.docComments == null )
+			return;
 		Comment c = this.javacCompilationUnit.docComments.getComment(javac);
 		if(c != null && (c.getStyle() == Comment.CommentStyle.JAVADOC_BLOCK || c.getStyle() == CommentStyle.JAVADOC_LINE)) {
 			org.eclipse.jdt.core.dom.Comment comment = convert(c, javac);
