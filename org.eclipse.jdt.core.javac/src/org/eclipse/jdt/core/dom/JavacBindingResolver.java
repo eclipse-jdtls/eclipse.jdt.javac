@@ -364,13 +364,17 @@ public class JavacBindingResolver extends BindingResolver {
 		//
 		private Map<JavacVariableBinding, JavacVariableBinding> variableBindings = new HashMap<>();
 		public JavacVariableBinding getVariableBinding(VarSymbol varSymbol) {
+			return getVariableBinding(varSymbol, null);
+		}
+		public JavacVariableBinding getVariableBinding(VarSymbol varSymbol, com.sun.tools.javac.code.Type t) {
 			if (varSymbol == null) {
 				return null;
 			}
-			JavacVariableBinding newInstance = new JavacVariableBinding(varSymbol, JavacBindingResolver.this) { };
+			JavacVariableBinding newInstance = new JavacVariableBinding(varSymbol, t, JavacBindingResolver.this) { };
 			variableBindings.putIfAbsent(newInstance, newInstance);
 			return variableBindings.get(newInstance);
 		}
+
 		//
 		private Map<JavacLambdaBinding, JavacLambdaBinding> lambdaBindings = new HashMap<>();
 		public JavacLambdaBinding getLambdaBinding(JavacMethodBinding javacMethodBinding,
@@ -412,7 +416,7 @@ public class JavacBindingResolver extends BindingResolver {
 					return getMethodBinding(methodType, other, null, false, null);
 				}
 			} else if (owner instanceof final VarSymbol other) {
-				return getVariableBinding(other);
+				return getVariableBinding(other, type);
 			}
 			return null;
 		}
