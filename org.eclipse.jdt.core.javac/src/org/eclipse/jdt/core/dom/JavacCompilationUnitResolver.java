@@ -1458,6 +1458,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			newProblems[start] = problem;
 			start++;
 		}
+		Arrays.sort(newProblems, (o1, o2) -> o1.getID() - o2.getID());
 		dom.setProblems(newProblems);
 	}
 
