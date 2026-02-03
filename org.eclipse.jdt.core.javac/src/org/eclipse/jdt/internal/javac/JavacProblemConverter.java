@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -90,6 +92,7 @@ public class JavacProblemConverter {
 	private final CompilerOptions compilerOptions;
 	private final Context context;
 	private final Map<JavaFileObject, JCCompilationUnit> units = new HashMap<>();
+	private static final Pattern SOURCE_VERSION_EXTRACTOR = Pattern.compile("--?source ([-0-9]+)");;
 
 	public JavacProblemConverter(Map<String, String> options, Context context) {
 		this(new CompilerOptions(options), context);
@@ -821,12 +824,17 @@ public class JavacProblemConverter {
 			case "compiler.err.sealed.class.must.have.subclasses" -> IProblem.SealedSealedTypeMissingPermits;
 			case "compiler.misc.doesnt.extend.sealed" -> getDiagnosticArgumentByType(diagnostic, ClassType.class).isInterface() ? IProblem.SealedNotDirectSuperInterface : IProblem.SealedNotDirectSuperClass;
 			case "compiler.err.feature.not.supported.in.source.plural" -> {
-				if (compilerOptions.complianceLevel < ClassFileConstants.JDK1_8) {
-					yield IProblem.IllegalModifierForInterfaceMethod;
-				} else if (compilerOptions.complianceLevel < ClassFileConstants.JDK9) {
-					yield IProblem.IllegalModifierForInterfaceMethod18;
+				String englishMessage = diagnostic.getMessage(Locale.ENGLISH);
+				if (englishMessage.contains("private")) {
+					if (compilerOptions.complianceLevel < ClassFileConstants.JDK1_8) {
+						yield IProblem.IllegalModifierForInterfaceMethod;
+					} else if (compilerOptions.complianceLevel < ClassFileConstants.JDK9) {
+						yield IProblem.IllegalModifierForInterfaceMethod18;
+					} else {
+						yield IProblem.IllegalModifierForInterfaceMethod9;
+					}
 				} else {
-					yield IProblem.IllegalModifierForInterfaceMethod9;
+					yield IProblem.FeatureNotSupported;
 				}
 			}
 			case "compiler.err.expression.not.allowable.as.annotation.value" -> IProblem.AnnotationValueMustBeConstant;
@@ -1337,6 +1345,17 @@ public class JavacProblemConverter {
 	private String[] getDiagnosticStringArguments(Diagnostic<?> diagnostic) {
 		if (!(diagnostic instanceof JCDiagnostic jcDiagnostic)) {
 			return new String[0];
+		}
+
+		if ("compiler.err.feature.not.supported.in.source.plural".equals(jcDiagnostic.getCode())) {
+			String englishMessage = jcDiagnostic.getMessage(Locale.ENGLISH);
+			if (!englishMessage.contains("modifier")) {
+				Matcher m = SOURCE_VERSION_EXTRACTOR.matcher(englishMessage);
+				// we want the second occurrence
+				m.find();
+				m.find();
+				return new String[] {"", m.group(1)};
+			}
 		}
 
 		if (!jcDiagnostic.getSubdiagnostics().isEmpty()) {
