@@ -79,6 +79,8 @@ import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.ModuleType;
 import com.sun.tools.javac.code.Type.PackageType;
 import com.sun.tools.javac.code.Type.TypeVar;
+import com.sun.tools.javac.code.TypeMetadata;
+import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.comp.Modules;
@@ -330,7 +332,10 @@ public class JavacBindingResolver extends BindingResolver {
 				// interfaces/supertypes are not set which seem to imply that the compiler generated
 				// a dummy type object that's not suitable for a binding.
 				// Fail back to an hopefully better type
-				type = type.tsym.type;
+				List<TypeMetadata> tm = type.getMetadata();
+				if( tm == null || tm.isEmpty() || !tm.stream().filter(x -> x instanceof Annotations).findAny().isPresent()) {
+					type = type.tsym.type;
+				}
 			}
 			JavacTypeBinding newInstance = new JavacTypeBinding(type, type.tsym, alternatives, backupOwner, isGeneric, JavacBindingResolver.this) { };
 			typeBinding.putIfAbsent(newInstance, newInstance);

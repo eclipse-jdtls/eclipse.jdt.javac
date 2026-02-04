@@ -84,6 +84,7 @@ import org.eclipse.jdt.internal.core.ResolvedSourceType;
 import org.eclipse.jdt.internal.core.SourceType;
 
 import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.BoundKind;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Kinds;
@@ -109,6 +110,8 @@ import com.sun.tools.javac.code.Type.JCNoType;
 import com.sun.tools.javac.code.Type.JCVoidType;
 import com.sun.tools.javac.code.Type.TypeVar;
 import com.sun.tools.javac.code.Type.WildcardType;
+import com.sun.tools.javac.code.TypeMetadata;
+import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
@@ -161,13 +164,51 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				&& Objects.equals(this.resolver, other.resolver)
 				&& Objects.equals(this.type, other.type)
 				&& Objects.equals(this.typeSymbol, other.typeSymbol)
-				&& Objects.equals(this.isGeneric, other.isGeneric);
+				&& Objects.equals(this.isGeneric, other.isGeneric)
+                && hashCode() == obj.hashCode();
 	}
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.resolver, this.type, this.typeSymbol, this.isGeneric);
+	    int h = 31 * Objects.hash(this.resolver, this.typeSymbol, this.isGeneric);
+	    h = 31 * h + hashTypeStructure(this.type);
+	    return h;
 	}
 
+	private static int hashTypeStructure(Type t) {
+		if( t == null )
+			return 0;
+	    int h = t.getTag().ordinal();
+
+	    // Annotations at this level
+	    h = 31 * h + hashAnnotations(t.getAnnotationMirrors());
+
+	    if (t instanceof Type.ArrayType at) {
+	        h = 31 * h + hashTypeStructure(at.elemtype);
+	    } else if (t instanceof Type.ClassType ct && ct.typarams_field != null) {
+	        for (Type arg : ct.typarams_field) {
+	            h = 31 * h + hashTypeStructure(arg);
+	        }
+	    }
+
+	    return h;
+	}
+	private static int hashAnnotations(
+	        List<? extends javax.lang.model.element.AnnotationMirror> anns) {
+
+	    if (anns == null || anns.isEmpty()) {
+	        return 0;
+	    }
+
+	    int h = 1;
+	    for (var a : anns) {
+	        // Annotation *type* only — values usually irrelevant for nullness
+	        var at = a.getAnnotationType().asElement();
+	        if (at != null) {
+	            h = 31 * h + at.toString().hashCode();
+	        }
+	    }
+	    return h;
+	}
 	@Override
 	public IAnnotationBinding[] getAnnotations() {
 		List<Attribute.Compound> annots = this.typeSymbol.getAnnotationMirrors();
@@ -896,7 +937,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	@Override
 	public JavacTypeBinding getComponentType() {
 		if (this.type instanceof ArrayType arrayType) {
-			return this.resolver.bindings.getTypeBinding(arrayType.elemtype);
+			return this.resolver.bindings.getTypeBinding(arrayType.elemtype, null, null, false);
 		}
 		return null;
 	}
@@ -1371,9 +1412,18 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if (this.typeSymbol.hasTypeAnnotations()) {
 			return new IAnnotationBinding[0];
 		}
-		// TODO implement this correctly (used to be returning
-		// same as getAnnotations() which is incorrect
-		return new IAnnotationBinding[0];
+		List<IAnnotationBinding> l = new ArrayList<>();
+		for( TypeMetadata tmd : this.type.getMetadata() ) {
+			if( tmd instanceof Annotations annot) {
+				for( TypeCompound tc : annot.annotationBuffer() ) {
+					IAnnotationBinding iab = this.resolver.bindings.getAnnotationBinding(tc, this);
+					if( iab != null ) {
+						l.add(iab);
+					}
+				}
+			}
+		}
+		return (IAnnotationBinding[]) l.toArray(new IAnnotationBinding[l.size()]);
 	}
 
 	@Override
