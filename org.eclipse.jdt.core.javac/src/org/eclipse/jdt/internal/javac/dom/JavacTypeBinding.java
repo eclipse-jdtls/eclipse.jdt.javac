@@ -162,7 +162,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	public boolean equals(Object obj) {
 		return obj instanceof JavacTypeBinding other
 				&& Objects.equals(this.resolver, other.resolver)
-				&& Objects.equals(this.type, other.type)
+				&& this.types.isSameType(this.type, ((JavacTypeBinding)obj).type)
 				&& Objects.equals(this.typeSymbol, other.typeSymbol)
 				&& Objects.equals(this.isGeneric, other.isGeneric)
                 && hashCode() == obj.hashCode();
