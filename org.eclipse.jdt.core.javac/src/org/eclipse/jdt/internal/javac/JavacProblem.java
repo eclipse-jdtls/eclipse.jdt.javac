@@ -33,4 +33,10 @@ public class JavacProblem extends DefaultProblem {
 	public Object[] getExtraMarkerAttributeValues() {
 		return new Object[] { this.javacCode };
 	}
+
+	public static JavacProblem cloneWithMessage(JavacProblem p, String newMsg, String[] newArgs) {
+		return new JavacProblem(p.getOriginatingFileName(), newMsg, p.javacCode, p.getID(),
+				newArgs, p.severity, p.getSourceStart(), p.getSourceEnd(),
+				p.getSourceLineNumber(), p.column);
+	}
 }

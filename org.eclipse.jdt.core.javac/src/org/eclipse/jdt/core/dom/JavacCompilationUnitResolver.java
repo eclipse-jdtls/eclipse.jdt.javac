@@ -105,11 +105,13 @@ import org.eclipse.jdt.internal.javac.AvoidNPEJavacTypes;
 import org.eclipse.jdt.internal.javac.CachingClassSymbolClassReader;
 import org.eclipse.jdt.internal.javac.CachingJDKPlatformArguments;
 import org.eclipse.jdt.internal.javac.CachingJarsJavaFileManager;
+import org.eclipse.jdt.internal.javac.JavacProblem;
 import org.eclipse.jdt.internal.javac.JavacProblemConverter;
 import org.eclipse.jdt.internal.javac.JavacUtils;
 import org.eclipse.jdt.internal.javac.ProcessorConfig;
 import org.eclipse.jdt.internal.javac.UnusedProblemFactory;
 import org.eclipse.jdt.internal.javac.UnusedTreeScanner;
+import org.eclipse.jdt.internal.javac.dom.JavacMethodBinding;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -154,6 +156,156 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 	private static final String MOCK_NAME_FOR_CLASSES = "whatever_InvalidNameWE_HOP3_n00ne_will_Ever_use_in_real_file.java";
 	public static final Key<Map<JavaFileObject, File>> FILE_OBJECTS_TO_JAR_KEY = new Key<>();
+
+	private final class CUResolverTaskListener implements TaskListener {
+		private final JavacTask task;
+		private final Context context;
+		private final IJavaProject javaProject;
+		private final int flags;
+		private final Map<String, String> compilerOptions;
+		private final JavacProblemConverter problemConverter;
+		private final int focalPoint;
+		private final UnusedProblemFactory unusedProblemFactory;
+		private final Map<JavaFileObject, CompilationUnit> filesToUnits;
+
+		private CUResolverTaskListener(JavacTask task, Context context, IJavaProject javaProject, int flags,
+				Map<String, String> compilerOptions, JavacProblemConverter problemConverter, int focalPoint,
+				UnusedProblemFactory unusedProblemFactory, Map<JavaFileObject, CompilationUnit> filesToUnits) {
+			this.task = task;
+			this.context = context;
+			this.javaProject = javaProject;
+			this.flags = flags;
+			this.compilerOptions = compilerOptions;
+			this.problemConverter = problemConverter;
+			this.focalPoint = focalPoint;
+			this.unusedProblemFactory = unusedProblemFactory;
+			this.filesToUnits = filesToUnits;
+		}
+
+		@Override
+		public void finished(TaskEvent e) {
+			if (e.getCompilationUnit() instanceof JCCompilationUnit u) {
+				problemConverter.registerUnit(e.getSourceFile(), u);
+			}
+
+			if (e.getKind() == TaskEvent.Kind.PARSE && e.getCompilationUnit() instanceof JCCompilationUnit u) {
+				if ((flags & ICompilationUnit.IGNORE_METHOD_BODIES) != 0) {
+					u.accept(new TreeScanner() {
+						@Override
+						public void visitMethodDef(JCMethodDecl method) {
+							if (method.body != null) {
+								method.body.stats = com.sun.tools.javac.util.List.nil();
+;						}
+						}
+					});
+				}
+				if (focalPoint >= 0) {
+					trimNonFocusedContent(u, focalPoint);
+				}
+			}
+
+			var doclintOpts = Arguments.instance(context).getDocLintOpts();
+			if (e.getKind() == TaskEvent.Kind.ANALYZE &&
+				focalPoint >= 0 &&
+				doclintOpts == null &&
+				e.getCompilationUnit() instanceof JCCompilationUnit u &&
+				isInJavadoc(u, focalPoint)) {
+				// resolve doc comment bindings
+				DocLint doclint = (DocLint)DocLint.newDocLint();
+				doclint.init(task, doclintOpts.toArray(new String[doclintOpts.size()]));
+				doclint.scan(TreePath.getPath(u, u));
+			}
+
+			if (e.getKind() == TaskEvent.Kind.ANALYZE) {
+				final JavaFileObject file = e.getSourceFile();
+				final CompilationUnit dom = filesToUnits.get(file);
+				if (dom == null) {
+					return;
+				}
+				if (Stream.of(dom.getProblems()).anyMatch(problem -> problem.isError())) {
+					// don't bother; a severe error has already been reported
+					return;
+				}
+
+				// check if the diagnostics are actually enabled before trying to collect them
+				var objectCompilerOptions = new CompilerOptions(compilerOptions);
+				boolean unusedImportIgnored = objectCompilerOptions.getSeverityString(CompilerOptions.UnusedImport).equals(CompilerOptions.IGNORE);
+				boolean unusedPrivateMemberIgnored = objectCompilerOptions.getSeverityString(CompilerOptions.UnusedPrivateMember).equals(CompilerOptions.IGNORE);
+				if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")
+						&& unusedImportIgnored && unusedPrivateMemberIgnored) {
+					return;
+				}
+
+				handleAnalyzeEvent(compilerOptions, context, unusedProblemFactory, e, dom, javaProject);
+			}
+		}
+
+		private static void handleAnalyzeEvent(Map<String, String> compilerOptions, Context context,
+				final UnusedProblemFactory unusedProblemFactory, TaskEvent e,
+				final CompilationUnit dom, IJavaProject javaProject) {
+			final TypeElement currentTopLevelType = e.getTypeElement();
+			UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>() {
+				@Override
+				public Void visitClass(ClassTree node, Void p) {
+					if (node instanceof JCClassDecl classDecl) {
+						/**
+						 * If a Java file contains multiple top-level types, it will
+						 * trigger multiple ANALYZE taskEvents for the same compilation
+						 * unit. Each ANALYZE taskEvent corresponds to the completion
+						 * of analysis for a single top-level type. Therefore, in the
+						 * ANALYZE task event listener, we only visit the class and nested
+						 * classes that belong to the currently analyzed top-level type.
+						 */
+						if (Objects.equals(currentTopLevelType, classDecl.sym)
+							|| !(classDecl.sym.owner instanceof PackageSymbol)) {
+							return super.visitClass(node, p);
+						} else {
+							return null; // Skip if it does not belong to the currently analyzed top-level type.
+						}
+					}
+
+					return super.visitClass(node, p);
+				}
+			};
+			final CompilationUnitTree unit = e.getCompilationUnit();
+			try {
+				scanner.scan(unit, null);
+			} catch (Exception ex) {
+				ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
+			}
+			List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
+			if (!unusedProblems.isEmpty()) {
+				addProblemsToDOM(dom, unusedProblems);
+			}
+
+			List<CategorizedProblem> unusedImports = scanner.getUnusedImports(unusedProblemFactory);
+			List<? extends Tree> topTypes = unit.getTypeDecls();
+			int typeCount = topTypes.size();
+			// Once all top level types of this Java file have been resolved,
+			// we can report the unused import to the DOM.
+			if (typeCount <= 1) {
+				addProblemsToDOM(dom, unusedImports);
+			} else if (typeCount > 1 && topTypes.get(typeCount - 1) instanceof JCClassDecl lastType) {
+				if (Objects.equals(currentTopLevelType, lastType.sym)) {
+					addProblemsToDOM(dom, unusedImports);
+				}
+			}
+
+			if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
+				AccessRestrictionTreeScanner accessScanner = null;
+				if (javaProject instanceof JavaProject internalJavaProject) {
+					try {
+						INameEnvironment environment = new SearchableEnvironment(internalJavaProject, (WorkingCopyOwner)null, false, JavaProject.NO_RELEASE);
+						accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(), new CompilerOptions(compilerOptions));
+						accessScanner.scan(unit, null);
+					} catch (JavaModelException javaModelException) {
+						// do nothing
+					}
+				}
+				addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
+			}
+		}
+	}
 
 	private final class ForwardDiagnosticsAsDOMProblems implements DiagnosticListener<JavaFileObject> {
 		public final Map<JavaFileObject, CompilationUnit> filesToUnits;
@@ -601,14 +753,27 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		//CompilationUnit res2  = CompilationUnitResolver.getInstance().toCompilationUnit(sourceUnit, resolveBindings, project, classpaths, focalPoint, apiLevel, compilerOptions, typeRootWorkingCopyOwner, typeRootWorkingCopyOwner, flags, monitor);
+		long l1 = System.currentTimeMillis();
+		System.out.println("Gap: " + (l1 - last_complete));
+		System.out.println("Start " + pathToUnit.values().stream()
+				.map(x -> x.getFileName() == null ? null : new String(x.getFileName()))
+                .collect(Collectors.joining(", ")));
+
 		CompilationUnit res = parse(pathToUnit.values().toArray(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[]::new),
 				apiLevel, compilerOptions, resolveBindings, flags | (resolveBindings ? AST.RESOLVED_BINDINGS : 0), project, classpaths, typeRootWorkingCopyOwner, focalPoint, monitor).get(sourceUnit);
 		if (resolveBindings && focalPoint == -1) {
 			// force analysis and reports
 			resolveBindings(res, apiLevel);
 		}
+		last_complete = System.currentTimeMillis();
+		System.out.println("Parsed " + pathToUnit.values().stream()
+				.map(x -> x.getFileName() == null ? null : new String(x.getFileName()))
+                .collect(Collectors.joining(", "))
+                + ": " + (last_complete - l1));
 		return res;
 	}
+
+	private static long last_complete = 0;
 
 	private static Names names = new Names(new Context()) {
 		@Override
@@ -621,6 +786,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		parse(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] sourceUnits, int apiLevel,
 			Map<String, String> compilerOptions, boolean resolveBindings, int flags, IJavaProject javaProject, List<Classpath> extraClasspath, WorkingCopyOwner workingCopyOwner,
 			int focalPoint, IProgressMonitor monitor) {
+		long l1 = System.currentTimeMillis();
+		long l1a = l1;
 		if (sourceUnits.length == 0) {
 			return Collections.emptyMap();
 		}
@@ -638,6 +805,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		var problemConverter = new JavacProblemConverter(compilerOptions, context);
 		DiagnosticListener<JavaFileObject> diagnosticListener = new ForwardDiagnosticsAsDOMProblems(filesToUnits, problemConverter);
 		// must be 1st thing added to context
+
+		long l1b = System.currentTimeMillis();
+
 		context.put(DiagnosticListener.class, diagnosticListener);
 		Map<JavaFileObject, File> fileObjectsToJars = new HashMap<>();
 		context.put(FILE_OBJECTS_TO_JAR_KEY, fileObjectsToJars);
@@ -660,6 +830,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			// set minimal custom DocLint support to get DCComment bindings resolved
 			javacOptions.put(Option.XDOCLINT_CUSTOM, "reference");
 		}
+
+		long l1c = System.currentTimeMillis();
+
 		javacOptions.put(Option.PROC, ProcessorConfig.isAnnotationProcessingEnabled(javaProject) ? "only" : "none");
 		Optional.ofNullable(Platform.getProduct())
 				.map(IProduct::getApplication)
@@ -679,6 +852,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				ILog.get().error(ex.getMessage(), ex);
 			}
 		}
+		long l1d = System.currentTimeMillis();
+
+
 		List<JavaFileObject> fileObjects = new ArrayList<>(); // we need an ordered list of them
 		for (org.eclipse.jdt.internal.compiler.env.ICompilationUnit sourceUnit : sourceUnits) {
 			char[] sourceUnitFileName = sourceUnit.getFileName();
@@ -699,136 +875,13 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		if (!configureAPTIfNecessary(fileManager)) {
 			options.add("-proc:none");
 		}
+		long l1e = System.currentTimeMillis();
 
 		options = replaceSafeSystemOption(options);
 		addSourcesWithMultipleTopLevelClasses(sourceUnits, fileObjects, javaProject, fileManager);
 		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
-		MultiTaskListener.instance(context).add(new TaskListener() {
-			@Override
-			public void finished(TaskEvent e) {
-				if (e.getCompilationUnit() instanceof JCCompilationUnit u) {
-					problemConverter.registerUnit(e.getSourceFile(), u);
-				}
-
-				if (e.getKind() == TaskEvent.Kind.PARSE && e.getCompilationUnit() instanceof JCCompilationUnit u) {
-					if ((flags & ICompilationUnit.IGNORE_METHOD_BODIES) != 0) {
-						u.accept(new TreeScanner() {
-							@Override
-							public void visitMethodDef(JCMethodDecl method) {
-								if (method.body != null) {
-									method.body.stats = com.sun.tools.javac.util.List.nil();
-		;						}
-							}
-						});
-					}
-					if (focalPoint >= 0) {
-						trimNonFocusedContent(u, focalPoint);
-					}
-				}
-
-				var doclintOpts = Arguments.instance(context).getDocLintOpts();
-				if (e.getKind() == TaskEvent.Kind.ANALYZE &&
-					focalPoint >= 0 &&
-					doclintOpts == null &&
-					e.getCompilationUnit() instanceof JCCompilationUnit u &&
-					isInJavadoc(u, focalPoint)) {
-					// resolve doc comment bindings
-					DocLint doclint = (DocLint)DocLint.newDocLint();
-					doclint.init(task, doclintOpts.toArray(new String[doclintOpts.size()]));
-					doclint.scan(TreePath.getPath(u, u));
-				}
-
-				if (e.getKind() == TaskEvent.Kind.ANALYZE) {
-					final JavaFileObject file = e.getSourceFile();
-					final CompilationUnit dom = filesToUnits.get(file);
-					if (dom == null) {
-						return;
-					}
-					if (Stream.of(dom.getProblems()).anyMatch(problem -> problem.isError())) {
-						// don't bother; a severe error has already been reported
-						return;
-					}
-
-					// check if the diagnostics are actually enabled before trying to collect them
-					var objectCompilerOptions = new CompilerOptions(compilerOptions);
-					boolean unusedImportIgnored = objectCompilerOptions.getSeverityString(CompilerOptions.UnusedImport).equals(CompilerOptions.IGNORE);
-					boolean unusedPrivateMemberIgnored = objectCompilerOptions.getSeverityString(CompilerOptions.UnusedPrivateMember).equals(CompilerOptions.IGNORE);
-					if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")
-							&& unusedImportIgnored && unusedPrivateMemberIgnored) {
-						return;
-					}
-
-					handleAnalyzeEvent(compilerOptions, context, unusedProblemFactory, e, dom, javaProject);
-				}
-			}
-
-			private static void handleAnalyzeEvent(Map<String, String> compilerOptions, Context context,
-					final UnusedProblemFactory unusedProblemFactory, TaskEvent e,
-					final CompilationUnit dom, IJavaProject javaProject) {
-				final TypeElement currentTopLevelType = e.getTypeElement();
-				UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>() {
-					@Override
-					public Void visitClass(ClassTree node, Void p) {
-						if (node instanceof JCClassDecl classDecl) {
-							/**
-							 * If a Java file contains multiple top-level types, it will
-							 * trigger multiple ANALYZE taskEvents for the same compilation
-							 * unit. Each ANALYZE taskEvent corresponds to the completion
-							 * of analysis for a single top-level type. Therefore, in the
-							 * ANALYZE task event listener, we only visit the class and nested
-							 * classes that belong to the currently analyzed top-level type.
-							 */
-							if (Objects.equals(currentTopLevelType, classDecl.sym)
-								|| !(classDecl.sym.owner instanceof PackageSymbol)) {
-								return super.visitClass(node, p);
-							} else {
-								return null; // Skip if it does not belong to the currently analyzed top-level type.
-							}
-						}
-
-						return super.visitClass(node, p);
-					}
-				};
-				final CompilationUnitTree unit = e.getCompilationUnit();
-				try {
-					scanner.scan(unit, null);
-				} catch (Exception ex) {
-					ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
-				}
-				List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
-				if (!unusedProblems.isEmpty()) {
-					addProblemsToDOM(dom, unusedProblems);
-				}
-
-				List<CategorizedProblem> unusedImports = scanner.getUnusedImports(unusedProblemFactory);
-				List<? extends Tree> topTypes = unit.getTypeDecls();
-				int typeCount = topTypes.size();
-				// Once all top level types of this Java file have been resolved,
-				// we can report the unused import to the DOM.
-				if (typeCount <= 1) {
-					addProblemsToDOM(dom, unusedImports);
-				} else if (typeCount > 1 && topTypes.get(typeCount - 1) instanceof JCClassDecl lastType) {
-					if (Objects.equals(currentTopLevelType, lastType.sym)) {
-						addProblemsToDOM(dom, unusedImports);
-					}
-				}
-
-				if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
-					AccessRestrictionTreeScanner accessScanner = null;
-					if (javaProject instanceof JavaProject internalJavaProject) {
-						try {
-							INameEnvironment environment = new SearchableEnvironment(internalJavaProject, (WorkingCopyOwner)null, false, JavaProject.NO_RELEASE);
-							accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(), new CompilerOptions(compilerOptions));
-							accessScanner.scan(unit, null);
-						} catch (JavaModelException javaModelException) {
-							// do nothing
-						}
-					}
-					addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
-				}
-			}
-
-		});
+		MultiTaskListener.instance(context).add(new CUResolverTaskListener(task, context, javaProject, flags, compilerOptions, problemConverter, focalPoint,
+				unusedProblemFactory, filesToUnits));
 		{
 			// don't know yet a better way to ensure those necessary flags get configured
 			var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
@@ -836,6 +889,10 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			javac.genEndPos = true;
 			javac.lineDebugInfo = true;
 		}
+		long l1f = System.currentTimeMillis();
+		String l1Split = " (" + (l1b-l1a) + "," + (l1c-l1b) + "," + (l1c-l1b) + "," + (l1d-l1c) + "," + (l1e-l1d) + "," + (l1f-l1e) + ")";
+
+		long l2 = System.currentTimeMillis();
 
 		List<JCCompilationUnit> javacCompilationUnits = new ArrayList<>();
 		try {
@@ -937,8 +994,14 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				}
 			}
 
-			conditionallyAnalyzeTask(resolveBindings, flags, fileManager, task);
+			long l3 = System.currentTimeMillis();
 
+			conditionallyAnalyzeTask(resolveBindings, flags, fileManager, task);
+			long l4 = System.currentTimeMillis();
+
+			if( resolveBindings ) {
+				discoverMissingErrors(result);
+			}
 
 			if (!resolveBindings) {
 				destroy(context);
@@ -946,11 +1009,127 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			if (cachedThrown != null) {
 				throw new RuntimeException(cachedThrown);
 			}
+			long l5 = System.currentTimeMillis();
+
+			System.out.println("      " + (l2-l1) + "(" + l1Split + ")," + (l3-l2) + "," + (l4-l3) + "," + (l5-l4));
 		} catch (IOException ex) {
 			ILog.get().error(ex.getMessage(), ex);
 		}
 
 		return result;
+	}
+
+
+	private void discoverMissingErrors(
+			Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> result) {
+		for( CompilationUnit r : result.values()) {
+			List<IProblem> missingMethods = Arrays.stream(r.getProblems()).filter(x -> x.getID() == IProblem.AbstractMethodMustBeImplemented).toList();
+			boolean isMissingMethods = missingMethods.size() > 0;
+			if( isMissingMethods ) {
+				IProblem zero = missingMethods.get(0);
+				ASTNode node = NodeFinder.perform(r, zero.getSourceStart(), zero.getSourceEnd() - zero.getSourceStart());
+				if( node != null && zero instanceof JavacProblem jcZero) {
+					IBinding b = DOMASTNodeUtils.getBinding(node);
+					// Find all missing methods in this class
+					if( b != null && b instanceof ITypeBinding tb && !org.eclipse.jdt.core.dom.Modifier.isAbstract(tb.getModifiers())) {
+						List<IMethodBinding> missing = findAllMissingMethodsInType(tb);
+						String jcZeroMsg = jcZero.getMessage();
+						List<JavacProblem> additionalProblems =  missing.stream().map(x -> {
+							ITypeBinding declaringClaz = x.getDeclaringClass();
+							String params = String.join( ",", Arrays.stream(x.getParameterTypes())
+									.map(q -> {
+										String s = q == null ? "java.lang.Object" : q.getName();
+										return s;
+									}).toList());
+							String methodSigPlainText = x.getName() + "(" +params + ")";
+							List<String> args = Arrays.asList(jcZero.getArguments());
+							String[] newArgs = new String[] {args.get(0), methodSigPlainText, declaringClaz.getQualifiedName()};
+							return JavacProblem.cloneWithMessage(jcZero, jcZeroMsg, newArgs);
+						}).toList();
+						List<IProblem> oldProblems = new ArrayList<>(Arrays.asList(r.getProblems()));
+						oldProblems.remove(zero);
+						oldProblems.addAll(additionalProblems);
+						r.setProblems((IProblem[]) oldProblems.toArray(new IProblem[oldProblems.size()]));
+					}
+				}
+			}
+
+		}
+
+	}
+
+
+	private List<IMethodBinding> findAllMissingMethodsInType(ITypeBinding tb) {
+		List<IMethodBinding> allMissing = new ArrayList<>();
+		List<ITypeBinding> allSupers = findAllSuperclassAndInterfaceBindings(tb);
+		HashMap<ITypeBinding, List<IMethodBinding>> typeToMethods = new HashMap<>();
+		for(ITypeBinding tb1 : allSupers ) {
+			typeToMethods.put(tb1, Arrays.asList(tb1.getDeclaredMethods()));
+		}
+
+		for(ITypeBinding tb1 : allSupers ) {
+			if( tb1.isInterface()) {
+				List<IMethodBinding> mb3 = typeToMethods.get(tb1).stream().filter(
+						x -> org.eclipse.jdt.core.dom.Modifier.isAbstract(x.getModifiers())
+						&&  !org.eclipse.jdt.core.dom.Modifier.isStatic(x.getModifiers())).toList();
+				allMissing.addAll(mb3);
+			} else {
+				if( org.eclipse.jdt.core.dom.Modifier.isAbstract(tb.getModifiers())) {
+					Stream<IMethodBinding> simb = typeToMethods.get(tb1).stream();
+					allMissing.addAll(simb.filter(x -> org.eclipse.jdt.core.dom.Modifier.isAbstract(x.getModifiers())).toList());
+				}
+			}
+		}
+
+		// Some marked as "missing" are actually interface methods implemented in a superclass
+		for(ITypeBinding tb1 : allSupers ) {
+			if( tb1.isClass()) {
+				Stream<IMethodBinding> simb = typeToMethods.get(tb1).stream()
+						.filter(x -> !org.eclipse.jdt.core.dom.Modifier.isAbstract(x.getModifiers()));
+				List<IMethodBinding> inClass = simb.toList();
+				List<IMethodBinding> toRemove = new ArrayList<>();
+				for( IMethodBinding mb4 : inClass ) {
+					for( IMethodBinding oneMissing : allMissing ) {
+						if( oneMissing instanceof JavacMethodBinding oneMissingJavac
+								&& mb4 instanceof JavacMethodBinding mb4Javac ) {
+							if( mb4Javac.isImplOf(oneMissingJavac)) {
+								toRemove.add(oneMissingJavac);
+							}
+						} else if( mb4.overrides(oneMissing)) {
+							toRemove.add(oneMissing);
+						}
+					}
+				}
+				allMissing.removeAll(toRemove);
+			}
+		}
+		return allMissing;
+	}
+
+	// Copied from TypeArgumentMatchingUtility
+	private static List<ITypeBinding> findAllSuperclassAndInterfaceBindings(ITypeBinding binding) {
+		List<ITypeBinding> ret = new ArrayList<>();
+		if( binding == null )
+			return ret;
+		fillAllSuperclassAndInterfaceBindings(binding, ret);
+		return ret;
+	}
+	private static void fillAllSuperclassAndInterfaceBindings(ITypeBinding binding, List<ITypeBinding> list) {
+		if( binding == null )
+			return;
+		ITypeBinding[] ifaces = binding.getInterfaces();
+		for( int q = 0; q < ifaces.length; q++ ) {
+			ITypeBinding oneInterface = ifaces[q];
+			if( oneInterface != null ) {
+				list.add(oneInterface);
+				fillAllSuperclassAndInterfaceBindings(oneInterface, list);
+			}
+		}
+		ITypeBinding superClaz = binding.getSuperclass();
+		if( superClaz != null ) {
+			list.add(superClaz);
+			fillAllSuperclassAndInterfaceBindings(superClaz, list);
+		}
 	}
 
 
