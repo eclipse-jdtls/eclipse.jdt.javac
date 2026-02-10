@@ -26,7 +26,25 @@ import org.eclipse.jdt.ui.tests.quickfix.AssistQuickFixTest1d7;
 import org.eclipse.jdt.ui.tests.quickfix.AssistQuickFixTest1d8;
 import org.eclipse.jdt.ui.tests.quickfix.AssistQuickFixTest21;
 import org.eclipse.jdt.ui.tests.quickfix.ChangeNonStaticToStaticTest;
-import org.eclipse.jdt.ui.tests.quickfix.CleanUpTestCaseSuite;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpActionTest;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpAnnotationTest;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpStressTest;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest10;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest11;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest12;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest14;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest15;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest16;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest1d4;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest1d5;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest1d6;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest1d7;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest1d8;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest21;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest22;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest25;
+import org.eclipse.jdt.ui.tests.quickfix.CleanUpTest9;
 import org.eclipse.jdt.ui.tests.quickfix.ConvertForLoopQuickFixTest;
 import org.eclipse.jdt.ui.tests.quickfix.ConvertIterableLoopQuickFixTest;
 import org.eclipse.jdt.ui.tests.quickfix.ConvertIterableLoopQuickFixTest1d7;
@@ -44,6 +62,7 @@ import org.eclipse.jdt.ui.tests.quickfix.MarkerResolutionTest;
 import org.eclipse.jdt.ui.tests.quickfix.ModifierCorrectionsQuickFixTest;
 import org.eclipse.jdt.ui.tests.quickfix.ModifierCorrectionsQuickFixTest1d7;
 import org.eclipse.jdt.ui.tests.quickfix.ModifierCorrectionsQuickFixTest9;
+import org.eclipse.jdt.ui.tests.quickfix.NullAnnotationsCleanUpTest1d8;
 import org.eclipse.jdt.ui.tests.quickfix.NullAnnotationsQuickFixTest;
 import org.eclipse.jdt.ui.tests.quickfix.NullAnnotationsQuickFixTest1d8;
 import org.eclipse.jdt.ui.tests.quickfix.NullAnnotationsQuickFixTest1d8Mix;
@@ -58,6 +77,7 @@ import org.eclipse.jdt.ui.tests.quickfix.QuickFixTest22;
 import org.eclipse.jdt.ui.tests.quickfix.QuickFixTest9;
 import org.eclipse.jdt.ui.tests.quickfix.ReorgQuickFixTest;
 import org.eclipse.jdt.ui.tests.quickfix.ReturnTypeQuickFixTest;
+import org.eclipse.jdt.ui.tests.quickfix.SaveParticipantTest;
 import org.eclipse.jdt.ui.tests.quickfix.SerialVersionQuickFixTest;
 import org.eclipse.jdt.ui.tests.quickfix.SurroundWithTemplateTest;
 import org.eclipse.jdt.ui.tests.quickfix.TypeAnnotationQuickFixTest;
@@ -122,7 +142,30 @@ import org.junit.runners.Suite.SuiteClasses;
 		AdvancedQuickAssistTest1d7.class,
 		AdvancedQuickAssistTest1d8.class,
 		AdvancedQuickAssistTest10.class,
-		CleanUpTestCaseSuite.class,
+
+		/* CleanUpTestCaseSuite.class, */
+		CleanUpStressTest.class,
+		CleanUpTest.class,
+		CleanUpTest1d4.class,
+		CleanUpTest1d5.class,
+		CleanUpTest1d6.class,
+		CleanUpTest1d7.class,
+		CleanUpTest1d8.class,
+		CleanUpTest9.class,
+		CleanUpTest10.class,
+		CleanUpTest11.class,
+		CleanUpTest12.class,
+		CleanUpTest14.class,
+		CleanUpTest15.class,
+		CleanUpTest16.class,
+		CleanUpTest21.class,
+		CleanUpTest22.class,
+		CleanUpTest25.class,
+		CleanUpAnnotationTest.class,
+		SaveParticipantTest.class,
+		CleanUpActionTest.class,
+		NullAnnotationsCleanUpTest1d8.class,
+
 		QuickFixEnablementTest.class,
 		SurroundWithTemplateTest.class,
 		TypeParameterMismatchTest.class,
