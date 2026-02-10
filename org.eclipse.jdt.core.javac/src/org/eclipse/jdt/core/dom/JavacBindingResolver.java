@@ -2084,6 +2084,25 @@ public class JavacBindingResolver extends BindingResolver {
 
 	@Override
 	Object resolveConstantExpressionValue(Expression expression) {
+		if (expression instanceof InfixExpression infixExpr && infixExpr.getOperator().equals(InfixExpression.Operator.PLUS)) {
+			Object left = resolveConstantExpressionValue(infixExpr.getLeftOperand());
+			Object right = resolveConstantExpressionValue(infixExpr.getRightOperand());
+			if (left instanceof String || right instanceof String) {
+				return String.valueOf(left) + String.valueOf(right);
+			}
+			if (left instanceof Number leftNum && right instanceof Number rightNum) {
+			  if (leftNum instanceof Double || rightNum instanceof Double) {
+				  return leftNum.doubleValue() + rightNum.doubleValue();
+			  }
+			  if (leftNum instanceof Float || rightNum instanceof Float) {
+				  return leftNum.floatValue() + rightNum.floatValue();
+			  }
+			  if (leftNum instanceof Long || rightNum instanceof Long) {
+				  return leftNum.longValue() + rightNum.longValue();
+			  }
+			  return leftNum.intValue() + rightNum.intValue();
+			}
+		}
 		JCTree jcTree = this.converter.domToJavac.get(expression);
 		if (jcTree instanceof JCLiteral literal) {
 			return literal.getValue();
