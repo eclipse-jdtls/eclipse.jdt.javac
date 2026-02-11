@@ -1,5 +1,11 @@
 package org.eclipse.jdt.core.dom;
 
+import java.util.Arrays;
+import java.util.Collection;
+
+import org.eclipse.jdt.core.compiler.CategorizedProblem;
+import org.eclipse.jdt.core.compiler.IProblem;
+
 public class JdtCoreDomPackagePrivateUtility {
 	public static BindingResolver getBindingResolver(AST ast) {
 		return ast.getBindingResolver();
@@ -47,6 +53,20 @@ public class JdtCoreDomPackagePrivateUtility {
 			ret1 = jcbr instanceof JavacBindingResolver br2 ? br2.findUnresolvedBinding(signature) : null;
 		}
 		return ret1;
+	}
+
+	public static void addProblemsToDOM(CompilationUnit dom, Collection<CategorizedProblem> problems) {
+		if (problems == null) {
+			return;
+		}
+		IProblem[] previous = dom.getProblems();
+		IProblem[] newProblems = Arrays.copyOf(previous, previous.length + problems.size());
+		int start = previous.length;
+		for (CategorizedProblem problem : problems) {
+			newProblems[start] = problem;
+			start++;
+		}
+		dom.setProblems(newProblems);
 	}
 
 

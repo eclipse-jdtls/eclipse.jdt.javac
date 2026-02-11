@@ -37,6 +37,7 @@ import org.eclipse.jdt.internal.compiler.ClassFile;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.env.ICompilationUnit;
 import org.eclipse.jdt.internal.core.builder.SourceFile;
+import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -57,7 +58,7 @@ import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
 import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
 
-public class JavacTaskListener implements TaskListener {
+public class JavacCompilerTaskListener implements TaskListener {
 	private Map<ICompilationUnit, JavacCompilationResult> results = new HashMap<>();
 	private IProblemFactory problemFactory;
 	private UnusedProblemFactory unusedProblemFactory;
@@ -78,7 +79,7 @@ public class JavacTaskListener implements TaskListener {
 
 	private static final char[] MODULE_INFO_NAME = "module-info".toCharArray();
 
-	public JavacTaskListener(JavacCompiler javacCompiler, JavacConfig config, IProblemFactory problemFactory, Map<JavaFileObject, ICompilationUnit> fileObjectToCUMap) {
+	public JavacCompilerTaskListener(JavacCompiler javacCompiler, JavacConfig config, IProblemFactory problemFactory, Map<JavaFileObject, ICompilationUnit> fileObjectToCUMap) {
 		this.javacCompiler = javacCompiler;
 		this.config = config;
 		this.problemFactory = problemFactory;

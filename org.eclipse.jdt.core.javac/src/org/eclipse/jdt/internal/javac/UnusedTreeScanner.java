@@ -25,6 +25,7 @@ import java.util.Set;
 import javax.lang.model.element.ElementKind;
 
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
+import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
 import com.sun.source.doctree.SeeTree;
 import com.sun.source.doctree.ThrowsTree;
