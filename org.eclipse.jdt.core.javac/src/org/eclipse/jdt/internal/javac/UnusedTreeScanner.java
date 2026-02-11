@@ -158,6 +158,10 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 			}
 		}
 
+		if (node instanceof JCIdent id && id.sym instanceof ClassSymbol classSym && classSym.owner instanceof MethodSymbol) {
+			this.usedElements.add(id.sym);
+		}
+
 		return super.visitIdentifier(node, p);
 	}
 
@@ -218,7 +222,7 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	public R visitNewClass(NewClassTree node, P p) {
 		if (node instanceof JCNewClass newClass) {
 			Symbol targetClass = newClass.def != null ? newClass.def.sym : newClass.type.tsym;
-			if (isPrivateSymbol(targetClass)) {
+			if (isPrivateSymbol(targetClass) || targetClass.owner instanceof MethodSymbol) {
 				this.usedElements.add(targetClass);
 			}
 			if( newClass.constructor != null ) {
@@ -231,7 +235,7 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 
 	private boolean isPotentialUnusedDeclaration(Tree tree) {
 		if (tree instanceof JCClassDecl classTree) {
-			return (classTree.getModifiers().flags & Flags.PRIVATE) != 0;
+			return (classTree.getModifiers().flags & Flags.PRIVATE) != 0 || classTree.sym.owner instanceof MethodSymbol;
 		} else if (tree instanceof JCMethodDecl methodTree) {
 			for (JCAnnotation annot : methodTree.mods.annotations) {
 				methodSuppressUnused = isUnusedSuppressed(annot);
