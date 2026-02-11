@@ -11,7 +11,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package org.eclipse.jdt.internal.javac;
+package org.eclipse.jdt.internal.javac.problem;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -85,7 +85,7 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Position;
 
-public class JavacProblemConverter {
+public class JavacDiagnosticProblemConverter {
 	private static final String COMPILER_ERR_MISSING_RET_STMT = "compiler.err.missing.ret.stmt";
 	private static final String COMPILER_WARN_NON_SERIALIZABLE_INSTANCE_FIELD = "compiler.warn.non.serializable.instance.field";
 	private static final String COMPILER_WARN_MISSING_SVUID = "compiler.warn.missing.SVUID";
@@ -94,10 +94,10 @@ public class JavacProblemConverter {
 	private final Map<JavaFileObject, JCCompilationUnit> units = new HashMap<>();
 	private static final Pattern SOURCE_VERSION_EXTRACTOR = Pattern.compile("--?source ([-0-9]+)");;
 
-	public JavacProblemConverter(Map<String, String> options, Context context) {
+	public JavacDiagnosticProblemConverter(Map<String, String> options, Context context) {
 		this(new CompilerOptions(options), context);
 	}
-	public JavacProblemConverter(CompilerOptions options, Context context) {
+	public JavacDiagnosticProblemConverter(CompilerOptions options, Context context) {
 		this.compilerOptions = options;
 		this.context = context;
 	}

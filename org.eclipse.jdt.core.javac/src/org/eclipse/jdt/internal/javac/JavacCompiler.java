@@ -46,6 +46,8 @@ import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
 import org.eclipse.jdt.internal.compiler.problem.AbortCompilation;
 import org.eclipse.jdt.internal.core.JavaProject;
 import org.eclipse.jdt.internal.core.builder.SourceFile;
+import org.eclipse.jdt.internal.javac.problem.JavacProblem;
+import org.eclipse.jdt.internal.javac.problem.JavacDiagnosticProblemConverter;
 
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
@@ -109,14 +111,14 @@ public class JavacCompiler extends Compiler {
 				return true;
 			}).toList();
 
-		JavacTaskListener javacListener = new JavacTaskListener(this, this.compilerConfig, this.problemFactory, this.fileObjectToCUMap);
+		JavacCompilerTaskListener javacListener = new JavacCompilerTaskListener(this, this.compilerConfig, this.problemFactory, this.fileObjectToCUMap);
 		int unitIndex = 0;
 		var tool = ToolProvider.getSystemJavaCompiler();
 		Context javacContext = new Context();
 		CacheFSInfo.preRegister(javacContext);
 		ProceedOnErrorTransTypes.preRegister(javacContext);
 		ProceedOnErrorGen.preRegister(javacContext);
-		JavacProblemConverter problemConverter = new JavacProblemConverter(this.compilerConfig.compilerOptions(), javacContext);
+		JavacDiagnosticProblemConverter problemConverter = new JavacDiagnosticProblemConverter(this.compilerConfig.compilerOptions(), javacContext);
 		Set<JavaFileObject> sourceWithErrors = new HashSet<>();
 		javacContext.put(FILES_WITH_ERRORS_KEY, sourceWithErrors);
 		javacContext.put(DiagnosticListener.class, diagnostic -> {

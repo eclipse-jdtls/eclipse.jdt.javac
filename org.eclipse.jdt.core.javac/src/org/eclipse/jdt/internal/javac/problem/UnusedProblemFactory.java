@@ -11,7 +11,7 @@
 *     Microsoft Corporation - initial API and implementation
 *******************************************************************************/
 
-package org.eclipse.jdt.internal.javac;
+package org.eclipse.jdt.internal.javac.problem;
 
 import java.io.IOException;
 import java.util.ArrayList;
