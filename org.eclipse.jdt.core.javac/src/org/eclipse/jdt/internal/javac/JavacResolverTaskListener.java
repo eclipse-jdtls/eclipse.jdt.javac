@@ -208,7 +208,7 @@ public class JavacResolverTaskListener implements TaskListener {
 	}
 
 	private static void addProblemsToDOM(CompilationUnit dom, List<CategorizedProblem> accessRestrictionProblems) {
-		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, new ArrayList<>(accessRestrictionProblems));
+		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, new ArrayList<IProblem>(accessRestrictionProblems));
 	}
 
 	private static class TrimUnvisibleContentScanner extends TreeScanner {
@@ -237,17 +237,6 @@ public class JavacResolverTaskListener implements TaskListener {
 			}
 		}
 	}
-	private TreeScanner getIgnoreMethodBodiesScanner() {
-		return new TreeScanner() {
-			@Override
-			public void visitMethodDef(JCMethodDecl method) {
-				if (method.body != null) {
-					method.body.stats = com.sun.tools.javac.util.List.nil();
-				}
-			}
-		};
-	}
-
 	private static class IgnoreMethodBodiesScanner extends TreeScanner {
 		@Override
 		public void visitMethodDef(JCMethodDecl method) {
