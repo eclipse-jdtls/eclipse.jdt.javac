@@ -40,9 +40,12 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import com.sun.tools.javac.tree.TreeInfo;
+import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
 
 import jdk.javadoc.internal.doclint.DocLint;
@@ -203,17 +206,9 @@ public class JavacResolverTaskListener implements TaskListener {
 	}
 
 	private static void addProblemsToDOM(CompilationUnit dom, List<CategorizedProblem> accessRestrictionProblems) {
-		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, accessRestrictionProblems);
+		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, new ArrayList<>(accessRestrictionProblems));
 	}
 
-
-	private TreeScanner getIgnoreMethodBodiesScanner() {
-		return new TreeScanner() {
-			@Override
-			public void visitMethodDef(JCMethodDecl method) {
-				if (method.body != null) {
-					method.body.stats = com.sun.tools.javac.util.List.nil();
-				}
 	private static class TrimUnvisibleContentScanner extends TreeScanner {
 		private TreeMaker treeMaker;
 		private Context context;
@@ -239,6 +234,16 @@ public class JavacResolverTaskListener implements TaskListener {
 				decl.body.stats = com.sun.tools.javac.util.List.of(throwNewRuntimeExceptionOutOfFocalPositionScope);
 			}
 		}
+	}
+	private TreeScanner getIgnoreMethodBodiesScanner() {
+		return new TreeScanner() {
+			@Override
+			public void visitMethodDef(JCMethodDecl method) {
+				if (method.body != null) {
+					method.body.stats = com.sun.tools.javac.util.List.nil();
+				}
+			}
+		};
 	}
 
 	private static class TrimNonFocussedContentTreeScanner extends TreeScanner {
