@@ -701,9 +701,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 			while (elements.hasNext() && elements.next() instanceof JCCompilationUnit u) {
 				javacCompilationUnits.add(u);
-				if (sourceUnits.length == 1 && focalPoint >= 0) {
-					JavacUtils.trimUnvisibleContent(u, focalPoint, context);
-				}
 				CompilationUnit res = filesToUnits.get(u.getSourceFile());
 				if( res == null ) {
 					/*
@@ -1364,7 +1361,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		// Fix known missing javadoc errors due to JDT being out of spec
-		ArrayList<Initializer> initializers = new ArrayList<>();
 		HashMap<Comment, ASTNode> possibleOwners = new HashMap<>();
 		res.accept(new ASTVisitor() {
 			@Override
@@ -1400,12 +1396,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				}
 				return true;
 			}
-			@Override
-			public boolean visit(Initializer node) {
-				initializers.add(node);
-				return true;
-			}
-			// TODO add other locations where jdt violates spec, other than Initializer
 		});
 		for( Javadoc k : orphanedJavadoc) {
 			ASTNode closest = possibleOwners.get(k);

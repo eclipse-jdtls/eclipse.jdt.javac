@@ -98,6 +98,11 @@ public class JavacResolverTaskListener implements TaskListener {
 		if (focalPoint >= 0) {
 			list.add(new TrimNonFocussedContentTreeScanner(u, focalPoint));
 		}
+		if (filesToUnits.size() == 1 && focalPoint >= 0) {
+			/// Removes non-relevant content (eg other method blocks) for given focal position
+			list.add(new TrimUnvisibleContentScanner(u, focalPoint, context));
+		}
+
 		DelegatingTreeScanner scanner = new DelegatingTreeScanner(list);
 		u.accept(scanner);
 	}
