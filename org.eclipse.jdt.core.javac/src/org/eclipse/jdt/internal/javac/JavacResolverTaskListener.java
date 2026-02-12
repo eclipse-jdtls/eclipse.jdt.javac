@@ -214,8 +214,31 @@ public class JavacResolverTaskListener implements TaskListener {
 				if (method.body != null) {
 					method.body.stats = com.sun.tools.javac.util.List.nil();
 				}
+	private static class TrimUnvisibleContentScanner extends TreeScanner {
+		private TreeMaker treeMaker;
+		private Context context;
+		private int focus;
+		private JCCompilationUnit u;
+		public TrimUnvisibleContentScanner(JCCompilationUnit u, int focalPoint, Context context) {
+			this.u = u;
+			this.focus = focalPoint;
+			this.context = context;
+			this.treeMaker = TreeMaker.instance(context);
+		}
+		@Override
+		public void visitMethodDef(JCMethodDecl decl) {
+			if (decl.getBody() != null &&
+				!decl.getBody().getStatements().isEmpty() &&
+				!(decl.getStartPosition() <= focus &&
+				decl.getStartPosition() + TreeInfo.getEndPos(decl, u.endPositions) >= focus)) {
+				var throwNewRuntimeExceptionOutOfFocalPositionScope =
+					treeMaker.Throw(
+							treeMaker.NewClass(null, null,
+									treeMaker.Ident(Names.instance(context).fromString(RuntimeException.class.getSimpleName())),
+									com.sun.tools.javac.util.List.of(treeMaker.Literal("Out of focalPosition scope")), null)); //$NON-NLS-1$
+				decl.body.stats = com.sun.tools.javac.util.List.of(throwNewRuntimeExceptionOutOfFocalPositionScope);
 			}
-		};
+		}
 	}
 
 	private static class TrimNonFocussedContentTreeScanner extends TreeScanner {
