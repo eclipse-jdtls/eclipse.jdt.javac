@@ -41,7 +41,7 @@ import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class UnusedProblemFactory {
-	private Map<JavaFileObject, Map<String, CategorizedProblem>> filesToUnusedImports = new HashMap<>();
+	private Map<JavaFileObject, Map<String, List<CategorizedProblem>>> filesToUnusedImports = new HashMap<>();
 	private IProblemFactory problemFactory;
 	private CompilerOptions compilerOptions;
 
@@ -55,43 +55,53 @@ public class UnusedProblemFactory {
 		this.compilerOptions = new CompilerOptions(compilerOptions);
 	}
 
-	public List<CategorizedProblem> addUnusedImports(CompilationUnitTree unit, Map<String, JCImport> unusedImports) {
+	public List<CategorizedProblem> addUnusedImports(CompilationUnitTree unit, Map<String, List<JCImport>> unusedImports) {
 		int severity = this.toSeverity(IProblem.UnusedImport);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return null;
 		}
 
-		Map<String, CategorizedProblem> unusedWarning = new LinkedHashMap<>();
+		Map<String, List<CategorizedProblem>> unusedWarning = new LinkedHashMap<>();
 		final char[] fileName = unit.getSourceFile().getName().toCharArray();
-		for (Entry<String, JCImport> unusedImport : unusedImports.entrySet()) {
+		for (Entry<String, List<JCImport>> unusedImport : unusedImports.entrySet()) {
 			String importName = unusedImport.getKey();
-			JCImport importNode = unusedImport.getValue();
-			int pos = importNode.qualid.getStartPosition();
-			int endPos = pos + importName.length() - 1;
-			if (importName.endsWith(".*")) {
-				/**
-				 * For the unused star imports (e.g., java.util.*), display the
-				 * diagnostic on the java.util part instead of java.util.* to
-				 * be compatible with 'remove unused import' quickfix in JDT.
-				 */
-				importName = importName.substring(0, importName.length() - 2);
-				endPos = endPos - 2;
+			List<CategorizedProblem> unusedWarningList = unusedWarning.get(importName);
+			if (unusedWarningList == null) {
+				unusedWarningList = new ArrayList<>();
 			}
-			int line = (int) unit.getLineMap().getLineNumber(pos);
-			int column = (int) unit.getLineMap().getColumnNumber(pos);
-			String[] arguments = new String[] { importName };
-			CategorizedProblem problem = problemFactory.createProblem(fileName,
-						IProblem.UnusedImport,
-						arguments,
-						arguments,
-						severity, pos, endPos, line, column);
-			unusedWarning.put(importName, problem);
+			for (JCImport importNode : unusedImport.getValue()) {
+				int pos = importNode.qualid.getStartPosition();
+				int endPos = pos + importName.length() - 1;
+				if (importName.endsWith(".*")) {
+					/**
+					 * For the unused star imports (e.g., java.util.*), display the
+					 * diagnostic on the java.util part instead of java.util.* to
+					 * be compatible with 'remove unused import' quickfix in JDT.
+					 */
+					importName = importName.substring(0, importName.length() - 2);
+					endPos = endPos - 2;
+				}
+				int line = (int) unit.getLineMap().getLineNumber(pos);
+				int column = (int) unit.getLineMap().getColumnNumber(pos);
+				String[] arguments = new String[] { importName };
+				CategorizedProblem problem = problemFactory.createProblem(fileName,
+							IProblem.UnusedImport,
+							arguments,
+							arguments,
+							severity, pos, endPos, line, column);
+				unusedWarningList.add(problem);
+			}
+			unusedWarning.put(importName, unusedWarningList);
 		}
 
 		JavaFileObject file = unit.getSourceFile();
-		Map<String, CategorizedProblem> newUnusedImports = mergeUnusedImports(filesToUnusedImports.get(file), unusedWarning);
+		Map<String, List<CategorizedProblem>> newUnusedImports = mergeUnusedImports(filesToUnusedImports.get(file), unusedWarning);
 		filesToUnusedImports.put(file, newUnusedImports);
-		return new ArrayList<>(newUnusedImports.values());
+		List<CategorizedProblem> result = new ArrayList<>();
+		for (List<CategorizedProblem> newUnusedImportList : newUnusedImports.values()) {
+		    result.addAll(newUnusedImportList);
+		}
+		return result;
 	}
 
 	public List<CategorizedProblem> addUnusedPrivateMembers(CompilationUnitTree unit, List<Tree> unusedPrivateDecls) {
@@ -201,15 +211,15 @@ public class UnusedProblemFactory {
 	}
 
 	// Merge the entries that exist in both maps
-	private Map<String, CategorizedProblem> mergeUnusedImports(Map<String, CategorizedProblem> map1, Map<String, CategorizedProblem> map2) {
+	private Map<String, List<CategorizedProblem>> mergeUnusedImports(Map<String, List<CategorizedProblem>> map1, Map<String, List<CategorizedProblem>> map2) {
 		if (map1 == null) {
 			return map2;
 		} else if (map2 == null) {
 			return map2;
 		}
 
-		Map<String, CategorizedProblem> mergedMap = new LinkedHashMap<>();
-		for (Entry<String, CategorizedProblem> entry : map1.entrySet()) {
+		Map<String, List<CategorizedProblem>> mergedMap = new LinkedHashMap<>();
+		for (Entry<String, List<CategorizedProblem>> entry : map1.entrySet()) {
 			if (map2.containsKey(entry.getKey())) {
 				mergedMap.put(entry.getKey(), entry.getValue());
 			}

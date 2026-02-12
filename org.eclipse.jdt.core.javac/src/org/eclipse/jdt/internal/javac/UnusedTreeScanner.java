@@ -69,7 +69,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	final Set<Tree> privateDecls = new LinkedHashSet<>();
 	final Set<Symbol> usedElements = new HashSet<>();
-	final Map<String, JCImport> unusedImports = new LinkedHashMap<>();
+	final Map<String, List<JCImport>> unusedImports = new LinkedHashMap<>();
 	private CompilationUnitTree unit = null;
 	private boolean classSuppressUnused = false;
 	private boolean methodSuppressUnused = false;
@@ -108,7 +108,12 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	public R visitImport(ImportTree node, P p) {
 		if (node instanceof JCImport jcImport) {
 			String importClass = jcImport.qualid.toString();
-			this.unusedImports.put(importClass, jcImport);
+			List<JCImport> importList = this.unusedImports.get(importClass);
+			if (importList == null) {
+				importList = new ArrayList<>();
+			    this.unusedImports.put(importClass, importList);
+			}
+			importList.add(jcImport);
 		}
 
 		return super.visitImport(node, p);
