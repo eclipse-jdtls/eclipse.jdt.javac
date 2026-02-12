@@ -29,6 +29,7 @@ import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
 import com.sun.source.doctree.SeeTree;
 import com.sun.source.doctree.ThrowsTree;
+import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
@@ -73,6 +74,7 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	private CompilationUnitTree unit = null;
 	private boolean classSuppressUnused = false;
 	private boolean methodSuppressUnused = false;
+	private boolean lhsInAssignment = false;
 
 	private final UnusedDocTreeScanner unusedDocTreeScanner = new UnusedDocTreeScanner();
 
@@ -138,7 +140,7 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 
 	@Override
 	public R visitIdentifier(IdentifierTree node, P p) {
-		if (node instanceof JCIdent id && isPrivateSymbol(id.sym)) {
+		if (node instanceof JCIdent id && isPrivateSymbol(id.sym) && !this.lhsInAssignment) {
 			this.usedElements.add(id.sym);
 		}
 
@@ -157,6 +159,19 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 		}
 
 		return super.visitIdentifier(node, p);
+	}
+
+	@Override
+	public R visitAssignment(AssignmentTree node, P p) {
+		if (node instanceof JCAssign assign) {
+			scan(assign.rhs, p);
+			this.lhsInAssignment = true;
+			scan(assign.lhs, p);
+			this.lhsInAssignment = false;
+
+			return null;
+		}
+		return super.visitAssignment(node, p);
 	}
 
 	@Override

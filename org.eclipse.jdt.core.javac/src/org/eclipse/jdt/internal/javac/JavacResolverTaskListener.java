@@ -124,12 +124,14 @@ public class JavacResolverTaskListener implements TaskListener {
 
 		// check if the diagnostics are actually enabled before trying to collect them
 		var objectCompilerOptions = new CompilerOptions(compilerOptions);
-		boolean unusedImportIgnored = objectCompilerOptions.getSeverityString(CompilerOptions.UnusedImport)
-				.equals(CompilerOptions.IGNORE);
+		boolean unusedImportIgnored = objectCompilerOptions
+				.getSeverityString(CompilerOptions.UnusedImport).equals(CompilerOptions.IGNORE);
 		boolean unusedPrivateMemberIgnored = objectCompilerOptions
 				.getSeverityString(CompilerOptions.UnusedPrivateMember).equals(CompilerOptions.IGNORE);
-		if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all") && unusedImportIgnored
-				&& unusedPrivateMemberIgnored) {
+		boolean unusedLocalVariableIgnored = objectCompilerOptions
+				.getSeverityString(CompilerOptions.UnusedLocalVariable).equals(CompilerOptions.IGNORE);
+		if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")
+			    && unusedImportIgnored && unusedPrivateMemberIgnored && unusedLocalVariableIgnored) {
 			return;
 		}
 
