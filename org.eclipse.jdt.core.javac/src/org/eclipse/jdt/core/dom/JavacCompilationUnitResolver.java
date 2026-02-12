@@ -727,15 +727,12 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 					// Let's handle problems from the diagnostics first
 					// javadoc problems explicitly set as they're not sent to DiagnosticListener (maybe find a flag to do it?)
-					var javadocProblems = converter.javadocDiagnostics.stream()
-							.map(problemConverter::createJavacProblem)
+					List<IProblem> javadocProblems = converter.javadocDiagnostics.stream()
+							.map(x -> (IProblem)problemConverter.createJavacProblem(x))
 							.filter(Objects::nonNull)
-							.toArray(IProblem[]::new);
-					if (javadocProblems.length > 0) {
-						int initialSize = res.getProblems().length;
-						var newProblems = Arrays.copyOf(res.getProblems(), initialSize + javadocProblems.length);
-						System.arraycopy(javadocProblems, 0, newProblems, initialSize, javadocProblems.length);
-						res.setProblems(newProblems);
+							.toList();
+					if (javadocProblems.size() > 0) {
+						JdtCoreDomPackagePrivateUtility.addProblemsToDOM(res, javadocProblems);
 					}
 
 					markProblemNodesMalformed(res);
