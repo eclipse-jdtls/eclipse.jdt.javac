@@ -627,28 +627,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		// Such units cause a failure later because their name is lost in ASTParser and Javac cannot treat them as modules
 		boolean ignoreModule = !Arrays.stream(sourceUnits).allMatch(u -> new String(u.getFileName()).endsWith("java"));
 		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits), ignoreModule);
+
+
 		Options javacOptions = Options.instance(context);
-		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
-		if (focalPoint >= 0) {
-			// Skip doclint by default, will be re-enabled in the TaskListener if focalPoint is in Javadoc
-			javacOptions.remove(Option.XDOCLINT.primaryName);
-			javacOptions.remove(Option.XDOCLINT_CUSTOM.primaryName);
-			// minimal linting, but "raw" still seems required
-			javacOptions.put(Option.XLINT_CUSTOM, "raw");
-		} else if ((flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
-			// minimal linting, but "raw" still seems required
-			javacOptions.put(Option.XLINT_CUSTOM, "raw");
-			// set minimal custom DocLint support to get DCComment bindings resolved
-			javacOptions.put(Option.XDOCLINT_CUSTOM, "reference");
-		}
-		javacOptions.put(Option.PROC, ProcessorConfig.isAnnotationProcessingEnabled(javaProject) ? "only" : "none");
-		Optional.ofNullable(Platform.getProduct())
-				.map(IProduct::getApplication)
-				// if application is not a test runner (so we don't have regressions with JDT test suite because of too many problems
-				.or(() -> Optional.ofNullable(System.getProperty("eclipse.application")))
-				.filter(name -> !name.contains("test") && !name.contains("junit"))
-				 // continue as far as possible to get extra warnings about unused
-				.ifPresent(_ ->javacOptions.put("should-stop.ifError", CompileState.GENERATE.toString()));
+		initializeJavacOptions(javacOptions, focalPoint, flags, javaProject);
+
 		JavacFileManager fileManager = (JavacFileManager)context.get(JavaFileManager.class);
 		if (javaProject == null && extraClasspath != null) {
 			try {
@@ -682,16 +665,22 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		options = replaceSafeSystemOption(options);
+
+		// This method has, on occasion, led to significant performance problems, but may have been due to a faulty environment. Be on the lookout.
 		addSourcesWithMultipleTopLevelClasses(sourceUnits, fileObjects, javaProject, fileManager);
+
+
 		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
+
+		// Much of the work of responding to task events is done in the JavacResolverTaskListener created below.
 		MultiTaskListener.instance(context).add(new JavacResolverTaskListener(context, problemConverter, compilerOptions, javaProject, unusedProblemFactory,
 				task, focalPoint, filesToUnits, flags));
+
+
+		// Configure these flags before we actually parse
 		{
-			// don't know yet a better way to ensure those necessary flags get configured
 			var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
-			javac.keepComments = true;
-			javac.genEndPos = true;
-			javac.lineDebugInfo = true;
+			javac.keepComments = javac.genEndPos = javac.lineDebugInfo = true;
 		}
 
 		List<JCCompilationUnit> javacCompilationUnits = new ArrayList<>();
@@ -705,18 +694,13 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				// are parsed during resolution so we stick to the mininal useful data generated
 				// and stored during analysis
 				var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
-				javac.keepComments = false;
-				javac.genEndPos = false;
-				javac.lineDebugInfo = false;
+				javac.keepComments = javac.genEndPos = javac.lineDebugInfo = false;
 			}
 
 			Throwable cachedThrown = null;
 
 			while (elements.hasNext() && elements.next() instanceof JCCompilationUnit u) {
 				javacCompilationUnits.add(u);
-				if (sourceUnits.length == 1 && focalPoint >= 0) {
-					JavacUtils.trimUnvisibleContent(u, focalPoint, context);
-				}
 				CompilationUnit res = filesToUnits.get(u.getSourceFile());
 				if( res == null ) {
 					/*
@@ -728,52 +712,33 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					 */
 					continue;
 				}
+
+				String rawText = findRawTextFromUnit(u, filesToSrcUnits);
+				if( rawText == null ) {
+					continue;
+				}
+
 				try {
-					String rawText = null;
-					try {
-						rawText = u.getSourceFile().getCharContent(true).toString();
-					} catch( IOException ioe) {
-						org.eclipse.jdt.internal.compiler.env.ICompilationUnit srcUnit = filesToSrcUnits.get(u.getSourceFile());
-						if( srcUnit != null ) {
-							char[] contents = srcUnit.getContents();
-							if( contents != null && contents.length != 0) {
-								rawText = new String(contents);
-							}
-						}
-						if( rawText == null ) {
-							ILog.get().error(ioe.getMessage(), ioe);
-							continue;
-						}
-					}
+
+					// Do the main conversion from JC-style elements to DOM
 					AST ast = res.ast;
 					JavacConverter converter = new JavacConverter(ast, u, context, rawText, docEnabled, focalPoint);
 					converter.populateCompilationUnit(res, u);
+
+					// Let's handle problems from the diagnostics first
 					// javadoc problems explicitly set as they're not sent to DiagnosticListener (maybe find a flag to do it?)
-					var javadocProblems = converter.javadocDiagnostics.stream()
-							.map(problemConverter::createJavacProblem)
+					List<IProblem> javadocProblems = converter.javadocDiagnostics.stream()
+							.map(x -> (IProblem)problemConverter.createJavacProblem(x))
 							.filter(Objects::nonNull)
-							.toArray(IProblem[]::new);
-					if (javadocProblems.length > 0) {
-						int initialSize = res.getProblems().length;
-						var newProblems = Arrays.copyOf(res.getProblems(), initialSize + javadocProblems.length);
-						System.arraycopy(javadocProblems, 0, newProblems, initialSize, javadocProblems.length);
-						res.setProblems(newProblems);
+							.toList();
+					if (javadocProblems.size() > 0) {
+						JdtCoreDomPackagePrivateUtility.addProblemsToDOM(res, javadocProblems);
 					}
 
 					markProblemNodesMalformed(res);
 
-					List<org.eclipse.jdt.core.dom.Comment> javadocComments = new ArrayList<>();
-					depthFirstFixNodePositions(res, javadocComments);
-					Log log = Log.instance(context);
-					var previousSource = log.currentSourceFile();
-					try {
-						log.useSource(u.sourcefile);
-						addCommentsToUnit(javadocComments, res);
-						addCommentsToUnit(converter.notAttachedComments, res);
-						attachMissingComments(res, context, rawText, converter, compilerOptions);
-					} finally {
-						log.useSource(previousSource);
-					}
+					addAllCommentsToCompilationUnit(compilerOptions, context, u, res, rawText, converter);
+
 					if ((flags & ICompilationUnit.ENABLE_STATEMENTS_RECOVERY) == 0) {
 						removeRecoveredNodes(res);
 					}
@@ -808,6 +773,70 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		return result;
+	}
+
+	private void addAllCommentsToCompilationUnit(Map<String, String> compilerOptions, Context context,
+			JCCompilationUnit u, CompilationUnit res, String rawText, JavacConverter converter) {
+		List<org.eclipse.jdt.core.dom.Comment> javadocComments = new ArrayList<>();
+		depthFirstFixNodePositions(res, javadocComments);
+		Log log = Log.instance(context);
+		var previousSource = log.currentSourceFile();
+		try {
+			log.useSource(u.sourcefile);
+			List<Comment> combined = new ArrayList<>();
+			combined.addAll(javadocComments);
+			combined.addAll(converter.notAttachedComments);
+			com.sun.tools.javac.parser.Scanner javacScanner = scanJavacCommentScanner(combined, res, context, rawText, converter);
+			org.eclipse.jdt.internal.compiler.parser.Scanner ecjScanner = scanECJCommentScanner(javacScanner, rawText, compilerOptions);
+			addCommentsToUnit(combined, res);
+			res.initCommentMapper(ecjScanner);
+		} finally {
+			log.useSource(previousSource);
+		}
+	}
+
+	private void initializeJavacOptions(Options javacOptions, int focalPoint, int flags, IJavaProject javaProject) {
+		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
+		if (focalPoint >= 0) {
+			// Skip doclint by default, will be re-enabled in the TaskListener if focalPoint is in Javadoc
+			javacOptions.remove(Option.XDOCLINT.primaryName);
+			javacOptions.remove(Option.XDOCLINT_CUSTOM.primaryName);
+			// minimal linting, but "raw" still seems required
+			javacOptions.put(Option.XLINT_CUSTOM, "raw");
+		} else if ((flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
+			// minimal linting, but "raw" still seems required
+			javacOptions.put(Option.XLINT_CUSTOM, "raw");
+			// set minimal custom DocLint support to get DCComment bindings resolved
+			javacOptions.put(Option.XDOCLINT_CUSTOM, "reference");
+		}
+		javacOptions.put(Option.PROC, ProcessorConfig.isAnnotationProcessingEnabled(javaProject) ? "only" : "none");
+		Optional.ofNullable(Platform.getProduct())
+				.map(IProduct::getApplication)
+				// if application is not a test runner (so we don't have regressions with JDT test suite because of too many problems
+				.or(() -> Optional.ofNullable(System.getProperty("eclipse.application")))
+				.filter(name -> !name.contains("test") && !name.contains("junit"))
+				 // continue as far as possible to get extra warnings about unused
+				.ifPresent(_ ->javacOptions.put("should-stop.ifError", CompileState.GENERATE.toString()));
+	}
+
+	private String findRawTextFromUnit(JCCompilationUnit u,
+			Map<JavaFileObject, org.eclipse.jdt.internal.compiler.env.ICompilationUnit> filesToSrcUnits) {
+		String rawText = null;
+		try {
+			rawText = u.getSourceFile().getCharContent(true).toString();
+		} catch( IOException ioe) {
+			org.eclipse.jdt.internal.compiler.env.ICompilationUnit srcUnit = filesToSrcUnits.get(u.getSourceFile());
+			if( srcUnit != null ) {
+				char[] contents = srcUnit.getContents();
+				if( contents != null && contents.length != 0) {
+					rawText = new String(contents);
+				}
+			}
+			if( rawText == null ) {
+				ILog.get().error(ioe.getMessage(), ioe);
+			}
+		}
+		return rawText;
 	}
 
 	private void markProblemNodesMalformed(CompilationUnit res) {
@@ -1269,7 +1298,48 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return ast;
 	}
 
-//
+	private com.sun.tools.javac.parser.Scanner scanJavacCommentScanner(List<Comment> missingComments, CompilationUnit unit, Context context, String rawText, JavacConverter converter) {
+		ScannerFactory scannerFactory = ScannerFactory.instance(context);
+		JavadocTokenizer commentTokenizer = new JavadocTokenizer(scannerFactory, rawText.toCharArray(), rawText.length()) {
+			@Override
+			protected com.sun.tools.javac.parser.Tokens.Comment processComment(int pos, int endPos, CommentStyle style) {
+				// workaround Java bug 9077218
+				if (style == CommentStyle.JAVADOC_BLOCK && endPos - pos <= 4) {
+					style = CommentStyle.BLOCK;
+				}
+				var res = super.processComment(pos, endPos, style);
+				if (noCommentAt(unit, pos)) { // not already processed
+					var comment = converter.convert(res, pos, endPos);
+					missingComments.add(comment);
+				}
+				return res;
+			}
+		};
+		Scanner javacScanner = new Scanner(scannerFactory, commentTokenizer) {
+			// subclass just to access constructor
+			// TODO DefaultCommentMapper.this.scanner.linePtr == -1?
+		};
+		do { // consume all tokens to populate comments
+			javacScanner.nextToken();
+		} while (javacScanner.token() != null && javacScanner.token().kind != TokenKind.EOF);
+		return javacScanner;
+	}
+
+	private org.eclipse.jdt.internal.compiler.parser.Scanner scanECJCommentScanner(Scanner javacScanner, String rawText, Map<String, String> compilerOptions) {
+		org.eclipse.jdt.internal.compiler.parser.Scanner ecjScanner = new ASTConverter(compilerOptions, false, null).scanner;
+		ecjScanner.recordLineSeparator = true;
+		ecjScanner.skipComments = false;
+		try {
+			ecjScanner.setSource(rawText.toCharArray());
+			do {
+				ecjScanner.getNextToken();
+			} while (!ecjScanner.atEnd());
+		} catch (InvalidInputException ex) {
+			// Lexical errors are highly probably while editing
+			// don't log and just ignore them.
+		}
+		return ecjScanner;
+	}
 	/**
 	 * Currently re-scans the doc to build the list of comments and then
 	 * attach them to the already built AST.
@@ -1279,7 +1349,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 	 * @param converter
 	 * @param compilerOptions
 	 */
-	private void attachMissingComments(CompilationUnit unit, Context context, String rawText, JavacConverter converter, Map<String, String> compilerOptions) {
+	private List<Comment> getMissingComments(CompilationUnit unit, Context context, String rawText, JavacConverter converter, Map<String, String> compilerOptions) {
 		ScannerFactory scannerFactory = ScannerFactory.instance(context);
 		List<Comment> missingComments = new ArrayList<>();
 		JavadocTokenizer commentTokenizer = new JavadocTokenizer(scannerFactory, rawText.toCharArray(), rawText.length()) {
@@ -1319,14 +1389,19 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 		// need to scan with ecjScanner first to populate some line indexes used by the CommentMapper
 		// on longer-term, implementing an alternative comment mapper based on javac scanner might be best
-		addCommentsToUnit(missingComments, unit);
 		unit.initCommentMapper(ecjScanner);
+		return missingComments;
 	}
 
 	static void addCommentsToUnit(Collection<Comment> comments, CompilationUnit res) {
 		List<Comment> before = res.getCommentList() == null ? new ArrayList<>() : new ArrayList<>(res.getCommentList());
-		comments.stream().filter(comment -> comment.getStartPosition() >= 0 && !generated(comment)  && JavacCompilationUnitResolver.noCommentAt(res, comment.getStartPosition()))
-		      .forEach(before::add);
+		for( Comment c : comments ) {
+			if( c.getStartPosition() >= 0 && !generated(c) ) {
+				if( JavacCompilationUnitResolver.noCommentAt(before, c.getStartPosition() )) {
+					before.add(c);
+				}
+			}
+		}
 		before.sort(Comparator.comparingInt(Comment::getStartPosition));
 		res.setCommentTable(before.toArray(Comment[]::new));
 
@@ -1339,7 +1414,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		// Fix known missing javadoc errors due to JDT being out of spec
-		ArrayList<Initializer> initializers = new ArrayList<>();
 		HashMap<Comment, ASTNode> possibleOwners = new HashMap<>();
 		res.accept(new ASTVisitor() {
 			@Override
@@ -1375,12 +1449,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				}
 				return true;
 			}
-			@Override
-			public boolean visit(Initializer node) {
-				initializers.add(node);
-				return true;
-			}
-			// TODO add other locations where jdt violates spec, other than Initializer
 		});
 		for( Javadoc k : orphanedJavadoc) {
 			ASTNode closest = possibleOwners.get(k);
@@ -1405,7 +1473,10 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		if (unit.getCommentList() == null) {
 			return true;
 		}
-		return ((List<Comment>)unit.getCommentList()).stream()
+		return noCommentAt(unit.getCommentList(), pos);
+	}
+	private static boolean noCommentAt(List<Comment> comments, int pos) {
+		return comments.stream()
 				.allMatch(other -> pos < other.getStartPosition() || pos >= other.getStartPosition() + other.getLength());
 	}
 

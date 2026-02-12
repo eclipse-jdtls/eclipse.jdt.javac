@@ -15,6 +15,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
+import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.JdtCoreDomPackagePrivateUtility;
 import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
@@ -40,9 +41,12 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import com.sun.tools.javac.tree.TreeInfo;
+import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
 
 import jdk.javadoc.internal.doclint.DocLint;
@@ -84,6 +88,7 @@ public class JavacResolverTaskListener implements TaskListener {
 		}
 
 		if( e.getKind() == TaskEvent.Kind.ANALYZE && e.getCompilationUnit() instanceof JCCompilationUnit u) {
+			// Many tree traversals inside finishAnalyze can be combined for greater efficiency
 			finishedAnalyze(e, u);
 			return;
 		}
@@ -93,11 +98,16 @@ public class JavacResolverTaskListener implements TaskListener {
 	private void finishedParse(JCCompilationUnit u) {
 		List<TreeScanner> list = new ArrayList<>();
 		if ((flags & ICompilationUnit.IGNORE_METHOD_BODIES) != 0) {
-			list.add(getIgnoreMethodBodiesScanner());
+			list.add(new IgnoreMethodBodiesScanner());
 		}
 		if (focalPoint >= 0) {
 			list.add(new TrimNonFocussedContentTreeScanner(u, focalPoint));
 		}
+		if (filesToUnits.size() == 1 && focalPoint >= 0) {
+			/// Removes non-relevant content (eg other method blocks) for given focal position
+			list.add(new TrimUnvisibleContentScanner(u, focalPoint, context));
+		}
+
 		DelegatingTreeScanner scanner = new DelegatingTreeScanner(list);
 		u.accept(scanner);
 	}
@@ -135,6 +145,37 @@ public class JavacResolverTaskListener implements TaskListener {
 			return;
 		}
 
+		// Add all problems related to unused elements to the dom
+		List<IProblem> allUnused = getUnusedElementProblems(e, dom);
+		List<IProblem> accessRestrictions = getAccessRestrictionProblems(e, dom);
+
+		List<IProblem> combined = new ArrayList<IProblem>();
+		combined.addAll(allUnused);
+		combined.addAll(accessRestrictions);
+		addProblemsToDOM(dom,combined);
+
+	}
+
+	private List<IProblem> getAccessRestrictionProblems(TaskEvent e, CompilationUnit dom) {
+		if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
+			AccessRestrictionTreeScanner accessScanner = null;
+			if (javaProject instanceof JavaProject internalJavaProject) {
+				try {
+					INameEnvironment environment = new SearchableEnvironment(internalJavaProject,
+							(WorkingCopyOwner) null, false, JavaProject.NO_RELEASE);
+					accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(),
+							new CompilerOptions(compilerOptions));
+					accessScanner.scan(e.getCompilationUnit(), null);
+				} catch (JavaModelException javaModelException) {
+					// do nothing
+				}
+			}
+			return new ArrayList<>(accessScanner.getAccessRestrictionProblems());
+		}
+		return new ArrayList<>();
+	}
+
+	private List<IProblem> getUnusedElementProblems(TaskEvent e, final CompilationUnit dom) {
 		final TypeElement currentTopLevelType = e.getTypeElement();
 		UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>() {
 			@Override
@@ -164,9 +205,12 @@ public class JavacResolverTaskListener implements TaskListener {
 		} catch (Exception ex) {
 			ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
 		}
+
+		List<IProblem> allUnusedProblems = new ArrayList<>();
+
 		List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
-		if (!unusedProblems.isEmpty()) {
-			addProblemsToDOM(dom, unusedProblems);
+		if (unusedProblems != null && !unusedProblems.isEmpty()) {
+			allUnusedProblems.addAll(unusedProblems);
 		}
 
 		List<CategorizedProblem> unusedImports = scanner.getUnusedImports(unusedProblemFactory);
@@ -174,47 +218,54 @@ public class JavacResolverTaskListener implements TaskListener {
 		int typeCount = topTypes.size();
 		// Once all top level types of this Java file have been resolved,
 		// we can report the unused import to the DOM.
-		if (typeCount <= 1) {
-			addProblemsToDOM(dom, unusedImports);
+		if (typeCount <= 1 && unusedImports != null) {
+			allUnusedProblems.addAll(unusedImports);
 		} else if (typeCount > 1 && topTypes.get(typeCount - 1) instanceof JCClassDecl lastType) {
 			if (Objects.equals(currentTopLevelType, lastType.sym)) {
-				addProblemsToDOM(dom, unusedImports);
+				allUnusedProblems.addAll(unusedImports);
 			}
 		}
+		return allUnusedProblems;
+	}
 
-		if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
-			AccessRestrictionTreeScanner accessScanner = null;
-			if (javaProject instanceof JavaProject internalJavaProject) {
-				try {
-					INameEnvironment environment = new SearchableEnvironment(internalJavaProject,
-							(WorkingCopyOwner) null, false, JavaProject.NO_RELEASE);
-					accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(),
-							new CompilerOptions(compilerOptions));
-					accessScanner.scan(unit, null);
-				} catch (JavaModelException javaModelException) {
-					// do nothing
-				}
+	private static void addProblemsToDOM(CompilationUnit dom, List<IProblem> accessRestrictionProblems) {
+		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, new ArrayList<>(accessRestrictionProblems));
+	}
+
+	private static class TrimUnvisibleContentScanner extends TreeScanner {
+		private TreeMaker treeMaker;
+		private Context context;
+		private int focus;
+		private JCCompilationUnit u;
+		public TrimUnvisibleContentScanner(JCCompilationUnit u, int focalPoint, Context context) {
+			this.u = u;
+			this.focus = focalPoint;
+			this.context = context;
+			this.treeMaker = TreeMaker.instance(context);
+		}
+		@Override
+		public void visitMethodDef(JCMethodDecl decl) {
+			if (decl.getBody() != null &&
+				!decl.getBody().getStatements().isEmpty() &&
+				!(decl.getStartPosition() <= focus &&
+				decl.getStartPosition() + TreeInfo.getEndPos(decl, u.endPositions) >= focus)) {
+				var throwNewRuntimeExceptionOutOfFocalPositionScope =
+					treeMaker.Throw(
+							treeMaker.NewClass(null, null,
+									treeMaker.Ident(Names.instance(context).fromString(RuntimeException.class.getSimpleName())),
+									com.sun.tools.javac.util.List.of(treeMaker.Literal("Out of focalPosition scope")), null)); //$NON-NLS-1$
+				decl.body.stats = com.sun.tools.javac.util.List.of(throwNewRuntimeExceptionOutOfFocalPositionScope);
 			}
-			addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
 		}
 	}
-
-	private static void addProblemsToDOM(CompilationUnit dom, List<CategorizedProblem> accessRestrictionProblems) {
-		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, accessRestrictionProblems);
-	}
-
-
-	private TreeScanner getIgnoreMethodBodiesScanner() {
-		return new TreeScanner() {
-			@Override
-			public void visitMethodDef(JCMethodDecl method) {
-				if (method.body != null) {
-					method.body.stats = com.sun.tools.javac.util.List.nil();
-				}
+	private static class IgnoreMethodBodiesScanner extends TreeScanner {
+		@Override
+		public void visitMethodDef(JCMethodDecl method) {
+			if (method.body != null) {
+				method.body.stats = com.sun.tools.javac.util.List.nil();
 			}
-		};
+		}
 	}
-
 	private static class TrimNonFocussedContentTreeScanner extends TreeScanner {
 		private JCCompilationUnit compilationUnit;
 		private int focalPoint;

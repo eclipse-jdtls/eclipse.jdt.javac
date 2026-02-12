@@ -3,7 +3,6 @@ package org.eclipse.jdt.core.dom;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.IProblem;
 
 public class JdtCoreDomPackagePrivateUtility {
@@ -55,14 +54,14 @@ public class JdtCoreDomPackagePrivateUtility {
 		return ret1;
 	}
 
-	public static void addProblemsToDOM(CompilationUnit dom, Collection<CategorizedProblem> problems) {
+	public static void addProblemsToDOM(CompilationUnit dom, Collection<IProblem> problems) {
 		if (problems == null) {
 			return;
 		}
 		IProblem[] previous = dom.getProblems();
 		IProblem[] newProblems = Arrays.copyOf(previous, previous.length + problems.size());
 		int start = previous.length;
-		for (CategorizedProblem problem : problems) {
+		for (IProblem problem : problems) {
 			newProblems[start] = problem;
 			start++;
 		}
