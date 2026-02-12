@@ -743,9 +743,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					var previousSource = log.currentSourceFile();
 					try {
 						log.useSource(u.sourcefile);
-						addCommentsToUnit(javadocComments, res);
-						addCommentsToUnit(converter.notAttachedComments, res);
 						attachMissingComments(res, context, rawText, converter, compilerOptions);
+						List<Comment> combined = new ArrayList<>();
+						combined.addAll(javadocComments);
+						combined.addAll(converter.notAttachedComments);
+						addCommentsToUnit(combined, res);
 					} finally {
 						log.useSource(previousSource);
 					}
