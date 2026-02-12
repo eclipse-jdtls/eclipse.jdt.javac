@@ -627,28 +627,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		// Such units cause a failure later because their name is lost in ASTParser and Javac cannot treat them as modules
 		boolean ignoreModule = !Arrays.stream(sourceUnits).allMatch(u -> new String(u.getFileName()).endsWith("java"));
 		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits), ignoreModule);
+
+
 		Options javacOptions = Options.instance(context);
-		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
-		if (focalPoint >= 0) {
-			// Skip doclint by default, will be re-enabled in the TaskListener if focalPoint is in Javadoc
-			javacOptions.remove(Option.XDOCLINT.primaryName);
-			javacOptions.remove(Option.XDOCLINT_CUSTOM.primaryName);
-			// minimal linting, but "raw" still seems required
-			javacOptions.put(Option.XLINT_CUSTOM, "raw");
-		} else if ((flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
-			// minimal linting, but "raw" still seems required
-			javacOptions.put(Option.XLINT_CUSTOM, "raw");
-			// set minimal custom DocLint support to get DCComment bindings resolved
-			javacOptions.put(Option.XDOCLINT_CUSTOM, "reference");
-		}
-		javacOptions.put(Option.PROC, ProcessorConfig.isAnnotationProcessingEnabled(javaProject) ? "only" : "none");
-		Optional.ofNullable(Platform.getProduct())
-				.map(IProduct::getApplication)
-				// if application is not a test runner (so we don't have regressions with JDT test suite because of too many problems
-				.or(() -> Optional.ofNullable(System.getProperty("eclipse.application")))
-				.filter(name -> !name.contains("test") && !name.contains("junit"))
-				 // continue as far as possible to get extra warnings about unused
-				.ifPresent(_ ->javacOptions.put("should-stop.ifError", CompileState.GENERATE.toString()));
+		initializeJavacOptions(javacOptions, focalPoint, flags, javaProject);
+
 		JavacFileManager fileManager = (JavacFileManager)context.get(JavaFileManager.class);
 		if (javaProject == null && extraClasspath != null) {
 			try {
@@ -682,16 +665,22 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		options = replaceSafeSystemOption(options);
+
+		// This method has, on occasion, led to significant performance problems, but may have been due to a faulty environment. Be on the lookout.
 		addSourcesWithMultipleTopLevelClasses(sourceUnits, fileObjects, javaProject, fileManager);
+
+
 		JavacTask task = ((JavacTool)compiler).getTask(null, fileManager, null /* already added to context */, options, List.of() /* already set */, fileObjects, context);
+
+		// Much of the work of responding to task events is done in the JavacResolverTaskListener created below.
 		MultiTaskListener.instance(context).add(new JavacResolverTaskListener(context, problemConverter, compilerOptions, javaProject, unusedProblemFactory,
 				task, focalPoint, filesToUnits, flags));
+
+
+		// Configure these flags before we actually parse
 		{
-			// don't know yet a better way to ensure those necessary flags get configured
 			var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
-			javac.keepComments = true;
-			javac.genEndPos = true;
-			javac.lineDebugInfo = true;
+			javac.keepComments = javac.genEndPos = javac.lineDebugInfo = true;
 		}
 
 		List<JCCompilationUnit> javacCompilationUnits = new ArrayList<>();
@@ -705,9 +694,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				// are parsed during resolution so we stick to the mininal useful data generated
 				// and stored during analysis
 				var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
-				javac.keepComments = false;
-				javac.genEndPos = false;
-				javac.lineDebugInfo = false;
+				javac.keepComments = javac.genEndPos = javac.lineDebugInfo = false;
 			}
 
 			Throwable cachedThrown = null;
@@ -728,26 +715,20 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					 */
 					continue;
 				}
+
+				String rawText = findRawTextFromUnit(u, filesToSrcUnits);
+				if( rawText == null ) {
+					continue;
+				}
+
 				try {
-					String rawText = null;
-					try {
-						rawText = u.getSourceFile().getCharContent(true).toString();
-					} catch( IOException ioe) {
-						org.eclipse.jdt.internal.compiler.env.ICompilationUnit srcUnit = filesToSrcUnits.get(u.getSourceFile());
-						if( srcUnit != null ) {
-							char[] contents = srcUnit.getContents();
-							if( contents != null && contents.length != 0) {
-								rawText = new String(contents);
-							}
-						}
-						if( rawText == null ) {
-							ILog.get().error(ioe.getMessage(), ioe);
-							continue;
-						}
-					}
+
+					// Do the main conversion from JC-style elements to DOM
 					AST ast = res.ast;
 					JavacConverter converter = new JavacConverter(ast, u, context, rawText, docEnabled, focalPoint);
 					converter.populateCompilationUnit(res, u);
+
+					// Let's handle problems from the diagnostics first
 					// javadoc problems explicitly set as they're not sent to DiagnosticListener (maybe find a flag to do it?)
 					var javadocProblems = converter.javadocDiagnostics.stream()
 							.map(problemConverter::createJavacProblem)
@@ -808,6 +789,50 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 
 		return result;
+	}
+
+	private void initializeJavacOptions(Options javacOptions, int focalPoint, int flags, IJavaProject javaProject) {
+		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
+		if (focalPoint >= 0) {
+			// Skip doclint by default, will be re-enabled in the TaskListener if focalPoint is in Javadoc
+			javacOptions.remove(Option.XDOCLINT.primaryName);
+			javacOptions.remove(Option.XDOCLINT_CUSTOM.primaryName);
+			// minimal linting, but "raw" still seems required
+			javacOptions.put(Option.XLINT_CUSTOM, "raw");
+		} else if ((flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
+			// minimal linting, but "raw" still seems required
+			javacOptions.put(Option.XLINT_CUSTOM, "raw");
+			// set minimal custom DocLint support to get DCComment bindings resolved
+			javacOptions.put(Option.XDOCLINT_CUSTOM, "reference");
+		}
+		javacOptions.put(Option.PROC, ProcessorConfig.isAnnotationProcessingEnabled(javaProject) ? "only" : "none");
+		Optional.ofNullable(Platform.getProduct())
+				.map(IProduct::getApplication)
+				// if application is not a test runner (so we don't have regressions with JDT test suite because of too many problems
+				.or(() -> Optional.ofNullable(System.getProperty("eclipse.application")))
+				.filter(name -> !name.contains("test") && !name.contains("junit"))
+				 // continue as far as possible to get extra warnings about unused
+				.ifPresent(_ ->javacOptions.put("should-stop.ifError", CompileState.GENERATE.toString()));
+	}
+
+	private String findRawTextFromUnit(JCCompilationUnit u,
+			Map<JavaFileObject, org.eclipse.jdt.internal.compiler.env.ICompilationUnit> filesToSrcUnits) {
+		String rawText = null;
+		try {
+			rawText = u.getSourceFile().getCharContent(true).toString();
+		} catch( IOException ioe) {
+			org.eclipse.jdt.internal.compiler.env.ICompilationUnit srcUnit = filesToSrcUnits.get(u.getSourceFile());
+			if( srcUnit != null ) {
+				char[] contents = srcUnit.getContents();
+				if( contents != null && contents.length != 0) {
+					rawText = new String(contents);
+				}
+			}
+			if( rawText == null ) {
+				ILog.get().error(ioe.getMessage(), ioe);
+			}
+		}
+		return rawText;
 	}
 
 	private void markProblemNodesMalformed(CompilationUnit res) {
