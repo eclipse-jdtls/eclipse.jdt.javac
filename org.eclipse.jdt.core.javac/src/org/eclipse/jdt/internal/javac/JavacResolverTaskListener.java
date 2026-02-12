@@ -15,6 +15,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
+import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.JdtCoreDomPackagePrivateUtility;
 import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
@@ -87,6 +88,7 @@ public class JavacResolverTaskListener implements TaskListener {
 		}
 
 		if( e.getKind() == TaskEvent.Kind.ANALYZE && e.getCompilationUnit() instanceof JCCompilationUnit u) {
+			// Many tree traversals inside finishAnalyze can be combined for greater efficiency
 			finishedAnalyze(e, u);
 			return;
 		}
@@ -96,7 +98,7 @@ public class JavacResolverTaskListener implements TaskListener {
 	private void finishedParse(JCCompilationUnit u) {
 		List<TreeScanner> list = new ArrayList<>();
 		if ((flags & ICompilationUnit.IGNORE_METHOD_BODIES) != 0) {
-			list.add(getIgnoreMethodBodiesScanner());
+			list.add(new IgnoreMethodBodiesScanner());
 		}
 		if (focalPoint >= 0) {
 			list.add(new TrimNonFocussedContentTreeScanner(u, focalPoint));
@@ -246,6 +248,14 @@ public class JavacResolverTaskListener implements TaskListener {
 		};
 	}
 
+	private static class IgnoreMethodBodiesScanner extends TreeScanner {
+		@Override
+		public void visitMethodDef(JCMethodDecl method) {
+			if (method.body != null) {
+				method.body.stats = com.sun.tools.javac.util.List.nil();
+			}
+		}
+	}
 	private static class TrimNonFocussedContentTreeScanner extends TreeScanner {
 		private JCCompilationUnit compilationUnit;
 		private int focalPoint;
