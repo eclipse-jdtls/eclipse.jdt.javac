@@ -143,6 +143,37 @@ public class JavacResolverTaskListener implements TaskListener {
 			return;
 		}
 
+		// Add all problems related to unused elements to the dom
+		List<IProblem> allUnused = getUnusedElementProblems(e, dom);
+		List<IProblem> accessRestrictions = getAccessRestrictionProblems(e, dom);
+
+		List<IProblem> combined = new ArrayList<IProblem>();
+		combined.addAll(allUnused);
+		combined.addAll(accessRestrictions);
+		addProblemsToDOM(dom,combined);
+
+	}
+
+	private List<IProblem> getAccessRestrictionProblems(TaskEvent e, CompilationUnit dom) {
+		if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
+			AccessRestrictionTreeScanner accessScanner = null;
+			if (javaProject instanceof JavaProject internalJavaProject) {
+				try {
+					INameEnvironment environment = new SearchableEnvironment(internalJavaProject,
+							(WorkingCopyOwner) null, false, JavaProject.NO_RELEASE);
+					accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(),
+							new CompilerOptions(compilerOptions));
+					accessScanner.scan(e.getCompilationUnit(), null);
+				} catch (JavaModelException javaModelException) {
+					// do nothing
+				}
+			}
+			return new ArrayList<>(accessScanner.getAccessRestrictionProblems());
+		}
+		return new ArrayList<>();
+	}
+
+	private List<IProblem> getUnusedElementProblems(TaskEvent e, final CompilationUnit dom) {
 		final TypeElement currentTopLevelType = e.getTypeElement();
 		UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>() {
 			@Override
@@ -172,9 +203,12 @@ public class JavacResolverTaskListener implements TaskListener {
 		} catch (Exception ex) {
 			ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
 		}
+
+		List<IProblem> allUnusedProblems = new ArrayList<>();
+
 		List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
 		if (!unusedProblems.isEmpty()) {
-			addProblemsToDOM(dom, unusedProblems);
+			allUnusedProblems.addAll(unusedProblems);
 		}
 
 		List<CategorizedProblem> unusedImports = scanner.getUnusedImports(unusedProblemFactory);
@@ -183,32 +217,17 @@ public class JavacResolverTaskListener implements TaskListener {
 		// Once all top level types of this Java file have been resolved,
 		// we can report the unused import to the DOM.
 		if (typeCount <= 1) {
-			addProblemsToDOM(dom, unusedImports);
+			allUnusedProblems.addAll(unusedImports);
 		} else if (typeCount > 1 && topTypes.get(typeCount - 1) instanceof JCClassDecl lastType) {
 			if (Objects.equals(currentTopLevelType, lastType.sym)) {
-				addProblemsToDOM(dom, unusedImports);
+				allUnusedProblems.addAll(unusedImports);
 			}
 		}
-
-		if (Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")) {
-			AccessRestrictionTreeScanner accessScanner = null;
-			if (javaProject instanceof JavaProject internalJavaProject) {
-				try {
-					INameEnvironment environment = new SearchableEnvironment(internalJavaProject,
-							(WorkingCopyOwner) null, false, JavaProject.NO_RELEASE);
-					accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(),
-							new CompilerOptions(compilerOptions));
-					accessScanner.scan(unit, null);
-				} catch (JavaModelException javaModelException) {
-					// do nothing
-				}
-			}
-			addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
-		}
+		return allUnusedProblems;
 	}
 
-	private static void addProblemsToDOM(CompilationUnit dom, List<CategorizedProblem> accessRestrictionProblems) {
-		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, new ArrayList<IProblem>(accessRestrictionProblems));
+	private static void addProblemsToDOM(CompilationUnit dom, List<IProblem> accessRestrictionProblems) {
+		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, new ArrayList<>(accessRestrictionProblems));
 	}
 
 	private static class TrimUnvisibleContentScanner extends TreeScanner {
