@@ -743,11 +743,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					var previousSource = log.currentSourceFile();
 					try {
 						log.useSource(u.sourcefile);
-						attachMissingComments(res, context, rawText, converter, compilerOptions);
 						List<Comment> combined = new ArrayList<>();
 						combined.addAll(javadocComments);
 						combined.addAll(converter.notAttachedComments);
 						addCommentsToUnit(combined, res);
+						attachMissingComments(res, context, rawText, converter, compilerOptions);
 					} finally {
 						log.useSource(previousSource);
 					}
@@ -1346,8 +1346,17 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 	static void addCommentsToUnit(Collection<Comment> comments, CompilationUnit res) {
 		List<Comment> before = res.getCommentList() == null ? new ArrayList<>() : new ArrayList<>(res.getCommentList());
-		comments.stream().filter(comment -> comment.getStartPosition() >= 0 && !generated(comment)  && JavacCompilationUnitResolver.noCommentAt(res, comment.getStartPosition()))
-		      .forEach(before::add);
+		HashSet<String> seen = new HashSet<>();
+		before.forEach(x -> seen.add(x.getStartPosition() + "_" + x.getLength()));
+		for( Comment c : comments ) {
+			if( c.getStartPosition() >= 0 && !generated(c)  && JavacCompilationUnitResolver.noCommentAt(res, c.getStartPosition() )) {
+				String k = c.getStartPosition() + "_" + c.getLength();
+				if( !seen.contains(k)) {
+					seen.add(k);
+					before.add(c);
+				}
+			}
+		}
 		before.sort(Comparator.comparingInt(Comment::getStartPosition));
 		res.setCommentTable(before.toArray(Comment[]::new));
 
