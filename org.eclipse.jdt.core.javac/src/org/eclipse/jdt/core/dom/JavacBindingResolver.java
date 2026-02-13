@@ -1887,6 +1887,10 @@ public class JavacBindingResolver extends BindingResolver {
 		return resolveTypeFromContext(typeName, false);
 	}
 	public ITypeBinding resolveTypeFromContext(String typeName, boolean wellKnownOnly) {
+
+		if (typeName == null) {
+		    return null;
+		}
 		resolve(); // could be skipped, but this method is used by ReconcileWorkingCopyOperation to generate errors
 		com.sun.tools.javac.code.Symtab symtab = com.sun.tools.javac.code.Symtab.instance(this.context);
 		com.sun.tools.javac.code.Type type = switch (typeName) {
