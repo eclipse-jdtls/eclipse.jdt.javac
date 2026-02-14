@@ -184,7 +184,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		// 0-arg constructor
 	}
 
-	private List<org.eclipse.jdt.internal.compiler.env.ICompilationUnit> createSourceUnitList(String[] sourceFilePaths, String[] encodings) {
+	private static List<org.eclipse.jdt.internal.compiler.env.ICompilationUnit> createSourceUnitList(String[] sourceFilePaths, String[] encodings) {
 		// make list of source unit
 		int length = sourceFilePaths.length;
 		List<org.eclipse.jdt.internal.compiler.env.ICompilationUnit> sourceUnitList = new ArrayList<>(length);
@@ -197,7 +197,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return sourceUnitList;
 	}
 
-	private org.eclipse.jdt.internal.compiler.env.ICompilationUnit createSourceUnit(String sourceFilePath, String encoding) {
+	private static org.eclipse.jdt.internal.compiler.env.ICompilationUnit createSourceUnit(String sourceFilePath, String encoding) {
 		char[] contents = null;
 		try {
 			contents = Util.getFileCharContent(new File(sourceFilePath), encoding);
@@ -237,11 +237,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				res.values(), null, new HashMap<>(), monitor);
 	}
 
-	private ICompilationUnit createMockUnit(IJavaProject project, IProgressMonitor monitor) {
+	private static ICompilationUnit createMockUnit(IJavaProject project, IProgressMonitor monitor) {
 		try {
 			for (IPackageFragmentRoot root : project.getPackageFragmentRoots()) {
 				if (root.getResource() instanceof IFolder) {
-					IPackageFragment pack = root.getPackageFragment(this.getClass().getName() + ".MOCK_WORKING_COPY_PACKAGE_" + System.nanoTime());
+					IPackageFragment pack = root.getPackageFragment(JavacCompilationUnitResolver.class.getName() + ".MOCK_WORKING_COPY_PACKAGE_" + System.nanoTime());
 					ICompilationUnit mockUnit = pack.getCompilationUnit("A.java");
 					mockUnit.becomeWorkingCopy(monitor);
 					mockUnit.getBuffer().setContents("package " + pack.getElementName() + ";\n" +
@@ -397,16 +397,10 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 	private static class CustomBindingKeyParser extends BindingKeyParser {
 
-		private char[] secondarySimpleName;
 		private String compoundName;
 
 		public CustomBindingKeyParser(String key) {
 			super(key);
-		}
-
-		@Override
-		public void consumeSecondaryType(char[] simpleTypeName) {
-			this.secondarySimpleName = simpleTypeName;
 		}
 
 		@Override
@@ -775,7 +769,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return result;
 	}
 
-	private void addAllCommentsToCompilationUnit(Map<String, String> compilerOptions, Context context,
+	private static void addAllCommentsToCompilationUnit(Map<String, String> compilerOptions, Context context,
 			JCCompilationUnit u, CompilationUnit res, String rawText, JavacConverter converter) {
 		List<org.eclipse.jdt.core.dom.Comment> javadocComments = new ArrayList<>();
 		depthFirstFixNodePositions(res, javadocComments);
@@ -795,7 +789,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	}
 
-	private void initializeJavacOptions(Options javacOptions, int focalPoint, int flags, IJavaProject javaProject) {
+	private static void initializeJavacOptions(Options javacOptions, int focalPoint, int flags, IJavaProject javaProject) {
 		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
 		if (focalPoint >= 0) {
 			// Skip doclint by default, will be re-enabled in the TaskListener if focalPoint is in Javadoc
@@ -839,7 +833,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return rawText;
 	}
 
-	private void markProblemNodesMalformed(CompilationUnit res) {
+	private static void markProblemNodesMalformed(CompilationUnit res) {
 		for( IProblem p : res.getProblems()) {
 			int id = p.getID() & IProblem.IgnoreCategoriesMask;
 			if( id == 231 ) {
@@ -852,7 +846,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	}
 
-	private void depthFirstFixNodePositions(CompilationUnit res,
+	private static void depthFirstFixNodePositions(CompilationUnit res,
 			List<org.eclipse.jdt.core.dom.Comment> javadocComments) {
 		res.accept(new ASTVisitor(true) {
 			@Override
@@ -884,7 +878,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		});
 	}
 
-	private void removeRecoveredNodes(CompilationUnit res) {
+	private static void removeRecoveredNodes(CompilationUnit res) {
 		// remove all possible RECOVERED node
 		res.accept(new ASTVisitor(false) {
 			private boolean reject(ASTNode node) {
@@ -917,7 +911,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		});
 	}
 
-	private void conditionallyAnalyzeTask(boolean resolveBindings, int flags, JavacFileManager fileManager,
+	private static void conditionallyAnalyzeTask(boolean resolveBindings, int flags, JavacFileManager fileManager,
 			JavacTask task) {
 		boolean forceProblemDetection = (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) != 0;
 		boolean forceBindingRecovery = (flags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0;
@@ -1298,7 +1292,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return ast;
 	}
 
-	private com.sun.tools.javac.parser.Scanner scanJavacCommentScanner(List<Comment> missingComments, CompilationUnit unit, Context context, String rawText, JavacConverter converter) {
+	private static com.sun.tools.javac.parser.Scanner scanJavacCommentScanner(List<Comment> missingComments, CompilationUnit unit, Context context, String rawText, JavacConverter converter) {
 		ScannerFactory scannerFactory = ScannerFactory.instance(context);
 		JavadocTokenizer commentTokenizer = new JavadocTokenizer(scannerFactory, rawText.toCharArray(), rawText.length()) {
 			@Override
@@ -1325,7 +1319,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return javacScanner;
 	}
 
-	private org.eclipse.jdt.internal.compiler.parser.Scanner scanECJCommentScanner(Scanner javacScanner, String rawText, Map<String, String> compilerOptions) {
+	private static org.eclipse.jdt.internal.compiler.parser.Scanner scanECJCommentScanner(Scanner javacScanner, String rawText, Map<String, String> compilerOptions) {
 		org.eclipse.jdt.internal.compiler.parser.Scanner ecjScanner = new ASTConverter(compilerOptions, false, null).scanner;
 		ecjScanner.recordLineSeparator = true;
 		ecjScanner.skipComments = false;
@@ -1349,7 +1343,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 	 * @param converter
 	 * @param compilerOptions
 	 */
-	private List<Comment> getMissingComments(CompilationUnit unit, Context context, String rawText, JavacConverter converter, Map<String, String> compilerOptions) {
+	private static List<Comment> getMissingComments(CompilationUnit unit, Context context, String rawText, JavacConverter converter, Map<String, String> compilerOptions) {
 		ScannerFactory scannerFactory = ScannerFactory.instance(context);
 		List<Comment> missingComments = new ArrayList<>();
 		JavadocTokenizer commentTokenizer = new JavadocTokenizer(scannerFactory, rawText.toCharArray(), rawText.length()) {
@@ -1613,7 +1607,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		};
 	}
 
-	private boolean configureAPTIfNecessary(JavacFileManager fileManager) {
+	private static boolean configureAPTIfNecessary(JavacFileManager fileManager) {
 		Iterable<? extends File> apPaths = fileManager.getLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH);
 		if (apPaths != null) {
 			return true;
