@@ -72,24 +72,31 @@ import com.sun.tools.javac.code.Type;
 public abstract class JavacVariableBinding implements IVariableBinding {
 
 	public final VarSymbol variableSymbol;
+	public final Type type;
 	private final JavacBindingResolver resolver;
 	private IJavaElement javaElement;
 	private String key;
 
 	public JavacVariableBinding(VarSymbol sym, JavacBindingResolver resolver) {
+		this(sym, null, resolver);
+	}
+
+	public JavacVariableBinding(VarSymbol sym, Type type, JavacBindingResolver resolver) {
 		this.variableSymbol = sym;
 		this.resolver = resolver;
+		this.type = (type == null ? sym.type : type);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
 		return obj instanceof JavacVariableBinding other
 				&& Objects.equals(this.resolver, other.resolver)
+				&& Objects.equals(this.type, other.type)
 				&& Objects.equals(this.variableSymbol, other.variableSymbol);
 	}
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.resolver, this.variableSymbol);
+		return Objects.hash(this.resolver, this.variableSymbol, this.type);
 	}
 
 	@Override
@@ -413,7 +420,8 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 
 	@Override
 	public ITypeBinding getType() {
-		var res = this.resolver.bindings.getTypeBinding(this.variableSymbol.type);
+		Type t = (this.type == null ? this.variableSymbol.type : this.type);
+		var res = this.resolver.bindings.getTypeBinding(t);
 		if (res != null) {
 			return res;
 		}
