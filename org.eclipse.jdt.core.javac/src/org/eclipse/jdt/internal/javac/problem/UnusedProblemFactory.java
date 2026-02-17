@@ -36,8 +36,10 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import com.sun.tools.javac.tree.JCTree.JCTypeCast;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class UnusedProblemFactory {
@@ -207,6 +209,36 @@ public class UnusedProblemFactory {
 			problems.add(problem);
 		}
 
+		return problems;
+	}
+
+	public List<CategorizedProblem> addUnnecessaryCasts(CompilationUnitTree unit, List<JCTypeCast> unnecessaryCasts) {
+		int severity = this.toSeverity(IProblem.UnnecessaryCast);
+		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
+			return Collections.emptyList();
+		}
+
+		final char[] fileName = unit.getSourceFile().getName().toCharArray();
+		List<CategorizedProblem> problems = new ArrayList<>();
+		for (JCTypeCast cast : unnecessaryCasts) {
+			JCExpression expr = cast.expr;
+			int pos = cast.getStartPosition();
+			int endPos = expr.getStartPosition() - 1;
+
+			String castType = cast.clazz.type.toString();
+			String exprType = expr.type.toString();
+			String[] arguments = new String[] { exprType, castType };
+
+			int line = (int) unit.getLineMap().getLineNumber(pos);
+			int column = (int) unit.getLineMap().getColumnNumber(pos);
+
+			CategorizedProblem problem = problemFactory.createProblem(fileName,
+					IProblem.UnnecessaryCast,
+					arguments,
+					arguments,
+					severity, pos, endPos, line, column);
+			problems.add(problem);
+		}
 		return problems;
 	}
 

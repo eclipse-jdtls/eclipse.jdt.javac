@@ -135,13 +135,18 @@ public class JavacResolverTaskListener implements TaskListener {
 		// check if the diagnostics are actually enabled before trying to collect them
 		var objectCompilerOptions = new CompilerOptions(compilerOptions);
 		boolean unusedImportIgnored = objectCompilerOptions
-				.getSeverityString(CompilerOptions.UnusedImport).equals(CompilerOptions.IGNORE);
+					.getSeverityString(CompilerOptions.UnusedImport).equals(CompilerOptions.IGNORE);
 		boolean unusedPrivateMemberIgnored = objectCompilerOptions
-				.getSeverityString(CompilerOptions.UnusedPrivateMember).equals(CompilerOptions.IGNORE);
+					.getSeverityString(CompilerOptions.UnusedPrivateMember).equals(CompilerOptions.IGNORE);
 		boolean unusedLocalVariableIgnored = objectCompilerOptions
-				.getSeverityString(CompilerOptions.UnusedLocalVariable).equals(CompilerOptions.IGNORE);
+					.getSeverityString(CompilerOptions.UnusedLocalVariable).equals(CompilerOptions.IGNORE);
+		boolean unnecessaryTypeCheckIgnored = objectCompilerOptions
+					.getSeverityString(CompilerOptions.UnnecessaryTypeCheck).equals(CompilerOptions.IGNORE);
 		if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")
-			    && unusedImportIgnored && unusedPrivateMemberIgnored && unusedLocalVariableIgnored) {
+			    && unusedImportIgnored
+			    && unusedPrivateMemberIgnored
+			    && unusedLocalVariableIgnored
+				&& unnecessaryTypeCheckIgnored) {
 			return;
 		}
 
@@ -225,6 +230,12 @@ public class JavacResolverTaskListener implements TaskListener {
 				allUnusedProblems.addAll(unusedImports);
 			}
 		}
+
+		List<CategorizedProblem> unnecessaryCasts = scanner.getUnnecessaryCasts(unusedProblemFactory);
+		if (!unnecessaryCasts.isEmpty()) {
+			allUnusedProblems.addAll(unnecessaryCasts);
+		}
+
 		return allUnusedProblems;
 	}
 

@@ -39,6 +39,7 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Flags;
@@ -46,6 +47,7 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.JCPrimitiveType;
 import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.parser.Tokens.Comment;
@@ -65,12 +67,14 @@ import com.sun.tools.javac.tree.JCTree.JCMemberReference;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCNewArray;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
+import com.sun.tools.javac.tree.JCTree.JCTypeCast;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	final Set<Tree> privateDecls = new LinkedHashSet<>();
 	final Set<Symbol> usedElements = new HashSet<>();
 	final Map<String, List<JCImport>> unusedImports = new LinkedHashMap<>();
+	final List<JCTypeCast> unnecessaryCasts = new ArrayList<>();
 	private CompilationUnitTree unit = null;
 	private boolean classSuppressUnused = false;
 	private boolean methodSuppressUnused = false;
@@ -233,6 +237,73 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 		return super.visitNewClass(node, p);
 	}
 
+	@Override
+	public R visitTypeCast(TypeCastTree node, P p) {
+		if (node instanceof JCTypeCast typeCast) {
+			Type castType = typeCast.clazz.type;
+			Type exprType = getExpression(typeCast.expr).type;
+			if ((!castType.isPrimitive() && !exprType.isPrimitive() && isSameOrSuperReferenceType(castType, exprType)) ||
+				(castType.isPrimitive() && exprType.isPrimitive() && isSameOrWideningPrimitiveType(castType, exprType)) ||
+				(castType.isPrimitive() && !exprType.isPrimitive() && matchesBoxedPrimitive(exprType, castType)) ||
+			    (!castType.isPrimitive() && exprType.isPrimitive() && matchesBoxedPrimitive(castType, exprType))) {
+				unnecessaryCasts.add(typeCast);
+			}
+		}
+		return super.visitTypeCast(node, p);
+	}
+
+	private JCExpression getExpression(JCExpression expr) {
+		if (expr instanceof JCTypeCast innerCast) {
+			return getExpression(innerCast.expr);
+		}
+		return expr;
+	}
+
+	private boolean isSameOrSuperReferenceType(Type castType, Type exprType) {
+		Symbol targetSymbol = castType.tsym;
+		Symbol sourceSymbol = exprType.tsym;
+		if (targetSymbol.equals(sourceSymbol)) return true;
+		if (sourceSymbol instanceof ClassSymbol classSymbol) {
+			return isSameOrSuperReferenceType(castType, classSymbol.getSuperclass());
+		}
+		return false;
+	}
+
+	private boolean isSameOrWideningPrimitiveType(Type castType, Type exprType) {
+		TypeTag from = exprType.getTag();
+		TypeTag to = castType.getTag();
+		if (to.equals(from)) return true;
+		return switch (from) {
+			case BYTE -> to == TypeTag.SHORT || to == TypeTag.INT || to == TypeTag.LONG ||
+						 to == TypeTag.FLOAT || to == TypeTag.DOUBLE;
+			case SHORT -> to == TypeTag.INT || to == TypeTag.LONG ||
+						  to == TypeTag.FLOAT || to == TypeTag.DOUBLE;
+			case CHAR -> to == TypeTag.INT || to == TypeTag.LONG ||
+						 to == TypeTag.FLOAT || to == TypeTag.DOUBLE;
+			case INT -> to == TypeTag.LONG || to == TypeTag.FLOAT || to == TypeTag.DOUBLE;
+			case LONG -> to == TypeTag.FLOAT || to == TypeTag.DOUBLE;
+			case FLOAT -> to == TypeTag.DOUBLE;
+			default -> false;
+		};
+	}
+
+	private boolean matchesBoxedPrimitive(Type boxedType, Type primitiveType) {
+		TypeTag primitiveTag = primitiveType.getTag();
+		String boxedTypeName = boxedType.tsym != null ? boxedType.tsym.flatName().toString() : boxedType.toString();
+		return switch (boxedTypeName) {
+			case "java.lang.Boolean" -> primitiveTag == TypeTag.BOOLEAN;
+			case "java.lang.Byte" -> primitiveTag == TypeTag.BYTE;
+			case "java.lang.Character" -> primitiveTag == TypeTag.CHAR;
+			case "java.lang.Short" -> primitiveTag == TypeTag.SHORT;
+			case "java.lang.Integer" -> primitiveTag == TypeTag.INT;
+			case "java.lang.Long" -> primitiveTag == TypeTag.LONG;
+			case "java.lang.Float" -> primitiveTag == TypeTag.FLOAT;
+			case "java.lang.Double" -> primitiveTag == TypeTag.DOUBLE;
+			case "java.lang.Void" -> primitiveTag == TypeTag.VOID;
+			default -> false;
+		};
+	}
+
 	private boolean isPotentialUnusedDeclaration(Tree tree) {
 		if (tree instanceof JCClassDecl classTree) {
 			return (classTree.getModifiers().flags & Flags.PRIVATE) != 0 || classTree.sym.owner instanceof MethodSymbol;
@@ -316,6 +387,10 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 
 	public List<CategorizedProblem> getUnusedImports(UnusedProblemFactory problemFactory) {
 		return problemFactory.addUnusedImports(this.unit, this.unusedImports);
+	}
+
+	public List<CategorizedProblem> getUnnecessaryCasts(UnusedProblemFactory problemFactory) {
+		return problemFactory.addUnnecessaryCasts(unit, this.unnecessaryCasts);
 	}
 
 	public List<CategorizedProblem> getUnusedPrivateMembers(UnusedProblemFactory problemFactory) {
