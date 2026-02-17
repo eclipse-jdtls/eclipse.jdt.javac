@@ -31,6 +31,7 @@ public class JavacCompilationResult extends CompilationResult {
 	private boolean isMigrated = false;
 	private List<CategorizedProblem> unusedMembers = null;
 	private List<CategorizedProblem> unusedImports = null;
+	private List<CategorizedProblem> unnecessaryCasts = null;
 	private List<CategorizedProblem> accessRestrictionProblems = null;
 
 	public JavacCompilationResult(ICompilationUnit compilationUnit) {
@@ -83,12 +84,20 @@ public class JavacCompilationResult extends CompilationResult {
 
 		this.unusedMembers.addAll(problems);
 	}
+
+	public void addUnnecessaryCasts(List<CategorizedProblem> problems) {
+		if (this.unnecessaryCasts == null) {
+			this.unnecessaryCasts = new ArrayList<>();
+		}
+		this.unnecessaryCasts.addAll(problems);
+	}
+
 	public void setAccessRestrictionProblems(List<CategorizedProblem> problems) {
 		this.accessRestrictionProblems  = problems;
 	}
 
 	public List<CategorizedProblem> getAdditionalProblems() {
-		if (this.unusedMembers == null && this.unusedImports == null && this.accessRestrictionProblems == null) {
+		if (this.unusedMembers == null && this.unusedImports == null && this.unnecessaryCasts == null && this.accessRestrictionProblems == null) {
 			return null;
 		}
 
@@ -98,6 +107,9 @@ public class JavacCompilationResult extends CompilationResult {
 		}
 		if (this.unusedMembers != null) {
 			problems.addAll(this.unusedMembers);
+		}
+		if (this.unnecessaryCasts != null) {
+			problems.addAll(this.unnecessaryCasts);
 		}
 		if (this.accessRestrictionProblems != null) {
 			problems.addAll(this.accessRestrictionProblems);
