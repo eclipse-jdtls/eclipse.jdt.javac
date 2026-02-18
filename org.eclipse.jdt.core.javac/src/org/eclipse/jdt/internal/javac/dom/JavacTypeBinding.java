@@ -958,28 +958,18 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public IMethodBinding[] getDeclaredMethods() {
-		if (this.typeSymbol.members() == null) {
-			return new IMethodBinding[0];
-		}
+		return getDeclaredMethods(true);
+	}
 
-		if( this.isRecord()) {
-			ArrayList<Symbol> l = new ArrayList<>();
-			this.typeSymbol.members().getSymbols().forEach(l::add);
-			// This is very very questionable, but trying to find
-			// the order of these members in the file has been challenging
-			Collections.reverse(l);
-			IMethodBinding[] ret = getDeclaredMethodsForRecords(l);
-			if( ret != null ) {
-				return ret;
-			}
+	public IMethodBinding[] getDeclaredMethods(boolean preserveJdtOrder) {
+		Stream<JavacMethodBinding> methods = getDeclaredMethodsUnordered();
+		if( !preserveJdtOrder ) {
+			return methods.toArray(IMethodBinding[]::new);
 		}
+		return sortDeclaredMethodsByJdt(methods);
+	}
 
-		Stream<JavacMethodBinding> methods = StreamSupport.stream(this.typeSymbol.members().getSymbols(MethodSymbol.class::isInstance, LookupKind.NON_RECURSIVE).spliterator(), false)
-				.map(MethodSymbol.class::cast)
-				.map(sym -> {
-					Type.MethodType methodType = this.types.memberType(this.type, sym).asMethodType();
-					return this.resolver.bindings.getMethodBinding(methodType, sym, this.type, isGeneric, null);
-				}).filter(Objects::nonNull);
+	private IMethodBinding[] sortDeclaredMethodsByJdt(Stream<JavacMethodBinding> methods) {
 		if (isFromSource()) {
 			methods = methods.sorted(Comparator.comparingInt(member -> {
 				ASTNode node = this.resolver.findDeclaringNode(member);
@@ -1001,11 +991,37 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			// with javac, we loose the order of methods for binaries, so
 			// recompute it relying on JDT model (which honors the order)
 			methods = methods.sorted(Comparator.comparingInt(binding -> {
-					var elt = binding.getUnresolvedJavaElement(); // unresolved is necessary, as resolved is too expensive
+					var elt = binding instanceof JavacMethodBinding jctb ? jctb.getUnresolvedJavaElement() : null; // unresolved is necessary, as resolved is too expensive
 					return elt != null ? orderedListFromModel.indexOf(elt) : -1;
 				}));
 		}
 		return methods.toArray(IMethodBinding[]::new);
+	}
+
+	private Stream<JavacMethodBinding> getDeclaredMethodsUnordered() {
+		if (this.typeSymbol.members() == null) {
+			return Stream.of(new JavacMethodBinding[0]);
+		}
+
+		if( this.isRecord()) {
+			ArrayList<Symbol> l = new ArrayList<>();
+			this.typeSymbol.members().getSymbols().forEach(l::add);
+			// This is very very questionable, but trying to find
+			// the order of these members in the file has been challenging
+			Collections.reverse(l);
+			JavacMethodBinding[] ret = getDeclaredMethodsForRecords(l);
+			if( ret != null ) {
+				return Stream.of(ret);
+			}
+		}
+
+		Stream<JavacMethodBinding> methods = StreamSupport.stream(this.typeSymbol.members().getSymbols(MethodSymbol.class::isInstance, LookupKind.NON_RECURSIVE).spliterator(), false)
+				.map(MethodSymbol.class::cast)
+				.map(sym -> {
+					Type.MethodType methodType = this.types.memberType(this.type, sym).asMethodType();
+					return this.resolver.bindings.getMethodBinding(methodType, sym, this.type, isGeneric, null);
+				}).filter(Objects::nonNull);
+		return methods;
 	}
 
 	private ITypeBinding[] getDeclaredTypeDefaultImpl(ArrayList<Symbol> l) {
@@ -1021,7 +1037,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				.toArray(ITypeBinding[]::new);
 	}
 
-	private IMethodBinding[] getDeclaredMethodsForRecords(ArrayList<Symbol> l) {
+	private JavacMethodBinding[] getDeclaredMethodsForRecords(ArrayList<Symbol> l) {
 		ASTNode node = this.resolver.symbolToDeclaration.get(this.typeSymbol);
 		boolean isRecord = this.isRecord() && node instanceof RecordDeclaration;
 		if( !isRecord )
@@ -1049,7 +1065,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				return this.resolver.bindings.getMethodBinding(methodType, sym, this.type, isSynthetic, null);
 			})
 			.filter(Objects::nonNull)
-			.toArray(IMethodBinding[]::new);
+			.toArray(JavacMethodBinding[]::new);
 	}
 
 	@Override

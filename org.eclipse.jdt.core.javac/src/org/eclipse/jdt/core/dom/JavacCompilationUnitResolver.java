@@ -66,12 +66,14 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.WorkingCopyOwner;
+import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
 import org.eclipse.jdt.core.search.SearchEngine;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
+import org.eclipse.jdt.internal.compiler.CompilationResult;
 import org.eclipse.jdt.internal.compiler.batch.FileSystem.Classpath;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
@@ -82,6 +84,7 @@ import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
 import org.eclipse.jdt.internal.compiler.env.ISourceType;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.impl.ITypeRequestor;
+import org.eclipse.jdt.internal.compiler.impl.ReferenceContext;
 import org.eclipse.jdt.internal.compiler.lookup.LookupEnvironment;
 import org.eclipse.jdt.internal.compiler.lookup.PackageBinding;
 import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
@@ -104,7 +107,9 @@ import org.eclipse.jdt.internal.javac.CachingJarsJavaFileManager;
 import org.eclipse.jdt.internal.javac.JavacResolverTaskListener;
 import org.eclipse.jdt.internal.javac.JavacUtils;
 import org.eclipse.jdt.internal.javac.ProcessorConfig;
+import org.eclipse.jdt.internal.javac.dom.JavacTypeBinding;
 import org.eclipse.jdt.internal.javac.problem.JavacDiagnosticProblemConverter;
+import org.eclipse.jdt.internal.javac.problem.JavacProblemDiscovery;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
 import com.sun.source.util.JavacTask;
@@ -602,6 +607,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		parse(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] sourceUnits, int apiLevel,
 			Map<String, String> compilerOptions, boolean resolveBindings, int flags, IJavaProject javaProject, List<Classpath> extraClasspath, WorkingCopyOwner workingCopyOwner,
 			int focalPoint, IProgressMonitor monitor) {
+		//new CompilerOptions(compilerOptions).	int severity = computeSeverity(IProblem.MissingOverrideAnnotationForInterfaceMethodImplementation);
+
 		if (sourceUnits.length == 0) {
 			return Collections.emptyMap();
 		}
@@ -612,9 +619,10 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		CachingJDKPlatformArguments.preRegister(context);
 		CachingClassSymbolClassReader.preRegister(context);
 		AvoidNPEJavacTypes.preRegister(context);
-		Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> result = new HashMap<>(sourceUnits.length, 1.f);
+		Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> sourceUnitToDom = new HashMap<>(sourceUnits.length, 1.f);
 		Map<JavaFileObject, CompilationUnit> filesToUnits = new HashMap<>();
 		Map<JavaFileObject, org.eclipse.jdt.internal.compiler.env.ICompilationUnit> filesToSrcUnits = new HashMap<>();
+		Map<CompilationUnit, ReferenceContext> domToReferenceContext = new HashMap<>();
 		final UnusedProblemFactory unusedProblemFactory = new UnusedProblemFactory(new DefaultProblemFactory(), compilerOptions);
 		JavacDiagnosticProblemConverter problemConverter = new JavacDiagnosticProblemConverter(compilerOptions, context);
 		DiagnosticListener<JavaFileObject> diagnosticListener = new ForwardDiagnosticsAsDOMProblems(filesToUnits, problemConverter);
@@ -650,7 +658,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			fileManager.cache(fileObject, CharBuffer.wrap(sourceUnit.getContents()));
 			AST ast = createAST(compilerOptions, apiLevel, context, flags);
 			CompilationUnit res = ast.newCompilationUnit();
-			result.put(sourceUnit, res);
+			sourceUnitToDom.put(sourceUnit, res);
 			filesToUnits.put(fileObject, res);
 			filesToSrcUnits.put(fileObject, sourceUnit);
 			fileObjects.add(fileObject);
@@ -712,7 +720,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					 */
 					continue;
 				}
-
+				org.eclipse.jdt.internal.compiler.env.ICompilationUnit oneSrcUnit = filesToSrcUnits.get(u.getSourceFile());
+				ReferenceContext rc = new JavacReferenceContext(oneSrcUnit, res);
+				domToReferenceContext.put(res, rc);
 				String rawText = findRawTextFromUnit(u, filesToSrcUnits);
 				if( rawText == null ) {
 					continue;
@@ -735,19 +745,29 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						JdtCoreDomPackagePrivateUtility.addProblemsToDOM(res, javadocProblems);
 					}
 
+					// Make various changes to the DOM.   For example,
+					// 1) mark some nodes as malformed
 					markProblemNodesMalformed(res);
 
-					addAllCommentsToCompilationUnit(compilerOptions, context, u, res, rawText, converter);
+					// 2) Fix some nodes' source ranges when they are impossible
+					List<org.eclipse.jdt.core.dom.Comment> javadocComments = depthFirstFixNodePositions(res);
+
+					List<Comment> combined = addAllCommentsToCompilationUnit(compilerOptions, context, u, res, rawText, converter, javadocComments);
+
+					// 3) set the source ranges for javadoc nodes with no parents
+					OrphanedInitializerJavadocVisitor v = new OrphanedInitializerJavadocVisitor(combined);
+					res.accept(v);
+					setOrphanedJavadocDetails(v.orphanedJavadoc, v.possibleOwners);
 
 					if ((flags & ICompilationUnit.ENABLE_STATEMENTS_RECOVERY) == 0) {
 						removeRecoveredNodes(res);
 					}
-					if (resolveBindings) {
+					if( resolveBindings ) {
 						JavacBindingResolver resolver = new JavacBindingResolver(javaProject, task, context, converter, workingCopyOwner, javacCompilationUnits);
 						resolver.isRecoveringBindings = (flags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0;
 						ast.setBindingResolver(resolver);
 					}
-					//
+
 					ast.setOriginalModificationCount(ast.modificationCount()); // "un-dirty" AST so Rewrite can process it
 					ast.setDefaultNodeFlag(ast.getDefaultNodeFlag() & ~ASTNode.ORIGINAL);
 				} catch (Throwable thrown) {
@@ -757,9 +777,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					ILog.get().error("Internal failure while parsing or converting AST for unit " + u.sourcefile);
 					ILog.get().error(thrown.getMessage(), thrown);
 				}
-			}
+			} // End While Loop
 
 			conditionallyAnalyzeTask(resolveBindings, flags, fileManager, task);
+
+			postAnalyzeProblemDiscovery(filesToUnits, domToReferenceContext, compilerOptions);
 
 
 			if (!resolveBindings) {
@@ -772,18 +794,34 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			ILog.get().error(ex.getMessage(), ex);
 		}
 
-		return result;
+		return sourceUnitToDom;
 	}
 
-	private void addAllCommentsToCompilationUnit(Map<String, String> compilerOptions, Context context,
-			JCCompilationUnit u, CompilationUnit res, String rawText, JavacConverter converter) {
-		List<org.eclipse.jdt.core.dom.Comment> javadocComments = new ArrayList<>();
-		depthFirstFixNodePositions(res, javadocComments);
+	private void postAnalyzeProblemDiscovery(Map<JavaFileObject, CompilationUnit> filesToUnits, Map<CompilationUnit, ReferenceContext> domToReferenceContext, Map<String, String> compilerOptions) {
+		for( CompilationUnit cu1 : new ArrayList<>(filesToUnits.values()) ) {
+			try {
+				// Set extra problems not already set
+				ReferenceContext cuContext = domToReferenceContext.get(cu1);
+				CompilationResult cur = cuContext.compilationResult();
+				cu1.accept(new JavacProblemDiscovery(compilerOptions, cuContext));
+				CategorizedProblem[] ap = cur.getAllProblems();
+				if( ap != null ) {
+					List<IProblem> probs = Arrays.asList(cur.getAllProblems());
+					JdtCoreDomPackagePrivateUtility.addProblemsToDOM(cu1, probs);
+				}
+			} catch( Throwable t ) {
+				t.printStackTrace();
+			}
+		}
+	}
+
+	private List<Comment> addAllCommentsToCompilationUnit(Map<String, String> compilerOptions, Context context,
+			JCCompilationUnit u, CompilationUnit res, String rawText, JavacConverter converter, List<org.eclipse.jdt.core.dom.Comment> javadocComments) {
+		List<Comment> combined = new ArrayList<>();
 		Log log = Log.instance(context);
 		var previousSource = log.currentSourceFile();
 		try {
 			log.useSource(u.sourcefile);
-			List<Comment> combined = new ArrayList<>();
 			combined.addAll(javadocComments);
 			combined.addAll(converter.notAttachedComments);
 			com.sun.tools.javac.parser.Scanner javacScanner = scanJavacCommentScanner(combined, res, context, rawText, converter);
@@ -792,6 +830,75 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			res.initCommentMapper(ecjScanner);
 		} finally {
 			log.useSource(previousSource);
+			return combined;
+		}
+	}
+
+	private class OrphanedInitializerJavadocVisitor extends ASTVisitor {
+		private List<Comment> comments;
+		private HashMap<Comment, ASTNode> possibleOwners = new HashMap<>();
+		private List<Javadoc> orphanedJavadoc = new ArrayList<>();
+		public OrphanedInitializerJavadocVisitor(List<Comment> comments) {
+			this.comments = comments;
+			for( Comment c : comments ) {
+				if( c instanceof Javadoc j && j.getParent() == null) {
+					orphanedJavadoc.add(j);
+				}
+			}
+		}
+
+		@Override
+		public boolean preVisit2(ASTNode node) {
+			boolean ret = false;
+			for( Javadoc c : orphanedJavadoc ) {
+				ret |= preVisitPerComment(node, c);
+			}
+			return ret;
+		}
+		public boolean preVisitPerComment(ASTNode node, Javadoc c) {
+			int commentStart = c.getStartPosition();
+			int commentEnd = commentStart + c.getLength();
+			int start = node.getStartPosition();
+			int end = start + node.getLength();
+			if( end < commentStart ) {
+				return false;
+			}
+			if( start > commentEnd ) {
+				ASTNode closest = possibleOwners.get(c);
+				if( closest == null ) {
+					possibleOwners.put(c, node);
+				} else {
+					int closestStart = closest.getStartPosition();
+					//int closestEnd = start + closest.getLength();
+					int closestDiff = commentEnd - closestStart;
+					int thisDiff = commentEnd - start;
+					if( thisDiff < closestDiff ) {
+						possibleOwners.put(c, node);
+					}
+				}
+				return false;
+			}
+			return true;
+		}
+	}
+
+	private void setOrphanedJavadocDetails(List<Javadoc> orphanedJavadoc, HashMap<Comment, ASTNode> possibleOwners) {
+		for( Javadoc k : orphanedJavadoc) {
+			ASTNode closest = possibleOwners.get(k);
+			if( closest instanceof Initializer i ) {
+				try {
+					i.setJavadoc(k);
+					int iStart = i.getStartPosition();
+					int kStart = k.getStartPosition();
+					int iEnd = iStart + i.getLength();
+					int kEnd = kStart + k.getLength();
+					int min = Math.min(iStart, kStart);
+					int end = Math.max(iEnd, kEnd);
+					i.setSourceRange(min, end - min);
+				} catch(RuntimeException re) {
+					// Ignore
+				}
+			}
 		}
 	}
 
@@ -852,8 +959,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	}
 
-	private void depthFirstFixNodePositions(CompilationUnit res,
-			List<org.eclipse.jdt.core.dom.Comment> javadocComments) {
+	private List<org.eclipse.jdt.core.dom.Comment> depthFirstFixNodePositions(CompilationUnit res) {
+		List<org.eclipse.jdt.core.dom.Comment> javadocComments = new ArrayList<>();
 		res.accept(new ASTVisitor(true) {
 			@Override
 			public void postVisit(ASTNode node) { // fix some positions
@@ -882,6 +989,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				return true;
 			}
 		});
+		return javadocComments;
 	}
 
 	private void removeRecoveredNodes(CompilationUnit res) {
@@ -893,8 +1001,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					|| (node instanceof VariableDeclarationStatement decl && decl.fragments().isEmpty());
 			}
 
-			@Override
-			public boolean preVisit2(ASTNode node) {
+			public boolean conditionallyDelete(ASTNode node) {
 				if (reject(node)) {
 					StructuralPropertyDescriptor prop = node.getLocationInParent();
 					if ((prop instanceof SimplePropertyDescriptor simple && !simple.isMandatory())
@@ -911,8 +1018,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 			@Override
 			public void postVisit(ASTNode node) {
-				// repeat on postVisit so trimming applies bottom-up
-				preVisit2(node);
+				// perform on postVisit so trimming applies bottom-up
+				conditionallyDelete(node);
 			}
 		});
 	}
@@ -1340,133 +1447,18 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 		return ecjScanner;
 	}
-	/**
-	 * Currently re-scans the doc to build the list of comments and then
-	 * attach them to the already built AST.
-	 * @param res
-	 * @param context
-	 * @param fileObject
-	 * @param converter
-	 * @param compilerOptions
-	 */
-	private List<Comment> getMissingComments(CompilationUnit unit, Context context, String rawText, JavacConverter converter, Map<String, String> compilerOptions) {
-		ScannerFactory scannerFactory = ScannerFactory.instance(context);
-		List<Comment> missingComments = new ArrayList<>();
-		JavadocTokenizer commentTokenizer = new JavadocTokenizer(scannerFactory, rawText.toCharArray(), rawText.length()) {
-			@Override
-			protected com.sun.tools.javac.parser.Tokens.Comment processComment(int pos, int endPos, CommentStyle style) {
-				// workaround Java bug 9077218
-				if (style == CommentStyle.JAVADOC_BLOCK && endPos - pos <= 4) {
-					style = CommentStyle.BLOCK;
-				}
-				var res = super.processComment(pos, endPos, style);
-				if (noCommentAt(unit, pos)) { // not already processed
-					var comment = converter.convert(res, pos, endPos);
-					missingComments.add(comment);
-				}
-				return res;
-			}
-		};
-		Scanner javacScanner = new Scanner(scannerFactory, commentTokenizer) {
-			// subclass just to access constructor
-			// TODO DefaultCommentMapper.this.scanner.linePtr == -1?
-		};
-		do { // consume all tokens to populate comments
-			javacScanner.nextToken();
-		} while (javacScanner.token() != null && javacScanner.token().kind != TokenKind.EOF);
-		org.eclipse.jdt.internal.compiler.parser.Scanner ecjScanner = new ASTConverter(compilerOptions, false, null).scanner;
-		ecjScanner.recordLineSeparator = true;
-		ecjScanner.skipComments = false;
-		try {
-			ecjScanner.setSource(rawText.toCharArray());
-			do {
-				ecjScanner.getNextToken();
-			} while (!ecjScanner.atEnd());
-		} catch (InvalidInputException ex) {
-			// Lexical errors are highly probably while editing
-			// don't log and just ignore them.
-		}
-
-		// need to scan with ecjScanner first to populate some line indexes used by the CommentMapper
-		// on longer-term, implementing an alternative comment mapper based on javac scanner might be best
-		unit.initCommentMapper(ecjScanner);
-		return missingComments;
-	}
 
 	static void addCommentsToUnit(Collection<Comment> comments, CompilationUnit res) {
-		List<Comment> before = res.getCommentList() == null ? new ArrayList<>() : new ArrayList<>(res.getCommentList());
+		List<Comment> working = res.getCommentList() == null ? new ArrayList<>() : new ArrayList<>(res.getCommentList());
 		for( Comment c : comments ) {
 			if( c.getStartPosition() >= 0 && !generated(c) ) {
-				if( JavacCompilationUnitResolver.noCommentAt(before, c.getStartPosition() )) {
-					before.add(c);
+				if( JavacCompilationUnitResolver.noCommentAt(working, c.getStartPosition() )) {
+					working.add(c);
 				}
 			}
 		}
-		before.sort(Comparator.comparingInt(Comment::getStartPosition));
-		res.setCommentTable(before.toArray(Comment[]::new));
-
-
-		List<Javadoc> orphanedJavadoc = new ArrayList<>();
-		for( Comment c : comments ) {
-			if( c instanceof Javadoc j && j.getParent() == null) {
-				orphanedJavadoc.add(j);
-			}
-		}
-
-		// Fix known missing javadoc errors due to JDT being out of spec
-		HashMap<Comment, ASTNode> possibleOwners = new HashMap<>();
-		res.accept(new ASTVisitor() {
-			@Override
-			public boolean preVisit2(ASTNode node) {
-				boolean ret = false;
-				for( Javadoc c : orphanedJavadoc ) {
-					ret |= preVisitPerComment(node, c);
-				}
-				return ret;
-			}
-			public boolean preVisitPerComment(ASTNode node, Javadoc c) {
-				int commentStart = c.getStartPosition();
-				int commentEnd = commentStart + c.getLength();
-				int start = node.getStartPosition();
-				int end = start + node.getLength();
-				if( end < commentStart ) {
-					return false;
-				}
-				if( start > commentEnd ) {
-					ASTNode closest = possibleOwners.get(c);
-					if( closest == null ) {
-						possibleOwners.put(c, node);
-					} else {
-						int closestStart = closest.getStartPosition();
-						//int closestEnd = start + closest.getLength();
-						int closestDiff = commentEnd - closestStart;
-						int thisDiff = commentEnd - start;
-						if( thisDiff < closestDiff ) {
-							possibleOwners.put(c, node);
-						}
-					}
-					return false;
-				}
-				return true;
-			}
-		});
-		for( Javadoc k : orphanedJavadoc) {
-			ASTNode closest = possibleOwners.get(k);
-			if( closest instanceof Initializer i ) {
-				try {
-					i.setJavadoc(k);
-					int iStart = i.getStartPosition();
-					int kStart = k.getStartPosition();
-					int iEnd = iStart + i.getLength();
-					int kEnd = kStart + k.getLength();
-					int min = Math.min(iStart, kStart);
-					int end = Math.max(iEnd, kEnd);
-					i.setSourceRange(min, end - min);
-				} catch(RuntimeException re) {
-					// Ignore
-				}
-			}
-		}
+		working.sort(Comparator.comparingInt(Comment::getStartPosition));
+		res.setCommentTable(working.toArray(Comment[]::new));
 	}
 
 	private static boolean noCommentAt(CompilationUnit unit, int pos) {
@@ -1603,7 +1595,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				if (Objects.equals(key, type.getKey())) {
 					return type;
 				}
-				return Stream.of(type.getDeclaredMethods(), type.getDeclaredFields())
+				JavacTypeBinding jctb = type instanceof JavacTypeBinding j ? j : null;
+				IMethodBinding[] methods = jctb == null ? type.getDeclaredMethods() : jctb.getDeclaredMethods(false);
+				return Stream.of(methods, type.getDeclaredFields())
 						.flatMap(Arrays::stream)
 						.filter(binding -> Objects.equals(binding.getKey(), key))
 						.findAny()

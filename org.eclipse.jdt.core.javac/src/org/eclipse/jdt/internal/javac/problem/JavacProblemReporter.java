@@ -4,7 +4,6 @@ import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.internal.compiler.CompilationResult;
 import org.eclipse.jdt.internal.compiler.IErrorHandlingPolicy;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
@@ -15,26 +14,29 @@ import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 
 public class JavacProblemReporter extends ProblemHandler {
 	public ReferenceContext referenceContext;
-	public JavacProblemReporter(IErrorHandlingPolicy policy, CompilerOptions options, IProblemFactory problemFactory) {
+	private ProblemReporter severityUtility; // very wasteful but dont want to copy an entire class
+	public JavacProblemReporter(IErrorHandlingPolicy policy, CompilerOptions options, IProblemFactory problemFactory, ReferenceContext referenceContext) {
 		super(policy, options, problemFactory);
+		this.referenceContext = referenceContext;
+		this.severityUtility = new ProblemReporter(policy, options, problemFactory);
 	}
 
 	public void missingOverrideAnnotation(MethodDeclaration method) {
-		int severity = computeSeverity(IProblem.MissingOverrideAnnotation);
+		int severity = this.severityUtility.computeSeverity(IProblem.MissingOverrideAnnotation);
 		if (severity == ProblemSeverities.Ignore) return;
 		IMethodBinding binding = method.resolveBinding();
 		this.handle(
 			IProblem.MissingOverrideAnnotation,
 			new String[] { binding.getName(), typesAsString(binding, false),
 					binding.getDeclaringClass().getName(), },
+			0,
 			new String[] { binding.getName(), typesAsString(binding, true),
 					binding.getDeclaringClass().getName(), },
-			severity, method.getStartPosition(), method.getStartPosition() + method.getLength());
+			severity, method.getName().getStartPosition(), method.getStartPosition() + method.getLength() - 1);
 	}
 
 	public void missingOverrideAnnotationForInterfaceMethodImplementation(MethodDeclaration method) {
-		int severity = new ProblemReporter(null, null, null)
-				.computeSeverity(IProblem.MissingOverrideAnnotationForInterfaceMethodImplementation);
+		int severity = this.severityUtility.computeSeverity(IProblem.MissingOverrideAnnotationForInterfaceMethodImplementation);
 		if (severity == ProblemSeverities.Ignore)
 			return;
 		IMethodBinding binding = method.resolveBinding();
@@ -43,7 +45,7 @@ public class JavacProblemReporter extends ProblemHandler {
 						binding.getDeclaringClass().getName(), },
 				new String[] { binding.getName(), typesAsString(binding, true),
 						binding.getDeclaringClass().getName(), },
-				severity, method.getStartPosition(), method.getStartPosition() + method.getLength());
+				severity, method.getName().getStartPosition(), method.getStartPosition() + method.getLength());
 	}
 
 	private String typesAsString(IMethodBinding imb, boolean makeShort) {
@@ -146,7 +148,6 @@ public class JavacProblemReporter extends ProblemHandler {
 				problemEndPosition,
 				this.referenceContext,
 				this.referenceContext == null ? null : this.referenceContext.compilationResult());
-		this.referenceContext = null;
 	}
 	// use this private API when the compilation unit result can be found through the
 	// reference context. Otherwise, use the other API taking a problem and a compilation result
@@ -166,28 +167,8 @@ public class JavacProblemReporter extends ProblemHandler {
 				problemEndPosition,
 				this.referenceContext,
 				this.referenceContext == null ? null : this.referenceContext.compilationResult());
-		this.referenceContext = null;
 	}
-	// use this private API when the compilation unit result cannot be found through the
-	// reference context.
-	private void handle(
-		int problemId,
-		String[] problemArguments,
-		String[] messageArguments,
-		int problemStartPosition,
-		int problemEndPosition,
-		CompilationResult unitResult){
 
-		this.handle(
-				problemId,
-				problemArguments,
-				messageArguments,
-				problemStartPosition,
-				problemEndPosition,
-				this.referenceContext,
-				unitResult);
-		this.referenceContext = null;
-	}
 	// use this private API when the compilation unit result can be found through the
 	// reference context. Otherwise, use the other API taking a problem and a compilation result
 	// as arguments
