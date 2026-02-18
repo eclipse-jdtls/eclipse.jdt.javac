@@ -815,7 +815,7 @@ public class JavacDiagnosticProblemConverter {
 			}
 			case "compiler.err.intf.meth.cant.have.body" -> IProblem.BodyForAbstractMethod;
 			case "compiler.warn.empty.if" -> IProblem.EmptyControlFlowStatement;
-			case "compiler.warn.redundant.cast" -> -1;
+			case "compiler.warn.redundant.cast" -> -1; // handle manually in UnusedTreeScanner
 			case "compiler.err.illegal.char" -> IProblem.InvalidCharacterConstant;
 			case "compiler.err.enum.label.must.be.unqualified.enum" -> IProblem.UndefinedField;
 			case "compiler.err.bad.initializer" -> IProblem.ParsingErrorInsertToComplete;
