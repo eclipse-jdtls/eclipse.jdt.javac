@@ -983,7 +983,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if (isFromSource()) {
 			methods = methods.sorted(Comparator.comparingInt(member -> {
 				ASTNode node = this.resolver.findDeclaringNode(member);
-				return node == null ? Integer.MIN_VALUE : node.getStartPosition();
+				return node == null ? Integer.MAX_VALUE : node.getStartPosition();
 			}));
 		} else {
 			// JDT's class reader keeps the order for fields and methods
