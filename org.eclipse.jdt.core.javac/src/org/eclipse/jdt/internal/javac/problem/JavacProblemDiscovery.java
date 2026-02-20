@@ -51,42 +51,52 @@ public class JavacProblemDiscovery extends ASTVisitor {
 		}
 
 		ITypeBinding tb = b.getDeclaringClass();
-		boolean shouldHaveOverride = typeHasMethodRecurse(b, tb, false);
+		int shouldHaveOverride = typeHasMethodRecurse(b, tb, false);
 		boolean isInterface = tb.isInterface();
 		if( isInterface ) {
 			JavacBindingResolver jcbr =JdtCoreDomPackagePrivateUtility.getJavacBindingResolverOrNull(node.getAST());
 			ITypeBinding objBinding = jcbr.resolveWellKnownType("java.lang.Object");
-			shouldHaveOverride |= typeHasMethod(b, objBinding);
+			if( typeHasMethod(b, objBinding) ) {
+				shouldHaveOverride |= INTERFACE_HAS_METHOD;
+			}
 		}
-		if( shouldHaveOverride && !hasOverridesAnnotation) {
-			reporter.missingOverrideAnnotation(node);
+		if( !hasOverridesAnnotation ) {
+			if( (shouldHaveOverride & TYPE_HAS_METHOD) == TYPE_HAS_METHOD ) {
+				reporter.missingOverrideAnnotation(node);
+			} else if( shouldHaveOverride == INTERFACE_HAS_METHOD ) {
+				reporter.missingOverrideAnnotationForInterfaceMethodImplementation(node);
+			}
 		}
 		return true;
 	}
 
-	private boolean typeHasMethodRecurse(IMethodBinding mb, ITypeBinding tb, boolean checkType) {
+	private static final int TYPE_HAS_METHOD = 0b1;
+	private static final int INTERFACE_HAS_METHOD = 0b10;
+	private int typeHasMethodRecurse(IMethodBinding mb, ITypeBinding tb, boolean checkType) {
 		if( mb == null || tb == null )
-			return false;
+			return 0;
 
 		if( checkType ) {
 			if( typeHasMethod(mb, tb)) {
-				return true;
+				if( tb.isInterface() )
+					return INTERFACE_HAS_METHOD;
+				return TYPE_HAS_METHOD;
 			}
 		}
+
 		ITypeBinding[] interfaces = tb.getInterfaces();
 		if( interfaces != null ) {
 			for( int i = 0; i < interfaces.length; i++ ) {
-				if( typeHasMethodRecurse(mb, interfaces[i], true)) {
-					return true;
+				int recurse = typeHasMethodRecurse(mb, interfaces[i], true);
+				if( recurse != 0) {
+					return recurse;
 				}
 			}
 		}
 
 		ITypeBinding sup = tb.getSuperclass();
-		if( typeHasMethodRecurse(mb, sup, true)) {
-			return true;
-		}
-		return false;
+		int supRet = typeHasMethodRecurse(mb, sup, true);
+		return supRet;
 	}
 
 
