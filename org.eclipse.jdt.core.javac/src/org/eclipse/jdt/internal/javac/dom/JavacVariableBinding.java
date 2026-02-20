@@ -68,6 +68,7 @@ import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.Type.TypeVar;
 
 public abstract class JavacVariableBinding implements IVariableBinding {
 
@@ -403,7 +404,17 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 					return null;
 				}
 				if (clazz.type != null) {
-					return this.resolver.bindings.getTypeBinding(clazz.type);
+					boolean isParamed = clazz.type.isParameterized();
+					boolean isGeneric = isParamed;
+					if( isGeneric ) {
+						List<Type> types = clazz.type.allparams();
+						for(int i = 0, size = types.size(); i < size && isGeneric; i++ ) {
+							if( !(types.get(i) instanceof TypeVar) ) {
+								isGeneric = false;
+							}
+						}
+					}
+					return this.resolver.bindings.getTypeBinding(clazz.type, null, null, isGeneric);
 				}
 			}
 			parentSymbol = parentSymbol.owner;
