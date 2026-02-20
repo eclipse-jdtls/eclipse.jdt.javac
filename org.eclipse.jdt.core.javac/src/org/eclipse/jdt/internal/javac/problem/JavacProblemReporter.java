@@ -45,7 +45,7 @@ public class JavacProblemReporter extends ProblemHandler {
 						binding.getDeclaringClass().getName(), },
 				new String[] { binding.getName(), typesAsString(binding, true),
 						binding.getDeclaringClass().getName(), },
-				severity, method.getName().getStartPosition(), method.getStartPosition() + method.getLength());
+				severity, method.getName().getStartPosition(), method.getStartPosition() + method.getLength() - 1);
 	}
 
 	private String typesAsString(IMethodBinding imb, boolean makeShort) {
