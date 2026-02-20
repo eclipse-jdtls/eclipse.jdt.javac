@@ -963,7 +963,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	public IMethodBinding[] getDeclaredMethods(boolean preserveJdtOrder) {
 		Stream<JavacMethodBinding> methods = getDeclaredMethodsUnordered();
-		if( !preserveJdtOrder ) {
+		if( !preserveJdtOrder || this.isRecord()) {
 			return methods.toArray(IMethodBinding[]::new);
 		}
 		return sortDeclaredMethodsByJdt(methods);
