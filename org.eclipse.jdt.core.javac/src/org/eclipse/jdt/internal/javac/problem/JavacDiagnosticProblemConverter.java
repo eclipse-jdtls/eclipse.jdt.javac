@@ -83,6 +83,7 @@ import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Position;
 
 public class JavacDiagnosticProblemConverter {
@@ -123,6 +124,11 @@ public class JavacDiagnosticProblemConverter {
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return null;
 		}
+
+		JCTree tree = diagnostic instanceof JCDiagnostic jcd ? jcd.getDiagnosticPosition() != null ? jcd.getDiagnosticPosition().getTree() : null : null;
+		if( !filterProblem(diagnostic, problemId, severity, tree)) {
+			return null;
+		}
 		org.eclipse.jface.text.Position diagnosticPosition = getDiagnosticPosition(diagnostic, context, problemId);
 		if (diagnosticPosition == null) {
 			return null;
@@ -154,6 +160,23 @@ public class JavacDiagnosticProblemConverter {
 				(int) diagnostic.getColumnNumber());
 	}
 
+	private boolean filterProblem(Diagnostic<? extends JavaFileObject> diagnostic, int problemId, int severity, JCTree tree) {
+		if( problemId == IProblem.MissingSerialVersion && tree != null && tree instanceof JCClassDecl jcdl) {
+			if( jcdl.type instanceof ClassType ct) {
+				if( ct.all_interfaces_field != null ) {
+					for( Type t : ct.all_interfaces_field) {
+						if( t instanceof ClassType ct1 && ct1.tsym != null && ct1.tsym.getQualifiedName() != null ) {
+							Name n1 = ct1.tsym.getQualifiedName();
+							if( n1 != null && "java.io.Externalizable".equals(n1.toString())) {
+								return false;
+							}
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
 	private static ClassSymbol findSymbol(Diagnostic<?> diagnostic) {
 		var res = getDiagnosticArgumentByType(diagnostic, ClassSymbol.class);
 		if (res != null) {
