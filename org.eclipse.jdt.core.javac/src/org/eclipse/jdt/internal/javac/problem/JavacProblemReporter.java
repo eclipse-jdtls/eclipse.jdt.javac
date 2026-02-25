@@ -4,6 +4,7 @@ import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.internal.compiler.IErrorHandlingPolicy;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
@@ -20,7 +21,27 @@ public class JavacProblemReporter extends ProblemHandler {
 		this.referenceContext = referenceContext;
 		this.severityUtility = new ProblemReporter(policy, options, problemFactory);
 	}
-
+	public void redundantSpecificationOfTypeArguments(Type location, ITypeBinding[] argumentTypes) {
+		int severity = this.severityUtility.computeSeverity(IProblem.RedundantSpecificationOfTypeArguments);
+		if (severity != ProblemSeverities.Ignore) {
+//			int sourceStart = -1;
+//			if (location instanceof QualifiedTypeReference) {
+//				QualifiedTypeReference ref = (QualifiedTypeReference)location;
+//				sourceStart = (int) (ref.sourcePositions[ref.sourcePositions.length - 1] >> 32);
+//			} else {
+//				sourceStart = location.sourceStart;
+//			}
+			int sourceStart = location.getStartPosition();
+			int sourceEnd = sourceStart + location.getLength() - 1;
+			this.handle(
+				IProblem.RedundantSpecificationOfTypeArguments,
+				new String[] {typesAsString(argumentTypes, false)},
+				new String[] {typesAsString(argumentTypes, true)},
+				severity,
+				sourceStart,
+				sourceEnd);
+	    }
+	}
 	public void missingOverrideAnnotation(MethodDeclaration method) {
 		int severity = this.severityUtility.computeSeverity(IProblem.MissingOverrideAnnotation);
 		if (severity == ProblemSeverities.Ignore) return;

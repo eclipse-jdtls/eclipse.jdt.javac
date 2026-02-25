@@ -3,15 +3,22 @@ package org.eclipse.jdt.internal.javac.problem;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JdtCoreDomPackagePrivateUtility;
 import org.eclipse.jdt.core.dom.MarkerAnnotation;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.ParameterizedType;
+import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.internal.compiler.DefaultErrorHandlingPolicies;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.impl.ReferenceContext;
@@ -25,6 +32,46 @@ public class JavacProblemDiscovery extends ASTVisitor {
 				new CompilerOptions(compilerOptions),
 				new DefaultProblemFactory(Locale.getDefault()), referenceContext);
 	}
+	@Override
+	public boolean visit(ParameterizedType node) {
+		ASTNode parent = node.getParent();
+		if( parent instanceof ClassInstanceCreation cic ) {
+			Type rightType = cic.getType();
+			if( cic.getParent() instanceof VariableDeclarationFragment vdf && vdf.getParent() instanceof VariableDeclarationStatement vds) {
+				Type leftType = vds.getType();
+				if( leftType.isParameterizedType() && rightType.isParameterizedType()) {
+					if( leftType instanceof ParameterizedType ltt && rightType instanceof ParameterizedType rtt) {
+						List leftList = ltt.typeArguments();
+						List rightList = rtt.typeArguments();
+						if( leftList.size() > 0 && rightList.size() == leftList.size()) {
+							ITypeBinding[] rightListArr =
+									 ((List<?>) rightList).stream()
+								        .map(o -> (Type) o)                 // explicit cast
+								        .map(x -> x.resolveBinding())
+								        .filter(Objects::nonNull)
+								        .toArray(ITypeBinding[]::new);
+							if( rightListArr.length == leftList.size()) {
+								reporter.redundantSpecificationOfTypeArguments(rtt, rightListArr);
+							}
+						}
+					}
+				}
+			}
+
+		}
+		return true;
+	}
+
+	@Override
+	public boolean visit(Assignment node) {
+		// TODO
+//		if( node.getOperator() == Assignment.Operator.ASSIGN ) {
+//			return true;
+//		}
+		return true;
+	}
+
+
 	@Override
 	public boolean visit(MethodDeclaration node) {
 		if( reporter.options.reportMissingOverrideAnnotationForInterfaceMethodImplementation ) {
