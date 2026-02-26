@@ -586,9 +586,13 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			pathToUnit.put(pathOfClassUnderAnalysis, sourceUnit);
 		}
 
-		//CompilationUnit res2  = CompilationUnitResolver.getInstance().toCompilationUnit(sourceUnit, resolveBindings, project, classpaths, focalPoint, apiLevel, compilerOptions, typeRootWorkingCopyOwner, typeRootWorkingCopyOwner, flags, monitor);
+//		CompilationUnit res2  = CompilationUnitResolver.getInstance().toCompilationUnit(sourceUnit, resolveBindings, project, classpaths, focalPoint, apiLevel, compilerOptions, typeRootWorkingCopyOwner, typeRootWorkingCopyOwner, flags, monitor);
 		CompilationUnit res = parse(pathToUnit.values().toArray(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[]::new),
 				apiLevel, compilerOptions, resolveBindings, flags | (resolveBindings ? AST.RESOLVED_BINDINGS : 0), project, classpaths, typeRootWorkingCopyOwner, focalPoint, monitor).get(sourceUnit);
+//		IfStatement is2 = (IfStatement)((MethodDeclaration)(((TypeDeclaration)(res2.types().get(0))).bodyDeclarations().get(1))).getBody().statements().get(3);
+//		IfStatement is1 = (IfStatement)((MethodDeclaration)(((TypeDeclaration)(res.types().get(0))).bodyDeclarations().get(1))).getBody().statements().get(3);
+//		Pattern p1 = ((PatternInstanceofExpression)(((IfStatement)is1.getElseStatement()).getExpression())).getPattern();
+//		Pattern p2 = ((PatternInstanceofExpression)(((IfStatement)is2.getElseStatement()).getExpression())).getPattern();
 		if (resolveBindings && focalPoint == -1) {
 			// force analysis and reports
 			resolveBindings(res, apiLevel);

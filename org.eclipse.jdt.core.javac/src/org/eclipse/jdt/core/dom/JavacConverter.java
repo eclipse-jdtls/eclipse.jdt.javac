@@ -15,6 +15,7 @@ import static com.sun.tools.javac.code.Flags.VARARGS;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1975,10 +1976,13 @@ class JavacConverter {
 			if (jcPattern instanceof JCBindingPattern jcBindingPattern) {
 				TypePattern jdtPattern = this.ast.newTypePattern();
 				commonSettings(jdtPattern, jcBindingPattern);
+				VariableDeclaration pv = convertVariableDeclaration(jcBindingPattern.var);
+				removeFinalModifierFromTypePattern(pv, jdtPattern);
+
 				if (this.ast.apiLevel < AST.JLS22) {
-					jdtPattern.setPatternVariable((SingleVariableDeclaration)convertVariableDeclaration(jcBindingPattern.var));
+					jdtPattern.setPatternVariable((SingleVariableDeclaration)pv);
 				} else {
-					jdtPattern.setPatternVariable(convertVariableDeclaration(jcBindingPattern.var));
+					jdtPattern.setPatternVariable(pv);
 				}
 				return jdtPattern;
 			} else if (jcPattern instanceof JCRecordPattern jcRecordPattern) {
@@ -2002,6 +2006,32 @@ class JavacConverter {
 		return null;
 	}
 
+	private void removeFinalModifierFromTypePattern(VariableDeclaration pv, TypePattern jdtPattern) {
+		if (pv instanceof SingleVariableDeclaration svd) {
+			Modifier found = null;
+			List<ASTNode> possibleNewStart = new ArrayList<>();
+			for( Object mod : svd.modifiers()) {
+				if( mod instanceof Modifier m && m.isFinal()) {
+					found = m;
+				} else {
+					possibleNewStart.add((ASTNode)mod);
+				}
+			}
+			if( found != null ) {
+				svd.modifiers().remove(found);
+				// Update the source range!
+				possibleNewStart.add(svd.getType());
+				possibleNewStart.add(svd.getName());
+				Collections.sort(possibleNewStart, (x,y) -> x.getStartPosition() - y.getStartPosition());
+				ASTNode n = possibleNewStart.get(0);
+				int oldStart = svd.getStartPosition();
+				int oldLen = svd.getLength();
+				int diff = n.getStartPosition() - oldStart;
+				svd.setSourceRange(n.getStartPosition(), oldLen - diff);
+				jdtPattern.setSourceRange(n.getStartPosition(), jdtPattern.getLength() - diff);
+			}
+		}
+	}
 	private ArrayInitializer createArrayInitializerFromJCNewArray(JCNewArray jcNewArray) {
 		ArrayInitializer initializer = this.ast.newArrayInitializer();
 		commonSettings(initializer, jcNewArray);
