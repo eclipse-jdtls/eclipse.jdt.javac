@@ -1975,12 +1975,17 @@ class JavacConverter {
 			if (jcPattern instanceof JCBindingPattern jcBindingPattern) {
 				TypePattern jdtPattern = this.ast.newTypePattern();
 				commonSettings(jdtPattern, jcBindingPattern);
-				if (this.ast.apiLevel < AST.JLS22) {
-					jdtPattern.setPatternVariable((SingleVariableDeclaration)convertVariableDeclaration(jcBindingPattern.var));
-				} else {
-					jdtPattern.setPatternVariable(convertVariableDeclaration(jcBindingPattern.var));
+				VariableDeclaration pv = convertVariableDeclaration(jcBindingPattern.var);
+				if (pv instanceof SingleVariableDeclaration svd) {
+				    svd.modifiers().removeIf(m ->
+				        m instanceof Modifier && ((Modifier)m).isFinal()
+				    );
 				}
-				return jdtPattern;
+				if (this.ast.apiLevel < AST.JLS22) {
+					jdtPattern.setPatternVariable((SingleVariableDeclaration)pv);
+				} else {
+					jdtPattern.setPatternVariable(pv);
+				}
 			} else if (jcPattern instanceof JCRecordPattern jcRecordPattern) {
 				RecordPattern jdtPattern = this.ast.newRecordPattern();
 				commonSettings(jdtPattern, jcRecordPattern);
