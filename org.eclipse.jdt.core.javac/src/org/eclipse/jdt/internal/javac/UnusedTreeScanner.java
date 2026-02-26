@@ -75,6 +75,7 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	final Set<Symbol> usedElements = new HashSet<>();
 	final Map<String, List<JCImport>> unusedImports = new LinkedHashMap<>();
 	final List<JCTypeCast> unnecessaryCasts = new ArrayList<>();
+	final List<JCAssign> noEffectAssignments = new ArrayList<>();
 	private CompilationUnitTree unit = null;
 	private boolean classSuppressUnused = false;
 	private boolean methodSuppressUnused = false;
@@ -176,6 +177,10 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 			this.lhsInAssignment = true;
 			scan(assign.lhs, p);
 			this.lhsInAssignment = false;
+
+			if (isNoEffectAssignment(assign)) {
+				this.noEffectAssignments.add(assign);
+			}
 
 			return null;
 		}
@@ -304,6 +309,11 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 		};
 	}
 
+	private boolean isNoEffectAssignment(JCAssign assign) {
+		if (!(assign.lhs instanceof JCIdent lhsIdent) || !(assign.rhs instanceof JCIdent rhsIdent)) return false;
+		return lhsIdent.sym.equals(rhsIdent.sym);
+	}
+
 	private boolean isPotentialUnusedDeclaration(Tree tree) {
 		if (tree instanceof JCClassDecl classTree) {
 			return (classTree.getModifiers().flags & Flags.PRIVATE) != 0 || classTree.sym.owner instanceof MethodSymbol;
@@ -426,6 +436,10 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 			}
 		}
 		return problemFactory.addUnusedPrivateMembers(unit, unusedPrivateMembers);
+	}
+
+	public List<CategorizedProblem> getNoEffectAssignments(UnusedProblemFactory problemFactory) {
+		return problemFactory.addNoEffectAssignments(unit, this.noEffectAssignments);
 	}
 
 	private boolean isUnusedSuppressed(JCAnnotation annot) {

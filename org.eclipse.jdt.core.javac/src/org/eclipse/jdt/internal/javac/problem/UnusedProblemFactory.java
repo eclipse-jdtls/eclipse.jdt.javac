@@ -35,7 +35,9 @@ import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
+import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
@@ -234,6 +236,34 @@ public class UnusedProblemFactory {
 
 			CategorizedProblem problem = problemFactory.createProblem(fileName,
 					IProblem.UnnecessaryCast,
+					arguments,
+					arguments,
+					severity, pos, endPos, line, column);
+			problems.add(problem);
+		}
+		return problems;
+	}
+
+	public List<CategorizedProblem> addNoEffectAssignments(CompilationUnitTree unit, List<JCAssign> noEffectAssignments) {
+		int severity = this.toSeverity(IProblem.AssignmentHasNoEffect);
+		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
+			return Collections.emptyList();
+		}
+
+		final char[] fileName = unit.getSourceFile().getName().toCharArray();
+		List<CategorizedProblem> problems = new ArrayList<>();
+		for (JCAssign assign : noEffectAssignments) {
+			int pos = assign.getStartPosition();
+			int endPos = assign.getEndPosition(((JCCompilationUnit) unit).endPositions) - 1;
+
+			String varName = assign.lhs.toString();
+			String[] arguments = new String[] { varName };
+
+			int line = (int) unit.getLineMap().getLineNumber(pos);
+			int column = (int) unit.getLineMap().getColumnNumber(pos);
+
+			CategorizedProblem problem = problemFactory.createProblem(fileName,
+					IProblem.AssignmentHasNoEffect,
 					arguments,
 					arguments,
 					severity, pos, endPos, line, column);

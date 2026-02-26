@@ -283,6 +283,7 @@ public class JavacCompilerTaskListener implements TaskListener {
 			result.addUnusedMembers(scanner.getUnusedPrivateMembers(this.unusedProblemFactory));
 			result.setUnusedImports(scanner.getUnusedImports(this.unusedProblemFactory));
 			result.addUnnecessaryCasts(scanner.getUnnecessaryCasts(this.unusedProblemFactory));
+			result.addNoEffectAssignments(scanner.getNoEffectAssignments(this.unusedProblemFactory));
 			result.setAccessRestrictionProblems(accessRestrictionScanner.getAccessRestrictionProblems());
 		}
 	}

@@ -142,11 +142,14 @@ public class JavacResolverTaskListener implements TaskListener {
 					.getSeverityString(CompilerOptions.UnusedLocalVariable).equals(CompilerOptions.IGNORE);
 		boolean unnecessaryTypeCheckIgnored = objectCompilerOptions
 					.getSeverityString(CompilerOptions.UnnecessaryTypeCheck).equals(CompilerOptions.IGNORE);
+		boolean noEffectAssignmentIgnored = objectCompilerOptions
+				    .getSeverityString(CompilerOptions.NoEffectAssignment).equals(CompilerOptions.IGNORE);
 		if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")
 			    && unusedImportIgnored
 			    && unusedPrivateMemberIgnored
 			    && unusedLocalVariableIgnored
-				&& unnecessaryTypeCheckIgnored) {
+				&& unnecessaryTypeCheckIgnored
+				&& noEffectAssignmentIgnored) {
 			return;
 		}
 
@@ -234,6 +237,11 @@ public class JavacResolverTaskListener implements TaskListener {
 		List<CategorizedProblem> unnecessaryCasts = scanner.getUnnecessaryCasts(unusedProblemFactory);
 		if (!unnecessaryCasts.isEmpty()) {
 			allUnusedProblems.addAll(unnecessaryCasts);
+		}
+
+		List<CategorizedProblem> noEffectAssignments = scanner.getNoEffectAssignments(unusedProblemFactory);
+		if (!noEffectAssignments.isEmpty()) {
+			allUnusedProblems.addAll(noEffectAssignments);
 		}
 
 		return allUnusedProblems;

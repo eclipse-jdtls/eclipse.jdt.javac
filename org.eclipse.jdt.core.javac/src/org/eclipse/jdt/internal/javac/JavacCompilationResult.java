@@ -32,6 +32,7 @@ public class JavacCompilationResult extends CompilationResult {
 	private List<CategorizedProblem> unusedMembers = null;
 	private List<CategorizedProblem> unusedImports = null;
 	private List<CategorizedProblem> unnecessaryCasts = null;
+	private List<CategorizedProblem> noEffectAssignments = null;
 	private List<CategorizedProblem> accessRestrictionProblems = null;
 
 	public JavacCompilationResult(ICompilationUnit compilationUnit) {
@@ -90,6 +91,13 @@ public class JavacCompilationResult extends CompilationResult {
 			this.unnecessaryCasts = new ArrayList<>();
 		}
 		this.unnecessaryCasts.addAll(problems);
+	}
+
+	public void addNoEffectAssignments(List<CategorizedProblem> problems) {
+		if (this.noEffectAssignments == null) {
+			this.noEffectAssignments = new ArrayList<>();
+		}
+		this.noEffectAssignments.addAll(problems);
 	}
 
 	public void setAccessRestrictionProblems(List<CategorizedProblem> problems) {
