@@ -310,8 +310,21 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	}
 
 	private boolean isNoEffectAssignment(JCAssign assign) {
-		if (!(assign.lhs instanceof JCIdent lhsIdent) || !(assign.rhs instanceof JCIdent rhsIdent)) return false;
-		return lhsIdent.sym.equals(rhsIdent.sym);
+	    Symbol lhsSym = null, rhsSym = null;
+
+	    if (assign.lhs instanceof JCIdent id) {
+	        lhsSym = id.sym;
+	    } else if (assign.lhs instanceof JCFieldAccess fa) {
+	        lhsSym = fa.sym;
+	    }
+
+	    if (assign.rhs instanceof JCIdent id) {
+	        rhsSym = id.sym;
+	    } else if (assign.rhs instanceof JCFieldAccess fa) {
+	        rhsSym = fa.sym;
+	    }
+
+	    return lhsSym != null && rhsSym != null && lhsSym == rhsSym;
 	}
 
 	private boolean isPotentialUnusedDeclaration(Tree tree) {
