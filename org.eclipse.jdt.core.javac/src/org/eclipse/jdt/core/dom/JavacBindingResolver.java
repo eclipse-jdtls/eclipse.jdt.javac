@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -884,9 +885,18 @@ public class JavacBindingResolver extends BindingResolver {
 			typeArgs = List.of();
 			javacElement = javacMethodInvocation.getMethodSelect();
 			typeArgs = javacMethodInvocation.getTypeArguments().stream().map(jcExpr -> jcExpr.type).toList();
+			if( typeArgs.size() == 0 ) {
+				// No explicit type args passed in, but, the return type has type args
+				if( javacMethodInvocation.type instanceof ClassType ct1) {
+					var v1 = inferMethodTypeArguments(javacMethodInvocation);
+					if( v1 != null ) {
+						typeArgs = v1;
+					}
+				}
+			}
 		}
-		var type = javacElement.type;
 		// next condition matches `localMethod(this::missingMethod)`
+		var type = javacElement.type;
 		if (javacElement instanceof JCIdent ident && type == null) {
 			ASTNode node = method;
 			while (node != null && !(node instanceof AbstractTypeDeclaration)) {
@@ -990,6 +1000,83 @@ public class JavacBindingResolver extends BindingResolver {
 			return (IMethodBinding)this.bindings.getBinding(sym, sym.type);
 		}
 		return null;
+	}
+
+
+	public static List<com.sun.tools.javac.code.Type> inferMethodTypeArguments(JCMethodInvocation call) {
+
+	    Map<com.sun.tools.javac.code.Type.TypeVar, com.sun.tools.javac.code.Type> result = new LinkedHashMap<>();
+	    if( call.meth instanceof JCIdent jcid && jcid.sym instanceof MethodSymbol msym) {
+		    if (msym.getTypeParameters().isEmpty()) {
+		        return null;
+		    }
+
+		    // Generic method type (contains D)
+		    com.sun.tools.javac.code.Type genericType = msym.type;
+		    List<com.sun.tools.javac.code.Type> tvars = new ArrayList<>();
+		    com.sun.tools.javac.code.Type.MethodType genericMethodType;
+		    if (genericType instanceof com.sun.tools.javac.code.Type.ForAll fa) {
+		        genericMethodType = (com.sun.tools.javac.code.Type.MethodType) fa.qtype;
+		        if( fa.tvars != null ) {
+		        	tvars.addAll(fa.tvars);
+		        }
+		    } else {
+		        genericMethodType =
+		            (com.sun.tools.javac.code.Type.MethodType) genericType;
+		        tvars.add(genericMethodType);
+		    }
+
+		    // Generic return type (e.g., HashMap<String, D>)
+		    com.sun.tools.javac.code.Type genericReturn =
+		            genericMethodType.getReturnType();
+
+		    // Instantiated return type (e.g., HashMap<String, Integer>)
+		    com.sun.tools.javac.code.Type instantiatedReturn =
+		            call.type;
+
+		    // Recursively match them
+		    matchTypes(genericReturn, instantiatedReturn, result);
+		    if( result.size() < tvars.size()) {
+		    	return null;
+		    }
+		    ArrayList<com.sun.tools.javac.code.Type> ret = new ArrayList<>();
+		    for( com.sun.tools.javac.code.Type t : tvars ) {
+		    	com.sun.tools.javac.code.Type r = result.get(t);
+		    	if( r == null )
+		    		return null;
+		    	ret.add(r);
+		    }
+		    return ret;
+	    }
+	    return null;
+	}
+
+	private static void matchTypes(com.sun.tools.javac.code.Type generic,
+			com.sun.tools.javac.code.Type instantiated,
+			Map<com.sun.tools.javac.code.Type.TypeVar, com.sun.tools.javac.code.Type> result) {
+
+		if (generic instanceof com.sun.tools.javac.code.Type.TypeVar) {
+			result.put((com.sun.tools.javac.code.Type.TypeVar) generic, instantiated);
+			return;
+		}
+
+		if (generic instanceof com.sun.tools.javac.code.Type.ClassType &&
+				instantiated instanceof com.sun.tools.javac.code.Type.ClassType) {
+
+			com.sun.tools.javac.code.Type.ClassType gClass = (com.sun.tools.javac.code.Type.ClassType) generic;
+			com.sun.tools.javac.code.Type.ClassType iClass = (com.sun.tools.javac.code.Type.ClassType) instantiated;
+
+			var gArgs = gClass.getTypeArguments();
+			var iArgs = iClass.getTypeArguments();
+
+			for (int i = 0; i < Math.min(gArgs.size(), iArgs.size()); i++) {
+				matchTypes(gArgs.get(i), iArgs.get(i), result);
+			}
+		}
+
+		if (generic instanceof com.sun.tools.javac.code.Type.ArrayType && instantiated instanceof com.sun.tools.javac.code.Type.ArrayType) {
+			matchTypes(((com.sun.tools.javac.code.Type.ArrayType) generic).elemtype, ((com.sun.tools.javac.code.Type.ArrayType) instantiated).elemtype, result);
+		}
 	}
 
 	/**

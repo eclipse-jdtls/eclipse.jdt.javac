@@ -738,7 +738,8 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public boolean isParameterizedMethod() {
-		return !isRawMethod() && !isGenericMethod() && this.methodSymbol != null && !this.methodSymbol.getTypeParameters().isEmpty();
+		return !isRawMethod() && !isGenericMethod()
+				&& this.methodSymbol != null && !this.methodSymbol.getTypeParameters().isEmpty();
 	}
 
 	private boolean parameterizedViaDeclaringClass() {
