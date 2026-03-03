@@ -388,6 +388,15 @@ public class JavacDiagnosticProblemConverter {
 				&& method.getMethodSelect() instanceof JCIdent name) {
 				element = name;
 			}
+			if( problemId == IProblem.BodyForAbstractMethod && element instanceof JCBlock jcblok) {
+				if( current != null && current.getParentPath() != null && current.getParentPath().getLeaf() != null ) {
+					if( current.getParentPath().getLeaf() instanceof JCMethodDecl jcmd) {
+						int start = jcmd.pos;
+						int end = jcblok.pos - 1;
+						return new org.eclipse.jface.text.Position(start, end-start-1);
+					}
+				}
+			}
 			if (element != null) {
 				switch (element) {
 					case JCTree.JCTypeApply jcTypeApply: return getPositionByNodeRangeOnly(jcDiagnostic, jcTypeApply.clazz);
