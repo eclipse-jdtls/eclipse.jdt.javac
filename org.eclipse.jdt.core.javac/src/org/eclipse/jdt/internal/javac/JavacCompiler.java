@@ -46,8 +46,8 @@ import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
 import org.eclipse.jdt.internal.compiler.problem.AbortCompilation;
 import org.eclipse.jdt.internal.core.JavaProject;
 import org.eclipse.jdt.internal.core.builder.SourceFile;
-import org.eclipse.jdt.internal.javac.problem.JavacProblem;
 import org.eclipse.jdt.internal.javac.problem.JavacDiagnosticProblemConverter;
+import org.eclipse.jdt.internal.javac.problem.JavacProblem;
 
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
@@ -126,8 +126,8 @@ public class JavacCompiler extends Compiler {
 				if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
 					sourceWithErrors.add(fileObject);
 				}
-				JavacProblem javacProblem = problemConverter.createJavacProblem(diagnostic);
-				if (javacProblem != null) {
+				JavacProblem[] createdProblems = problemConverter.createJavacProblems(diagnostic);
+				if (createdProblems != null) {
 					ICompilationUnit originalUnit = this.fileObjectToCUMap.get(fileObject);
 					if (originalUnit == null) {
 						return;
@@ -137,7 +137,7 @@ public class JavacCompiler extends Compiler {
 						previous = new ArrayList<>();
 						javacProblems.put(originalUnit, previous);
 					}
-					previous.add(javacProblem);
+					previous.addAll(Arrays.asList(createdProblems));
 				}
 			}
 		});
