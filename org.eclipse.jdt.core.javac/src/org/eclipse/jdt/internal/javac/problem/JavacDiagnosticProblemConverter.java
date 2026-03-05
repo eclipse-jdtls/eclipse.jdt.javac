@@ -15,6 +15,7 @@ package org.eclipse.jdt.internal.javac.problem;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -106,23 +107,37 @@ public class JavacDiagnosticProblemConverter {
 		this.context = context;
 	}
 
+
+	public JavacProblem[] createJavacProblems(Diagnostic<? extends JavaFileObject> diagnostic) {
+		JCDiagnostic nestedDiagnostic = getDiagnosticArgumentByType(diagnostic, JCDiagnostic.class);
+		boolean useNestedDiagnostic = nestedDiagnostic != null
+			&& diagnostic.getCode().equals("compiler.err.invalid.permits.clause")
+			&& (nestedDiagnostic.getSource() == diagnostic.getSource()
+				|| (nestedDiagnostic.getSource() == null && findSymbol(nestedDiagnostic) instanceof ClassSymbol classSymbol
+					&& classSymbol.sourcefile == diagnostic.getSource()));
+		Diagnostic<? extends JavaFileObject> selectedDiagnostic = useNestedDiagnostic ? nestedDiagnostic : diagnostic;
+		int[] problemIds = toProblemIds(selectedDiagnostic);
+		List<JavacProblem> ret = new ArrayList<>();
+		for( int i = 0; i < problemIds.length; i++ ) {
+			if (problemIds[i] != -1) { // cannot use < 0 as IProblem.Javadoc < 0
+				JavacProblem p = problemIdToJavacProblem(problemIds[i], selectedDiagnostic);
+				if( p != null ) {
+					ret.add(p);
+				}
+			}
+		}
+		return (JavacProblem[]) ret.toArray(new JavacProblem[ret.size()]);
+	}
+
+
 	/**
 	 *
 	 * @param diagnostic
 	 * @param context
 	 * @return a JavacProblem matching the given diagnostic, or <code>null</code> if problem is ignored
 	 */
-	public JavacProblem createJavacProblem(Diagnostic<? extends JavaFileObject> diagnostic) {
-		var nestedDiagnostic = getDiagnosticArgumentByType(diagnostic, JCDiagnostic.class);
-		boolean useNestedDiagnostic = nestedDiagnostic != null
-			&& diagnostic.getCode().equals("compiler.err.invalid.permits.clause")
-			&& (nestedDiagnostic.getSource() == diagnostic.getSource()
-				|| (nestedDiagnostic.getSource() == null && findSymbol(nestedDiagnostic) instanceof ClassSymbol classSymbol
-					&& classSymbol.sourcefile == diagnostic.getSource()));
-		int problemId = toProblemId(useNestedDiagnostic ? nestedDiagnostic : diagnostic);
-		if (problemId == -1) { // cannot use < 0 as IProblem.Javadoc < 0
-			return null;
-		}
+
+	private JavacProblem problemIdToJavacProblem(int problemId, Diagnostic<? extends JavaFileObject> diagnostic) {
 		int severity = toSeverity(problemId, diagnostic);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return null;
@@ -727,6 +742,19 @@ public class JavacDiagnosticProblemConverter {
 			case NOTE -> ProblemSeverities.Info;
 			default -> ProblemSeverities.Error;
 		};
+	}
+
+	public int[] toProblemIds(Diagnostic<? extends JavaFileObject> diagnostic) {
+		String javacDiagnosticCode = diagnostic.getCode();
+		int[] result = switch (javacDiagnosticCode) {
+		    case "compiler.err.switch.expression.empty" ->
+		        new int[] {
+		        		IProblem.SwitchExpressionsYieldNoResultExpression,
+		        		IProblem.SwitchExpressionsYieldMissingDefaultCase
+		        		};
+		    default -> new int[] { toProblemId(diagnostic) };
+		};
+		return result;
 	}
 
 	/**
@@ -1587,5 +1615,4 @@ public class JavacDiagnosticProblemConverter {
 	public void registerUnit(JavaFileObject javaFileObject, JCCompilationUnit unit) {
 		this.units.put(javaFileObject, unit);
 	}
-
 }
