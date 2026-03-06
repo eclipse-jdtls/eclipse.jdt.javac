@@ -261,7 +261,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 					parametersResolved = this.methodType.getParameterTypes().stream()
 							.map(Type.class::cast)
 							.map(t ->
-								t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
+								t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // Check whether a better constructor exists for it
 									Signature.createTypeSignature(resolveTypeName(t, true), true))
 							.toArray(String[]::new);
 				}
