@@ -232,6 +232,26 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return this.javaElement;
 	}
 
+	private String[] getResolvedParameters(java.util.stream.Stream<Type> types) {
+	    java.util.List<String> resolved = new java.util.ArrayList<>();
+
+	    for (Type t : (Iterable<Type>) types::iterator) {
+	        if (t instanceof TypeVar typeVar) {
+	            resolved.add(Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";");
+	            continue;
+	        }
+
+	        String typeName = resolveTypeName(t, true);
+	        if (typeName == null) {
+	            return null;
+	        }
+
+	        resolved.add(Signature.createTypeSignature(typeName, true));
+	    }
+
+	    return resolved.toArray(String[]::new);
+	}
+
 	private IMethod computeUnresolvedJavaElement() {
 		Object possibleTypeBinding = null;
 		if (this.methodSymbol == null) {
@@ -250,29 +270,30 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 				}
 
 				String[] parametersResolved = new String[0];
-				if( this.methodSymbol != null && this.methodSymbol.baseSymbol() instanceof MethodSymbol base) {
-					parametersResolved = base.params().stream()
-						.map(varSymbol -> varSymbol.type)
-						.map(t ->
-							t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
-								Signature.createTypeSignature(resolveTypeName(t, true), true))
-						.toArray(String[]::new);
+
+				if (this.methodSymbol != null && this.methodSymbol.baseSymbol() instanceof MethodSymbol base) {
+					parametersResolved = getResolvedParameters(
+						base.params().stream().map(varSymbol -> varSymbol.type)
+					);
 				} else {
-					parametersResolved = this.methodType.getParameterTypes().stream()
-							.map(Type.class::cast)
-							.map(t ->
-								t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
-									Signature.createTypeSignature(resolveTypeName(t, true), true))
-							.toArray(String[]::new);
+					parametersResolved = getResolvedParameters(
+						this.methodType.getParameterTypes().stream().map(Type.class::cast)
+					);
 				}
-				parametersResolved = maybeTrimEnumConstructorArgs(parametersResolved);
-				IMethod m = currentType.getMethod(getName(), parametersResolved);
-				if (m != null && m.exists()) {
-					return m;
-				}
-				IMethod[] methods = currentType.findMethods(m);
-				if (methods != null && methods.length > 0) {
-					return methods[0];
+
+				IMethod m = null;
+				IMethod[] methods = null;
+
+				if (parametersResolved != null) {
+					parametersResolved = maybeTrimEnumConstructorArgs(parametersResolved);
+					m = currentType.getMethod(getName(), parametersResolved);
+					if (m != null && m.exists()) {
+						return m;
+					}
+					methods = currentType.findMethods(m);
+					if (methods != null && methods.length > 0) {
+						return methods[0];
+					}
 				}
 				String[] parametersNotResolved = new String[0];
 				if( this.methodSymbol != null ) {
