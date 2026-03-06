@@ -109,6 +109,7 @@ import org.eclipse.jdt.internal.javac.JavacUtils;
 import org.eclipse.jdt.internal.javac.ProcessorConfig;
 import org.eclipse.jdt.internal.javac.dom.JavacTypeBinding;
 import org.eclipse.jdt.internal.javac.problem.JavacDiagnosticProblemConverter;
+import org.eclipse.jdt.internal.javac.problem.JavacProblem;
 import org.eclipse.jdt.internal.javac.problem.JavacProblemDiscovery;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
@@ -128,6 +129,7 @@ import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Context.Key;
 import com.sun.tools.javac.util.DiagnosticSource;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
@@ -154,12 +156,13 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		@Override
 		public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
 			findTargetDOM(filesToUnits, diagnostic).ifPresent(dom -> {
-				var newProblem = problemConverter.createJavacProblem(diagnostic);
-				if (newProblem != null) {
+				JavacProblem[] newProblems = problemConverter.createJavacProblems(diagnostic);
+				if (newProblems != null && newProblems.length > 0) {
 					IProblem[] previous = dom.getProblems();
-					IProblem[] newProblems = Arrays.copyOf(previous, previous.length + 1);
-					newProblems[newProblems.length - 1] = newProblem;
-					dom.setProblems(newProblems);
+					ArrayList<IProblem> all = new ArrayList<>(Arrays.asList(previous));
+					all.addAll(Arrays.asList(newProblems));
+					IProblem[] newValue = (IProblem[]) all.toArray(new IProblem[all.size()]);
+					dom.setProblems(newValue);
 				}
 			});
 		}
@@ -737,10 +740,17 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 					// Let's handle problems from the diagnostics first
 					// javadoc problems explicitly set as they're not sent to DiagnosticListener (maybe find a flag to do it?)
-					List<IProblem> javadocProblems = converter.javadocDiagnostics.stream()
-							.map(x -> (IProblem)problemConverter.createJavacProblem(x))
-							.filter(Objects::nonNull)
-							.toList();
+					List<IProblem> javadocProblems = new ArrayList<>();
+					for( JCDiagnostic d : converter.javadocDiagnostics ) {
+						JavacProblem[] all = problemConverter.createJavacProblems(d);
+						if( all != null && all.length > 0 ) {
+							for( int i = 0; i < all.length; i++ ) {
+								if( all[i] != null ) {
+									javadocProblems.add(all[i]);
+								}
+							}
+						}
+					}
 					if (javadocProblems.size() > 0) {
 						JdtCoreDomPackagePrivateUtility.addProblemsToDOM(res, javadocProblems);
 					}
