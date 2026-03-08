@@ -96,6 +96,7 @@ public class JavacDiagnosticProblemConverter {
 	private final Map<JavaFileObject, JCCompilationUnit> units = new HashMap<>();
 	private final DefaultProblemFactory problemFactory = new DefaultProblemFactory(Locale.getDefault());
 	private static final Pattern SOURCE_VERSION_EXTRACTOR = Pattern.compile("--?source ([-0-9]+)");;
+	private static record Range(int start, int length) {}
 
 	public JavacDiagnosticProblemConverter(Map<String, String> options, Context context) {
 		this(new CompilerOptions(options), context);
@@ -131,7 +132,12 @@ public class JavacDiagnosticProblemConverter {
 		if( !filterProblem(diagnostic, problemId, severity, tree)) {
 			return null;
 		}
-		org.eclipse.jface.text.Position diagnosticPosition = getDiagnosticPosition(diagnostic, context, problemId);
+		int[] expectedEqualsFieldOffset = new int[1];
+		String expectedEqualsFieldName = getExpectedEqualsFieldName(diagnostic, expectedEqualsFieldOffset);
+		Range expectedEqualsRange = expectedEqualsFieldName != null && !expectedEqualsFieldName.isEmpty() && expectedEqualsFieldOffset[0] >= 0
+				? new Range(expectedEqualsFieldOffset[0], expectedEqualsFieldName.length())
+				: null;
+		org.eclipse.jface.text.Position diagnosticPosition = getDiagnosticPosition(diagnostic, context, problemId, expectedEqualsRange);
 		if (diagnosticPosition == null) {
 			return null;
 		}
@@ -149,9 +155,7 @@ public class JavacDiagnosticProblemConverter {
 			}
 		}
 		String[] arguments = getDiagnosticStringArguments(diagnostic);
-		String problemMessage = problemId == IProblem.UndefinedType
-				? this.problemFactory.getLocalizedMessage(IProblem.UndefinedType, new String[] { arguments[0] })
-				: diagnostic.getMessage(Locale.getDefault());
+		String problemMessage = getProblemMessage(diagnostic, problemId, arguments, expectedEqualsFieldName);
 		return new JavacProblem(
 				diagnostic.getSource().getName().toCharArray(),
 				problemMessage,
@@ -163,6 +167,48 @@ public class JavacDiagnosticProblemConverter {
 				diagnosticPosition.getOffset() + Math.max(diagnosticPosition.getLength() - 1, 0),
 				(int) diagnostic.getLineNumber(),
 				(int) diagnostic.getColumnNumber());
+	}
+
+	private String getProblemMessage(Diagnostic<? extends JavaFileObject> diagnostic, int problemId, String[] arguments, String expectedEqualsFieldName) {
+		if (problemId == IProblem.UndefinedType && arguments.length > 0) {
+			return this.problemFactory.getLocalizedMessage(IProblem.UndefinedType, new String[] { arguments[0] });
+		}
+		if (problemId == IProblem.UninitializedBlankFinalField && expectedEqualsFieldName != null) {
+			String fieldName = expectedEqualsFieldName;
+			return this.problemFactory.getLocalizedMessage(IProblem.UninitializedBlankFinalField, new String[] { fieldName });
+		}
+		return diagnostic.getMessage(Locale.getDefault());
+	}
+
+	private String getExpectedEqualsFieldName(Diagnostic<? extends JavaFileObject> diagnostic, int[] startOffset) {
+		boolean hasStartOffset = startOffset != null && startOffset.length > 0;
+		if (hasStartOffset) {
+			startOffset[0] = -1;
+		}
+		if (!(diagnostic instanceof JCDiagnostic jcDiagnostic)) return null;
+		Object[] args = jcDiagnostic.getArgs();
+		if (args.length == 0 || !"=".equals(String.valueOf(args[0]))) {
+			return null;
+		}
+		String documentText;
+		try {
+			documentText = loadDocumentText(diagnostic);
+		} catch (IOException ex) {
+			return "";
+		}
+		if (documentText == null || documentText.isEmpty()) {
+			return "";
+		}
+		int end = (int) diagnostic.getPosition();
+		int index = end - 1;
+		while (index >= 0 && Character.isJavaIdentifierPart(documentText.charAt(index))) {
+			index--;
+		}
+		int offset = index + 1;
+		if (hasStartOffset) {
+			startOffset[0] = offset;
+		}
+		return documentText.substring(offset, end);
 	}
 
 	private boolean filterProblem(Diagnostic<? extends JavaFileObject> diagnostic, int problemId, int severity, JCTree tree) {
@@ -194,7 +240,8 @@ public class JavacDiagnosticProblemConverter {
 		return null;
 	}
 
-	private org.eclipse.jface.text.Position getDiagnosticPosition(Diagnostic<? extends JavaFileObject> diagnostic, Context context, int problemId) {
+	private org.eclipse.jface.text.Position getDiagnosticPosition(Diagnostic<? extends JavaFileObject> diagnostic, Context context, int problemId,
+			Range expectedEqualsRange) {
 		if (diagnostic.getCode().contains(".dc") || "compiler.warn.proc.messager".equals(diagnostic.getCode())) { //javadoc
 			if (problemId == IProblem.JavadocMissingParamTag) {
 				String message = diagnostic.getMessage(Locale.ENGLISH);
@@ -259,8 +306,10 @@ public class JavacDiagnosticProblemConverter {
 					}
 				}
 			}
-			if (problemId == IProblem.UninitializedBlankFinalField ||
-				problemId == IProblem.UninitializedLocalVariable) {
+			if (problemId == IProblem.UninitializedBlankFinalField && expectedEqualsRange != null) {
+				return new org.eclipse.jface.text.Position(expectedEqualsRange.start(), expectedEqualsRange.length());
+			}
+			if (problemId == IProblem.UninitializedBlankFinalField || problemId == IProblem.UninitializedLocalVariable) {
 				var varSymbol = getDiagnosticArgumentByType(diagnostic, VarSymbol.class);
 				if (varSymbol != null) {
 					return new org.eclipse.jface.text.Position(varSymbol.pos, varSymbol.getSimpleName().length());
@@ -1321,7 +1370,7 @@ public class JavacDiagnosticProblemConverter {
 		if (diagnostic instanceof JCDiagnostic jcDiagnostic) {
 			Object[] args = jcDiagnostic.getArgs();
 			if (args.length > 0 && "=".equals(String.valueOf(args[0]))) {
-				return -1;
+				return IProblem.UninitializedBlankFinalField;
 			}
 		}
 		return IProblem.ParsingErrorInsertTokenAfter;
