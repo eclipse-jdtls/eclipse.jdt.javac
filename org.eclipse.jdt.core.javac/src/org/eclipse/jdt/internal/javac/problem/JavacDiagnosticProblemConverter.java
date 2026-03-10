@@ -101,7 +101,6 @@ public class JavacDiagnosticProblemConverter {
 	private final Context context;
 	private final Map<JavaFileObject, JCCompilationUnit> units = new HashMap<>();
 	private final DefaultProblemFactory problemFactory = new DefaultProblemFactory(Locale.getDefault());
-	private static record Range(int start, int length) {}
 
 	public JavacDiagnosticProblemConverter(Map<String, String> options, Context context) {
 		this(new CompilerOptions(options), context);
