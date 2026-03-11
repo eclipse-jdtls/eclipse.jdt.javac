@@ -126,8 +126,8 @@ public class JavacCompiler extends Compiler {
 				if (diagnostic.getKind() == Diagnostic.Kind.ERROR) {
 					sourceWithErrors.add(fileObject);
 				}
-				List<JavacProblem> convertedProblems = problemConverter.createJavacProblems(diagnostic);
-				if (!convertedProblems.isEmpty()) {
+				JavacProblem[] createdProblems = problemConverter.createJavacProblems(diagnostic);
+				if (createdProblems != null) {
 					ICompilationUnit originalUnit = this.fileObjectToCUMap.get(fileObject);
 					if (originalUnit == null) {
 						return;
@@ -137,7 +137,7 @@ public class JavacCompiler extends Compiler {
 						previous = new ArrayList<>();
 						javacProblems.put(originalUnit, previous);
 					}
-					previous.addAll(convertedProblems);
+					previous.addAll(Arrays.asList(createdProblems));
 				}
 			}
 		});
