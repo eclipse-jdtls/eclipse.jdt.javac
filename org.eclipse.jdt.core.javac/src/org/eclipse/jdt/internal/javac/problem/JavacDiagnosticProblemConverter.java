@@ -101,6 +101,7 @@ public class JavacDiagnosticProblemConverter {
 	private final Context context;
 	private final Map<JavaFileObject, JCCompilationUnit> units = new HashMap<>();
 	private final DefaultProblemFactory problemFactory = new DefaultProblemFactory(Locale.getDefault());
+	private static record Range(int start, int length) {}
 
 	public JavacDiagnosticProblemConverter(Map<String, String> options, Context context) {
 		this(new CompilerOptions(options), context);
@@ -110,8 +111,10 @@ public class JavacDiagnosticProblemConverter {
 		this.context = context;
 	}
 
-
 	public JavacProblem[] createJavacProblems(Diagnostic<? extends JavaFileObject> diagnostic) {
+		if (diagnostic instanceof JCDiagnostic jcDiagnostic && COMPILER_ERR_DOES_NOT_OVERRIDE_ABSTRACT.equals(jcDiagnostic.getCode())) {
+			return createDoesNotOverrideAbstractProblems(jcDiagnostic);
+		}
 		JCDiagnostic nestedDiagnostic = getDiagnosticArgumentByType(diagnostic, JCDiagnostic.class);
 		boolean useNestedDiagnostic = nestedDiagnostic != null
 			&& diagnostic.getCode().equals("compiler.err.invalid.permits.clause")
@@ -132,7 +135,6 @@ public class JavacDiagnosticProblemConverter {
 		return (JavacProblem[]) ret.toArray(new JavacProblem[ret.size()]);
 	}
 
-
 	/**
 	 *
 	 * @param diagnostic
@@ -141,6 +143,11 @@ public class JavacDiagnosticProblemConverter {
 	 */
 
 	private JavacProblem problemIdToJavacProblem(int problemId, Diagnostic<? extends JavaFileObject> diagnostic) {
+		return problemIdToJavacProblem(problemId, diagnostic, null, null);
+	}
+
+	private JavacProblem problemIdToJavacProblem(int problemId, Diagnostic<? extends JavaFileObject> diagnostic,
+			String messageOverride, String[] argumentsOverride) {
 		int severity = toSeverity(problemId, diagnostic);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return null;
@@ -172,8 +179,8 @@ public class JavacDiagnosticProblemConverter {
 				ILog.get().error(ex.getMessage(), ex);
 			}
 		}
-		String[] arguments = getDiagnosticStringArguments(diagnostic);
-		String problemMessage = getProblemMessage(diagnostic, problemId, arguments, expectedEqualsFieldName);
+		String[] arguments = argumentsOverride != null ? argumentsOverride : getDiagnosticStringArguments(diagnostic);
+		String problemMessage = messageOverride != null ? messageOverride : getProblemMessage(diagnostic, problemId, arguments, expectedEqualsFieldName);
 		return new JavacProblem(
 				diagnostic.getSource().getName().toCharArray(),
 				problemMessage,
@@ -192,8 +199,7 @@ public class JavacDiagnosticProblemConverter {
 			return this.problemFactory.getLocalizedMessage(IProblem.UndefinedType, new String[] { arguments[0] });
 		}
 		if (problemId == IProblem.UninitializedBlankFinalField && expectedEqualsFieldName != null) {
-			String fieldName = expectedEqualsFieldName;
-			return this.problemFactory.getLocalizedMessage(IProblem.UninitializedBlankFinalField, new String[] { fieldName });
+			return this.problemFactory.getLocalizedMessage(IProblem.UninitializedBlankFinalField, new String[] { expectedEqualsFieldName });
 		}
 		return diagnostic.getMessage(Locale.getDefault());
 	}
@@ -227,6 +233,112 @@ public class JavacDiagnosticProblemConverter {
 			startOffset[0] = offset;
 		}
 		return documentText.substring(offset, end);
+	}
+
+	private JavacProblem[] createDoesNotOverrideAbstractProblems(JCDiagnostic diagnostic) {
+		Object[] args = diagnostic.getArgs();
+		if (args.length >= 2 && args[0] instanceof ClassSymbol classSymbol && args[1] instanceof MethodSymbol methodSymbol) {
+			Types types = Types.instance(this.context);
+			VarSymbol enumConstant = classSymbol.owner instanceof VarSymbol owner && (owner.flags() & Flags.ENUM) != 0 ? owner : null;
+			String enumConstantName = null;
+			if (classSymbol.isEnum() || enumConstant != null) {
+				if (enumConstant != null) {
+					enumConstantName = enumConstant.name.toString();
+				} else {
+					for (Symbol symbol : classSymbol.getEnclosedElements()) {
+						if (symbol instanceof VarSymbol variable && (variable.flags() & Flags.ENUM) != 0) {
+							enumConstantName = variable.name.toString();
+							break;
+						}
+					}
+					if (enumConstantName == null) {
+						enumConstantName = classSymbol.name.toString();
+					}
+				}
+			}
+
+			Map<String, MethodSymbol> methodsBySignature = new HashMap<>();
+			List<ClassSymbol> toVisit = new ArrayList<>();
+			Set<ClassSymbol> queued = new HashSet<>();
+			toVisit.add(classSymbol);
+			queued.add(classSymbol);
+			for (int visitIndex = 0; visitIndex < toVisit.size(); visitIndex++) {
+				ClassSymbol current = toVisit.get(visitIndex);
+				for (Symbol symbol : current.getEnclosedElements()) {
+					if (!(symbol instanceof MethodSymbol abstractMethod)) continue;
+					if ((abstractMethod.flags() & (Flags.ABSTRACT | Flags.DEFAULT | Flags.PRIVATE)) != Flags.ABSTRACT) continue;
+
+					MethodSymbol implementation = abstractMethod.implementation(classSymbol, types, true);
+					if (implementation == null || implementation == abstractMethod) {
+						MethodSymbol defaultProvider = types.interfaceCandidates(classSymbol.type, abstractMethod).head;
+						if (defaultProvider != null && defaultProvider.overrides(abstractMethod, classSymbol, types, true)) {
+							implementation = defaultProvider;
+						}
+					}
+					if (implementation == null || implementation == abstractMethod) {
+						String signature = abstractMethod.name.toString() + abstractMethod.getParameters();
+						MethodSymbol existing = methodsBySignature.get(signature);
+						if (existing == null) {
+							methodsBySignature.put(signature, abstractMethod);
+						} else {
+							Type existingReturn = types.erasure(existing.getReturnType());
+							Type candidateReturn = types.erasure(abstractMethod.getReturnType());
+							if (types.isSubtype(candidateReturn, existingReturn) && !types.isSubtype(existingReturn, candidateReturn)) {
+								methodsBySignature.put(signature, abstractMethod);
+							}
+						}
+					}
+				}
+
+				Type superType = types.supertype(current.type);
+				if (superType.tsym instanceof ClassSymbol superClass && queued.add(superClass)) {
+					toVisit.add(superClass);
+				}
+				for (com.sun.tools.javac.util.List<Type> interfaces = types.interfaces(current.type);
+						interfaces.nonEmpty();
+						interfaces = interfaces.tail) {
+					if (interfaces.head.tsym instanceof ClassSymbol interfaceSymbol && queued.add(interfaceSymbol)) {
+						toVisit.add(interfaceSymbol);
+					}
+				}
+			}
+
+			List<MethodSymbol> missingMethods = new ArrayList<>(methodsBySignature.values());
+			List<JavacProblem> allProblems = new ArrayList<>(missingMethods.size());
+			for (MethodSymbol missingMethod : missingMethods) {
+				JavacProblem convertedProblem;
+				if (classSymbol.isEnum() || enumConstant != null) {
+					String[] arguments = new String[] {
+							missingMethod.name.toString(),
+							missingMethod.getParameters().toString(),
+							enumConstantName
+					};
+					convertedProblem = problemIdToJavacProblem(
+						    IProblem.EnumConstantMustImplementAbstractMethod,
+							diagnostic,
+							this.problemFactory.getLocalizedMessage(IProblem.EnumConstantMustImplementAbstractMethod, arguments),
+							arguments);
+				} else {
+					String ownerType = missingMethod.owner instanceof ClassSymbol ownerClass ? ownerClass.toString() : classSymbol.toString();
+					String[] arguments = new String[] {
+							missingMethod.name.toString(),
+							missingMethod.getParameters().toString(),
+							ownerType,
+							classSymbol.toString()
+					};
+					convertedProblem = problemIdToJavacProblem(
+						    IProblem.AbstractMethodMustBeImplemented,
+							diagnostic,
+							this.problemFactory.getLocalizedMessage(IProblem.AbstractMethodMustBeImplemented, arguments),
+							arguments);
+				}
+				if (convertedProblem != null) {
+					allProblems.add(convertedProblem);
+				}
+			}
+			return allProblems.toArray(new JavacProblem[allProblems.size()]);
+		}
+		return new JavacProblem[0];
 	}
 
 	private boolean filterProblem(Diagnostic<? extends JavaFileObject> diagnostic, int problemId, int severity, JCTree tree) {
@@ -455,6 +567,15 @@ public class JavacDiagnosticProblemConverter {
 					.findFirst()
 					.map(Tree.class::cast)
 					.orElse(element);
+			}
+			if (problemId == IProblem.EnumConstantMustImplementAbstractMethod
+				&& element instanceof JCClassDecl classDecl) {
+				for (JCTree member : classDecl.getMembers()) {
+					if (member instanceof JCVariableDecl variable && (variable.mods.flags & Flags.ENUM) != 0) {
+						element = variable;
+						break;
+					}
+				}
 			}
 			if (problemId == IProblem.UndefinedMethod && element instanceof JCMethodInvocation method
 				&& method.getMethodSelect() instanceof JCIdent name) {
@@ -849,20 +970,6 @@ public class JavacDiagnosticProblemConverter {
 				};
 			case "compiler.err.premature.eof" -> IProblem.ParsingErrorUnexpectedEOF; // syntax error
 			case "compiler.err.report.access", "compiler.err.not.def.access.class.intf.cant.access" -> convertNotVisibleAccess(diagnostic);
-			case "compiler.err.does.not.override.abstract" -> {
-				Object[] args = getDiagnosticArguments(diagnostic);
-				if (args.length > 2
-					&& args[0] instanceof ClassSymbol classSymbol
-					&& args[0] == args[2]) { // means abstract method defined in Concrete class
-					if (classSymbol.isEnum()) {
-						yield IProblem.EnumAbstractMethodMustBeImplemented;
-					}
-					if (!classSymbol.isInterface() && !classSymbol.isAbstract()) {
-						yield IProblem.AbstractMethodsInConcreteClass;
-					}
-				}
-				yield -1;
-			}
 			case COMPILER_WARN_MISSING_SVUID -> IProblem.MissingSerialVersion;
 			case COMPILER_WARN_NON_SERIALIZABLE_INSTANCE_FIELD -> 99999999; // JDT doesn't have this diagnostic
 			case "compiler.err.ref.ambiguous" -> convertAmbiguous(diagnostic);
