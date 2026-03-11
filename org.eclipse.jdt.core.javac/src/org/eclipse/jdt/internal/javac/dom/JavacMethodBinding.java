@@ -232,24 +232,35 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return this.javaElement;
 	}
 
-	private String[] getResolvedParameters(java.util.stream.Stream<Type> types) {
-	    java.util.List<String> resolved = new java.util.ArrayList<>();
+	private String createSafeTypeSignature(Type t, boolean resolved) {
+		if (t instanceof TypeVar typeVar) {
+			return Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";";
+		}
+
+		String typeName = resolveTypeName(t, resolved);
+		if (typeName == null || typeName.isEmpty()) {
+			return null;
+		}
+
+		try {
+			return Signature.createTypeSignature(typeName, resolved);
+		} catch (IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	private String[] getParameters(java.util.stream.Stream<Type> types, boolean resolved) {
+	    java.util.List<String> result = new java.util.ArrayList<>();
 
 	    for (Type t : (Iterable<Type>) types::iterator) {
-	        if (t instanceof TypeVar typeVar) {
-	            resolved.add(Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";");
-	            continue;
-	        }
+	    	String sig = createSafeTypeSignature(t, resolved);
+			if (sig == null) {
+				return null;
+			}
+			result.add(sig);
+		}
 
-	        String typeName = resolveTypeName(t, true);
-	        if (typeName == null) {
-	            return null;
-	        }
-
-	        resolved.add(Signature.createTypeSignature(typeName, true));
-	    }
-
-	    return resolved.toArray(String[]::new);
+	    return result.toArray(String[]::new);
 	}
 
 	private IMethod computeUnresolvedJavaElement() {
@@ -269,15 +280,15 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 					return getJavaElementForAnnotationTypeMemberDeclaration(currentType, annotationTypeMemberDeclaration);
 				}
 
-				String[] parametersResolved = new String[0];
+				String[] parametersResolved = null;
 
 				if (this.methodSymbol != null && this.methodSymbol.baseSymbol() instanceof MethodSymbol base) {
-					parametersResolved = getResolvedParameters(
-						base.params().stream().map(varSymbol -> varSymbol.type)
-					);
+					parametersResolved = getParameters(
+						base.params().stream().map(varSymbol -> varSymbol.type), true);
+
 				} else {
-					parametersResolved = getResolvedParameters(
-						this.methodType.getParameterTypes().stream().map(Type.class::cast)
+					parametersResolved = getParameters(
+						this.methodType.getParameterTypes().stream().map(Type.class::cast), true
 					);
 				}
 
@@ -295,15 +306,12 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 						return methods[0];
 					}
 				}
-				String[] parametersNotResolved = new String[0];
+				String[] parametersNotResolved = null;
 				if( this.methodSymbol != null ) {
-						parametersNotResolved = this.methodSymbol.params().stream()
-						.map(varSymbol -> varSymbol.type)
-						.map(t ->
-							t instanceof TypeVar typeVar ? Signature.C_TYPE_VARIABLE + typeVar.tsym.name.toString() + ";" : // check whether a better constructor exists for it
-								Signature.createTypeSignature(resolveTypeName(t, false), false))
-						.toArray(String[]::new);
+						parametersNotResolved = getParameters(
+								this.methodSymbol.params().stream().map(varSymbol -> varSymbol.type), false);
 				}
+				if (parametersNotResolved != null) {
 				parametersNotResolved = maybeTrimEnumConstructorArgs(parametersNotResolved);
 				m = currentType.getMethod(getName(), parametersNotResolved);
 				if (m != null && m.exists()) {
@@ -312,6 +320,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 				methods = currentType.findMethods(m);
 				if (methods != null && methods.length > 0) {
 					return methods[0];
+				}
 				}
 			}
 		}
