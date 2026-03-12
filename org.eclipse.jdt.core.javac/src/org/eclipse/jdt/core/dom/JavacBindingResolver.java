@@ -880,6 +880,7 @@ public class JavacBindingResolver extends BindingResolver {
 	IMethodBinding resolveMethod(MethodInvocation method) {
 		resolve();
 		JCTree javacElement = this.converter.domToJavac.get(method);
+		JCTree siteType = null;
 		List<com.sun.tools.javac.code.Type> typeArgs = null;
 		if (javacElement instanceof JCMethodInvocation javacMethodInvocation) {
 			typeArgs = List.of();
@@ -894,6 +895,8 @@ public class JavacBindingResolver extends BindingResolver {
 					}
 				}
 			}
+
+			siteType = converter.invocationToSiteType.get(javacMethodInvocation);
 		}
 		// next condition matches `localMethod(this::missingMethod)`
 		var type = javacElement.type;
@@ -952,7 +955,10 @@ public class JavacBindingResolver extends BindingResolver {
 					&& resolveExpressionType(method.getExpression()) instanceof JavacTypeBinding exprType) {
 					parentType = exprType.type;
 				} else {
-					parentType = ownerClass.type;
+					if( siteType != null )
+						parentType = siteType.type;
+					else
+						parentType = ownerClass.type;
 				}
 			}
 			return this.bindings.getMethodBinding(methodType, methodSymbol, parentType, false, typeArgs);
