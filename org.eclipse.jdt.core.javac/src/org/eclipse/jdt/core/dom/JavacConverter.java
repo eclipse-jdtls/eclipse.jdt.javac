@@ -2058,7 +2058,6 @@ class JavacConverter {
 	}
 
 	private AnonymousClassDeclaration createAnonymousClassDeclaration(JCClassDecl javacAnon, ASTNode parent) {
-		siteType.push(javacAnon);
 		AnonymousClassDeclaration anon = this.ast.newAnonymousClassDeclaration();
 		commonSettings(anon, javacAnon);
 		if (javacAnon.getMembers() != null) {
@@ -2070,7 +2069,6 @@ class JavacConverter {
 				}
 			}
 		}
-		siteType.pop();
 		return anon;
 	}
 

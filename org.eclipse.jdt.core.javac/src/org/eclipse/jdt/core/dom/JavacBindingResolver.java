@@ -880,6 +880,7 @@ public class JavacBindingResolver extends BindingResolver {
 	IMethodBinding resolveMethod(MethodInvocation method) {
 		resolve();
 		JCTree javacElement = this.converter.domToJavac.get(method);
+		JCTree initialJavacElement = javacElement;
 		JCTree siteType = null;
 		List<com.sun.tools.javac.code.Type> typeArgs = null;
 		if (javacElement instanceof JCMethodInvocation javacMethodInvocation) {
@@ -955,7 +956,7 @@ public class JavacBindingResolver extends BindingResolver {
 					&& resolveExpressionType(method.getExpression()) instanceof JavacTypeBinding exprType) {
 					parentType = exprType.type;
 				} else {
-					if( siteType != null )
+					if( siteType != null && initialJavacElement instanceof JCMethodInvocation jcmi && jcmi.meth instanceof JCIdent)
 						parentType = siteType.type;
 					else
 						parentType = ownerClass.type;
