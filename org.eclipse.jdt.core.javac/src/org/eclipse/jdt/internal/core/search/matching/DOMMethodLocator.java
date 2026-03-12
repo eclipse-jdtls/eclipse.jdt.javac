@@ -68,6 +68,7 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.internal.SignatureUtils;
 import org.eclipse.jdt.internal.codeassist.DOMCompletionUtils;
+import org.eclipse.jdt.internal.compiler.lookup.TypeConstants;
 import org.eclipse.jdt.internal.core.BinaryMethod;
 import org.eclipse.jdt.internal.core.SourceMethod;
 import org.eclipse.jdt.internal.core.search.BasicSearchEngine;
@@ -895,7 +896,8 @@ public class DOMMethodLocator extends DOMPatternLocator {
 //		String q2 = declBindingClass == null ? null : declBindingClass.getQualifiedName();
 //		String b1 = invocationDeclClass == null ? null : invocationDeclClass.getBinaryName();
 //		String b2 = declBindingClass == null ? null : declBindingClass.getBinaryName();
-		int declaringLevel = resolveLevelForType(this.pattern.declaringSimpleName, this.pattern.declaringQualification, invocationOrDeclarationBinding.getDeclaringClass());
+		ITypeBinding declaringClazzBinding = invocationOrDeclarationBinding.getDeclaringClass();
+		int declaringLevel = resolveLevelForType(this.pattern.declaringSimpleName, this.pattern.declaringQualification, declaringClazzBinding);
 		if (declaringLevel == IMPOSSIBLE_MATCH) {
 			ITypeBinding receiverType = initialReceiverType != null ? initialReceiverType : invocationOrDeclarationBinding.getDeclaringClass();
 			if (shouldResolveSubSuperLevel(messageSend, receiverType, invocationOrDeclarationBinding, invocOrDeclLevel)) {
@@ -1404,7 +1406,18 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		if (isMethodBinding
 			&& (patternHasMethodArgs || patternHasTypeArgs)) {
 			if( mbDeclaringIsRaw || delcaringIsParameterized) {
-				updateMatch(declaring, this.pattern.getTypeArguments(), this.pattern.hasTypeParameters(), 0);
+
+				// TODO call stuff, see MethodLocator
+				// type parameters need to be compared with the class that is really being searched
+				// https://bugs.eclipse.org/375971
+				int subSupRule = (match.getRule() & (SUB_INVOCATION_FLAVOR | OVERRIDDEN_METHOD_FLAVOR));
+				ITypeBinding toUpdateWith = declaring;
+				if( subSupRule != 0 ) {
+					ITypeBinding matchingSubSup = getMatchingSuper(declaring);
+					toUpdateWith = matchingSubSup;
+				}
+
+				updateMatch(toUpdateWith, this.pattern.getTypeArguments(), this.pattern.hasTypeParameters(), 0);
 			} else if( mbIsRaw ) {
 				int rule = match.getRule();
 				rule &= ~SearchPattern.R_FULL_MATCH;
@@ -1434,6 +1447,30 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		}
 		super.reportSearchMatch(locator, node, match);
 	}
+
+	private ITypeBinding getMatchingSuper(ITypeBinding binding) {
+		if (binding == null) return null;
+		ITypeBinding superBinding = binding.getSuperclass();
+		int level = resolveLevelForType(this.pattern.declaringSimpleName, this.pattern.declaringQualification, superBinding);
+		if (level != IMPOSSIBLE_MATCH) return superBinding;
+		// matches superclass
+		char[][] compoundName = Arrays.stream(binding.getName().split("\\.")).map(String::toCharArray).toArray(char[][]::new);
+		if (!binding.isInterface() && !CharOperation.equals(compoundName, TypeConstants.JAVA_LANG_OBJECT)) {
+			superBinding = getMatchingSuper(superBinding);
+			if (superBinding != null) return superBinding;
+		}
+		// matches interfaces
+		ITypeBinding[] interfaces = binding.getInterfaces();
+		if (interfaces == null) return null;
+		for (ITypeBinding ref : interfaces) {
+			level = resolveLevelForType(this.pattern.declaringSimpleName, this.pattern.declaringQualification, ref);
+			if (level != IMPOSSIBLE_MATCH) return ref;
+			superBinding = getMatchingSuper(ref);
+			if (superBinding != null) return superBinding;
+		}
+		return null;
+	}
+
 
 	private boolean preferParamaterizedNode() {
 		int patternRule = this.locator.pattern.getMatchRule();

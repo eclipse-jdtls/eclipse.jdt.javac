@@ -586,9 +586,18 @@ public class DOMPatternLocator extends PatternLocator {
 				int length = argumentsBindings.length;
 				if (length == typeVariables.length) {
 					for (int i=0; i<length; i++) {
-						if (!argumentsBindings[i].isEqualTo(typeVariables[i])) {
-							needUpdate = true;
-							break;
+						if( argumentsBindings[i].isTypeVariable() && typeVariables[i].isTypeVariable()) {
+							String n1 = argumentsBindings[i].getName();
+							String n2 = typeVariables[i].getName();
+							if( !Objects.equals(n1,  n2)) {
+								needUpdate = true;
+								break;
+							}
+						} else {
+							if (!argumentsBindings[i].isEqualTo(typeVariables[i])) {
+								needUpdate = true;
+								break;
+							}
 						}
 					}
 				}

@@ -58,6 +58,7 @@ import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Attribute.Compound;
 import com.sun.tools.javac.code.ClassFinder;
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
@@ -880,6 +881,8 @@ public class JavacBindingResolver extends BindingResolver {
 	IMethodBinding resolveMethod(MethodInvocation method) {
 		resolve();
 		JCTree javacElement = this.converter.domToJavac.get(method);
+		JCTree initialJavacElement = javacElement;
+		JCTree siteType = null;
 		List<com.sun.tools.javac.code.Type> typeArgs = null;
 		if (javacElement instanceof JCMethodInvocation javacMethodInvocation) {
 			typeArgs = List.of();
@@ -894,6 +897,8 @@ public class JavacBindingResolver extends BindingResolver {
 					}
 				}
 			}
+
+			siteType = converter.invocationToSiteType.get(javacMethodInvocation);
 		}
 		// next condition matches `localMethod(this::missingMethod)`
 		var type = javacElement.type;
@@ -953,6 +958,11 @@ public class JavacBindingResolver extends BindingResolver {
 					parentType = exprType.type;
 				} else {
 					parentType = ownerClass.type;
+					boolean isStatic = (sym.flags() & Flags.STATIC) != 0;
+					if( siteType != null && initialJavacElement instanceof JCMethodInvocation jcmi && jcmi.meth instanceof JCIdent && !isStatic) {
+						com.sun.tools.javac.code.Type pt2 = findSiteTypeToUse(jcmi, siteType);
+						parentType = pt2;
+					}
 				}
 			}
 			return this.bindings.getMethodBinding(methodType, methodSymbol, parentType, false, typeArgs);
@@ -1002,6 +1012,17 @@ public class JavacBindingResolver extends BindingResolver {
 		return null;
 	}
 
+
+	private com.sun.tools.javac.code.Type findSiteTypeToUse(JCMethodInvocation jcmi, JCTree siteType) {
+		com.sun.tools.javac.code.Type siteTypeToUse = Types.instance(context)
+			    .asSuper(
+			        siteType.type,
+			        jcmi.meth instanceof JCIdent id ? id.sym.owner :
+			        	jcmi.meth instanceof JCFieldAccess fa ? fa.sym.owner :
+			        null // or throw if unexpected
+			    );
+		return siteTypeToUse;
+	}
 
 	public static List<com.sun.tools.javac.code.Type> inferMethodTypeArguments(JCMethodInvocation call) {
 
