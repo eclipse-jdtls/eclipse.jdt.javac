@@ -58,6 +58,7 @@ import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Attribute.Compound;
 import com.sun.tools.javac.code.ClassFinder;
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
@@ -956,10 +957,10 @@ public class JavacBindingResolver extends BindingResolver {
 					&& resolveExpressionType(method.getExpression()) instanceof JavacTypeBinding exprType) {
 					parentType = exprType.type;
 				} else {
-					if( siteType != null && initialJavacElement instanceof JCMethodInvocation jcmi && jcmi.meth instanceof JCIdent)
+					parentType = ownerClass.type;
+					boolean isStatic = (sym.flags() & Flags.STATIC) != 0;
+					if( siteType != null && initialJavacElement instanceof JCMethodInvocation jcmi && jcmi.meth instanceof JCIdent && !isStatic)
 						parentType = siteType.type;
-					else
-						parentType = ownerClass.type;
 				}
 			}
 			return this.bindings.getMethodBinding(methodType, methodSymbol, parentType, false, typeArgs);
