@@ -959,8 +959,9 @@ public class JavacBindingResolver extends BindingResolver {
 				} else {
 					parentType = ownerClass.type;
 					boolean isStatic = (sym.flags() & Flags.STATIC) != 0;
-					if( siteType != null && initialJavacElement instanceof JCMethodInvocation jcmi && jcmi.meth instanceof JCIdent && !isStatic)
-						parentType = siteType.type;
+					if( siteType != null && initialJavacElement instanceof JCMethodInvocation jcmi && jcmi.meth instanceof JCIdent && !isStatic) {
+						parentType = findSiteTypeToUse(jcmi, siteType);
+					}
 				}
 			}
 			return this.bindings.getMethodBinding(methodType, methodSymbol, parentType, false, typeArgs);
@@ -1010,6 +1011,17 @@ public class JavacBindingResolver extends BindingResolver {
 		return null;
 	}
 
+
+	private com.sun.tools.javac.code.Type findSiteTypeToUse(JCMethodInvocation jcmi, JCTree siteType) {
+		com.sun.tools.javac.code.Type siteTypeToUse = Types.instance(context)
+			    .asSuper(
+			        siteType.type,
+			        jcmi.meth instanceof JCIdent id ? id.sym.owner :
+			        	jcmi.meth instanceof JCFieldAccess fa ? fa.sym.owner :
+			        null // or throw if unexpected
+			    );
+		return siteTypeToUse;
+	}
 
 	public static List<com.sun.tools.javac.code.Type> inferMethodTypeArguments(JCMethodInvocation call) {
 

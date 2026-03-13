@@ -895,7 +895,8 @@ public class DOMMethodLocator extends DOMPatternLocator {
 //		String q2 = declBindingClass == null ? null : declBindingClass.getQualifiedName();
 //		String b1 = invocationDeclClass == null ? null : invocationDeclClass.getBinaryName();
 //		String b2 = declBindingClass == null ? null : declBindingClass.getBinaryName();
-		int declaringLevel = resolveLevelForType(this.pattern.declaringSimpleName, this.pattern.declaringQualification, invocationOrDeclarationBinding.getDeclaringClass());
+		ITypeBinding declaringClazzBinding = invocationOrDeclarationBinding.getDeclaringClass();
+		int declaringLevel = resolveLevelForType(this.pattern.declaringSimpleName, this.pattern.declaringQualification, declaringClazzBinding);
 		if (declaringLevel == IMPOSSIBLE_MATCH) {
 			ITypeBinding receiverType = initialReceiverType != null ? initialReceiverType : invocationOrDeclarationBinding.getDeclaringClass();
 			if (shouldResolveSubSuperLevel(messageSend, receiverType, invocationOrDeclarationBinding, invocOrDeclLevel)) {
