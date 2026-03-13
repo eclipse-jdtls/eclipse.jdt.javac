@@ -678,7 +678,7 @@ public class JavacDiagnosticProblemConverter {
 	}
 	private org.eclipse.jface.text.Position getDiagnosticPosition(JCDiagnostic jcDiagnostic,
 			JCMethodDecl jcMethodDecl, int problemId) {
-		int startPosition = (int) jcDiagnostic.getPosition();
+		int startPosition = jcMethodDecl.getStartPosition();
 		boolean includeLastParenthesis =
 				problemId == IProblem.FinalMethodCannotBeOverridden
 				|| problemId == IProblem.CannotOverrideAStaticMethodWithAnInstanceMethod
