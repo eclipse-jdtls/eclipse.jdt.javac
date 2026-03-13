@@ -237,23 +237,28 @@ public class JavacDiagnosticProblemConverter {
 
 	private JavacProblem[] createDoesNotOverrideAbstractProblems(JCDiagnostic diagnostic) {
 		Object[] args = diagnostic.getArgs();
-		if (args.length >= 2 && args[0] instanceof ClassSymbol classSymbol && args[1] instanceof MethodSymbol methodSymbol) {
+		if (args.length >= 2 && args[0] instanceof ClassSymbol classSymbol) {
 			Types types = Types.instance(this.context);
 			VarSymbol enumConstant = classSymbol.owner instanceof VarSymbol owner && (owner.flags() & Flags.ENUM) != 0 ? owner : null;
-			String enumConstantName = null;
-			if (classSymbol.isEnum() || enumConstant != null) {
-				if (enumConstant != null) {
-					enumConstantName = enumConstant.name.toString();
-				} else {
-					for (Symbol symbol : classSymbol.getEnclosedElements()) {
-						if (symbol instanceof VarSymbol variable && (variable.flags() & Flags.ENUM) != 0) {
-							enumConstantName = variable.name.toString();
-							break;
-						}
+			boolean enumHasAbstractMembers = false;
+			if (classSymbol.isEnum()) {
+				for (Symbol enclosed : classSymbol.getEnclosedElements()) {
+					if (enclosed instanceof MethodSymbol method && (method.flags() & Flags.ABSTRACT) != 0) {
+						enumHasAbstractMembers = true;
+						break;
 					}
-					if (enumConstantName == null) {
-						enumConstantName = classSymbol.name.toString();
+				}
+			}
+			String enumConstantName = enumConstant != null ? enumConstant.name.toString() : null;
+			if (enumConstantName == null && classSymbol != null && classSymbol.isEnum()) {
+				for (Symbol symbol : classSymbol.getEnclosedElements()) {
+					if (symbol instanceof VarSymbol variable && (variable.flags() & Flags.ENUM) != 0) {
+						enumConstantName = variable.name.toString();
+						break;
 					}
+				}
+				if (enumConstantName == null) {
+					enumConstantName = classSymbol.name.toString();
 				}
 			}
 
@@ -307,14 +312,16 @@ public class JavacDiagnosticProblemConverter {
 			List<JavacProblem> allProblems = new ArrayList<>(missingMethods.size());
 			for (MethodSymbol missingMethod : missingMethods) {
 				JavacProblem convertedProblem;
-				if (classSymbol.isEnum() || enumConstant != null) {
+				if (enumConstant != null ||
+					(classSymbol.isEnum() && missingMethod.owner == classSymbol && (missingMethod.flags() & Flags.ABSTRACT) != 0) ||
+					enumHasAbstractMembers) {
 					String[] arguments = new String[] {
 							missingMethod.name.toString(),
 							missingMethod.getParameters().toString(),
 							enumConstantName
 					};
 					convertedProblem = problemIdToJavacProblem(
-						    IProblem.EnumConstantMustImplementAbstractMethod,
+							IProblem.EnumConstantMustImplementAbstractMethod,
 							diagnostic,
 							this.problemFactory.getLocalizedMessage(IProblem.EnumConstantMustImplementAbstractMethod, arguments),
 							arguments);
@@ -327,7 +334,7 @@ public class JavacDiagnosticProblemConverter {
 							classSymbol.toString()
 					};
 					convertedProblem = problemIdToJavacProblem(
-						    IProblem.AbstractMethodMustBeImplemented,
+							IProblem.AbstractMethodMustBeImplemented,
 							diagnostic,
 							this.problemFactory.getLocalizedMessage(IProblem.AbstractMethodMustBeImplemented, arguments),
 							arguments);
@@ -577,6 +584,22 @@ public class JavacDiagnosticProblemConverter {
 					}
 				}
 			}
+			if (problemId == IProblem.AbstractMethodMustBeImplemented
+				&& element instanceof JCVariableDecl variable
+				&& (variable.mods.flags & Flags.ENUM) != 0
+				&& diagnosticPath != null) {
+				TreePath classPath = diagnosticPath;
+				while (classPath != null && !(classPath.getLeaf() instanceof JCClassDecl)) {
+					classPath = classPath.getParentPath();
+				}
+				if (classPath != null && classPath.getLeaf() instanceof JCClassDecl enumDecl) {
+					return getDiagnosticPosition(jcDiagnostic, enumDecl);
+				}
+			}
+			if (problemId == IProblem.AbstractMethodMustBeImplemented
+				&& element instanceof JCClassDecl enumDecl) {
+				return getDiagnosticPosition(jcDiagnostic, enumDecl);
+			}
 			if (problemId == IProblem.UndefinedMethod && element instanceof JCMethodInvocation method
 				&& method.getMethodSelect() instanceof JCIdent name) {
 				element = name;
@@ -813,7 +836,7 @@ public class JavacDiagnosticProblemConverter {
 			.filter(member -> !(member instanceof JCMethodDecl methodDecl && methodDecl.sym != null && (methodDecl.sym.flags() & Flags.GENERATEDCONSTR) != 0))
 			.collect(Collectors.toList());
 		if (startPosition != Position.NOPOS &&
-			(realMembers.isEmpty() || jcClassDecl.getStartPosition() != jcClassDecl.getMembers().get(0).getStartPosition())) {
+			(realMembers.isEmpty() || jcClassDecl.getStartPosition() != jcClassDecl.getMembers().get(0).getStartPosition()) || jcClassDecl.sym.isEnum()) {
 			try {
 				String name = jcClassDecl.getSimpleName().toString();
 				return getDiagnosticPosition(name, startPosition, jcDiagnostic);
