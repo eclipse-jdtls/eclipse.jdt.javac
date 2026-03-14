@@ -960,7 +960,8 @@ public class JavacBindingResolver extends BindingResolver {
 					parentType = ownerClass.type;
 					boolean isStatic = (sym.flags() & Flags.STATIC) != 0;
 					if( siteType != null && initialJavacElement instanceof JCMethodInvocation jcmi && jcmi.meth instanceof JCIdent && !isStatic) {
-						parentType = findSiteTypeToUse(jcmi, siteType);
+						com.sun.tools.javac.code.Type pt2 = findSiteTypeToUse(jcmi, siteType);
+						parentType = pt2;
 					}
 				}
 			}
