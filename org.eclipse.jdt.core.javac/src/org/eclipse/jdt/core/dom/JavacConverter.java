@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.Stack;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -148,12 +149,14 @@ class JavacConverter {
 	private static final String FAKE_IDENTIFIER = new String(RecoveryScanner.FAKE_IDENTIFIER);
 	public final AST ast;
 	final JCCompilationUnit javacCompilationUnit;
+	final String rawText;
 	private final Context context;
 	final Map<ASTNode, JCTree> domToJavac = new HashMap<>();
-	final String rawText;
+	Map<JCMethodInvocation, JCTree> invocationToSiteType = new HashMap<>();
 	final Set<JCDiagnostic> javadocDiagnostics = new HashSet<>();
 	private final List<JavadocConverter> javadocConverters = new ArrayList<>();
 	final List<org.eclipse.jdt.core.dom.Comment> notAttachedComments = new ArrayList<>();
+	private Stack<JCTree> siteType = new Stack<>();
 	private boolean buildJavadoc;
 	private int focalPoint;
 
@@ -619,6 +622,7 @@ class JavacConverter {
 	}
 
 	private AbstractTypeDeclaration convertClassDecl(JCClassDecl javacClassDecl, ASTNode parent, AbstractTypeDeclaration res, boolean parentBodyFilled) {
+		siteType.push(javacClassDecl);
 		commonSettings(res, javacClassDecl);
 		SimpleName simpName = (SimpleName)convertName(javacClassDecl.getSimpleName());
 		if(!(res instanceof ImplicitTypeDeclaration) && simpName != null) {
@@ -758,6 +762,7 @@ class JavacConverter {
 				.filter(Objects::nonNull)
 				.forEach(res.bodyDeclarations()::add);
 		}
+		siteType.pop();
 		return res;
 	}
 
@@ -1341,6 +1346,7 @@ class JavacConverter {
 			return res;
 		}
 		if (javac instanceof JCMethodInvocation methodInvocation) {
+			invocationToSiteType.put(methodInvocation, siteType.peek());
 			JCExpression nameExpr = methodInvocation.getMethodSelect();
 			if (nameExpr instanceof JCFieldAccess access) {
 				// Handle super method calls first
@@ -2315,6 +2321,10 @@ class JavacConverter {
 		}
 		if (javac instanceof JCExpressionStatement jcExpressionStatement) {
 			JCExpression jcExpression = jcExpressionStatement.getExpression();
+			if (jcExpression instanceof JCMethodInvocation jcMethodInvocation1) {
+				invocationToSiteType.put(jcMethodInvocation1, siteType.peek());
+			}
+
 			if (jcExpression instanceof JCMethodInvocation jcMethodInvocation
 				&& jcMethodInvocation.getMethodSelect() instanceof JCIdent methodName
 				&& Objects.equals(methodName.getName(), Names.instance(this.context)._this)) {
