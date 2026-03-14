@@ -21,6 +21,7 @@ pipeline {
 						extensions: [ cloneOption(shallow: true) ],
 						userRemoteConfigs: [[url: 'https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator.git']])
 					sh """#!/bin/bash -x
+						git pull --rebase https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator.git master
 						mkdir -p $WORKSPACE/tmp
 						
 						unset JAVA_TOOL_OPTIONS
