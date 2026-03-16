@@ -45,6 +45,7 @@ import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCTypeCast;
+import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class UnusedProblemFactory {
@@ -214,6 +215,35 @@ public class UnusedProblemFactory {
 			problems.add(problem);
 		}
 
+		return problems;
+	}
+
+	public List<CategorizedProblem> addUnusedTypeParameters(CompilationUnitTree unit, List<JCTypeParameter> unusedTypeParameters) {
+		if (unit == null) {
+			return Collections.emptyList();
+		}
+
+		int severity = this.toSeverity(IProblem.UnusedTypeParameter);
+		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
+			return Collections.emptyList();
+		}
+
+		final char[] fileName = unit.getSourceFile().getName().toCharArray();
+		List<CategorizedProblem> problems = new ArrayList<>();
+		for (JCTypeParameter typeParameter : unusedTypeParameters) {
+			String name = typeParameter.name.toString();
+			int startPos = typeParameter.getStartPosition();
+			int endPos = startPos + name.length() - 1;
+			int line = (int) unit.getLineMap().getLineNumber(startPos);
+			int column = (int) unit.getLineMap().getColumnNumber(startPos);
+			String[] arguments = new String[] { name };
+			CategorizedProblem problem = problemFactory.createProblem(fileName,
+					IProblem.UnusedTypeParameter,
+					arguments,
+					arguments,
+					severity, startPos, endPos, line, column);
+			problems.add(problem);
+		}
 		return problems;
 	}
 

@@ -27,6 +27,7 @@ import javax.lang.model.element.ElementKind;
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
+import com.sun.source.doctree.ParamTree;
 import com.sun.source.doctree.SeeTree;
 import com.sun.source.doctree.ThrowsTree;
 import com.sun.source.tree.AssignmentTree;
@@ -44,12 +45,14 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TryTree;
 import com.sun.source.tree.TypeCastTree;
+import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
+import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.JCPrimitiveType;
@@ -74,6 +77,7 @@ import com.sun.tools.javac.tree.JCTree.JCNewArray;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 import com.sun.tools.javac.tree.JCTree.JCTry;
 import com.sun.tools.javac.tree.JCTree.JCTypeCast;
+import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
@@ -82,6 +86,9 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	final Map<String, List<JCImport>> unusedImports = new LinkedHashMap<>();
 	final List<JCTypeCast> unnecessaryCasts = new ArrayList<>();
 	final List<JCAssign> noEffectAssignments = new ArrayList<>();
+	final Set<Symbol> usedTypeParameters = new HashSet<>();
+	final List<JCTypeParameter> typeParameters = new ArrayList<>();
+	final Map<String, Symbol> typeParameterMap = new LinkedHashMap<>();
 	private CompilationUnitTree unit = null;
 	private boolean classSuppressUnused = false;
 	private boolean methodSuppressUnused = false;
@@ -106,6 +113,7 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 			jcUnit = currentUnit;
 		}
 
+		createTypeParameterMap(tree);
 		if (jcUnit != null && tree instanceof JCTree jcTree) {
 			Comment c = jcUnit.docComments.getComment(jcTree);
 			if (c != null && (c.getStyle() == CommentStyle.JAVADOC_BLOCK || c.getStyle() == CommentStyle.JAVADOC_LINE)) {
@@ -158,6 +166,10 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	public R visitIdentifier(IdentifierTree node, P p) {
 		if (node instanceof JCIdent id && isPrivateSymbol(id.sym) && !this.lhsInAssignment) {
 			this.usedElements.add(id.sym);
+		}
+
+		if (node instanceof JCIdent id && id.sym instanceof TypeVariableSymbol) {
+			this.usedTypeParameters.add(id.sym);
 		}
 
 		if (node instanceof JCIdent id && isMemberSymbol(id.sym)) {
@@ -357,6 +369,27 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 			}
 		}
 		return super.visitTypeCast(node, p);
+	}
+
+	@Override
+	public R visitTypeParameter(TypeParameterTree node, P p) {
+		if (node instanceof JCTypeParameter typeParameter) {
+			this.typeParameters.add(typeParameter);
+		}
+		return super.visitTypeParameter(node, p);
+	}
+
+	private void createTypeParameterMap(Tree tree) {
+		List<JCTypeParameter> declaredTypeParameters = null;
+		if (tree instanceof JCClassDecl classDecl) {
+			declaredTypeParameters = classDecl.typarams;
+		} else if (tree instanceof JCMethodDecl methodDecl) {
+			declaredTypeParameters = methodDecl.typarams;
+		}
+		if (declaredTypeParameters == null) return;
+		for (JCTypeParameter typeParam : declaredTypeParameters) {
+			this.typeParameterMap.put(typeParam.getName().toString(), typeParam.type.tsym);
+		}
 	}
 
 	private JCExpression getExpression(JCExpression expr) {
@@ -569,6 +602,16 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 		return problemFactory.addUnusedPrivateMembers(unit, unusedPrivateMembers);
 	}
 
+	public List<CategorizedProblem> getUnusedTypeParameters(UnusedProblemFactory problemFactory) {
+		List<JCTypeParameter> unusedTypeParameters = new ArrayList<>();
+		for (JCTypeParameter typeParameter : this.typeParameters) {
+			if (!this.usedTypeParameters.contains(typeParameter.type.tsym)) {
+				unusedTypeParameters.add(typeParameter);
+			}
+		}
+		return problemFactory.addUnusedTypeParameters(this.unit, unusedTypeParameters);
+	}
+
 	public List<CategorizedProblem> getNoEffectAssignments(UnusedProblemFactory problemFactory) {
 		return problemFactory.addNoEffectAssignments(unit, this.noEffectAssignments);
 	}
@@ -623,6 +666,17 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 						useImport(ref);
 			}
 			return super.visitThrows(node, p);
+		}
+
+		@Override
+		public R visitParam(ParamTree node, P p) {
+			if (node.isTypeParameter() && node.getName() instanceof com.sun.tools.javac.tree.DCTree.DCIdentifier identifier) {
+				Symbol symbol = UnusedTreeScanner.this.typeParameterMap.get(identifier.toString());
+				if (symbol != null) {
+					UnusedTreeScanner.this.usedTypeParameters.add(symbol);
+				}
+			}
+			return super.visitParam(node, p);
 		}
 
 		private void useImport(com.sun.tools.javac.tree.DCTree.DCReference ref) {
