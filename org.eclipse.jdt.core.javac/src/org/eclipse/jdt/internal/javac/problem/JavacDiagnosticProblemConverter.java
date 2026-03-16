@@ -115,9 +115,6 @@ public class JavacDiagnosticProblemConverter {
 		if (diagnostic instanceof JCDiagnostic jcDiagnostic && COMPILER_ERR_DOES_NOT_OVERRIDE_ABSTRACT.equals(jcDiagnostic.getCode())) {
 			return createDoesNotOverrideAbstractProblems(jcDiagnostic);
 		}
-		if (diagnostic instanceof JCDiagnostic jcDiagnostic && COMPILER_ERR_DOES_NOT_OVERRIDE_ABSTRACT.equals(jcDiagnostic.getCode())) {
-			return createDoesNotOverrideAbstractProblems(jcDiagnostic);
-		}
 		JCDiagnostic nestedDiagnostic = getDiagnosticArgumentByType(diagnostic, JCDiagnostic.class);
 		boolean useNestedDiagnostic = nestedDiagnostic != null
 			&& diagnostic.getCode().equals("compiler.err.invalid.permits.clause")
