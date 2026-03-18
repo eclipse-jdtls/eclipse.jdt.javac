@@ -72,6 +72,7 @@ import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.JCConstantCaseLabel;
 import com.sun.tools.javac.tree.JCTree.JCEnhancedForLoop;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
@@ -630,6 +631,13 @@ public class JavacDiagnosticProblemConverter {
 					}
 				}
 			}
+			if (problemId == IProblem.IllegalQualifiedEnumConstantLabel) {
+				if( current != null && current.getParentPath() != null && current.getParentPath().getLeaf() instanceof JCConstantCaseLabel constantCaseLabel) {
+					int start = constantCaseLabel.pos;
+					int end = constantCaseLabel.getEndPosition(endPos);
+					return new org.eclipse.jface.text.Position(start, end-start);
+				}
+			}
 			if (element != null) {
 				switch (element) {
 					case JCTree.JCTypeApply jcTypeApply: return getPositionByNodeRangeOnly(jcDiagnostic, jcTypeApply.clazz);
@@ -1081,7 +1089,13 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.warn.empty.if" -> IProblem.EmptyControlFlowStatement;
 			case "compiler.warn.redundant.cast" -> -1; // handle manually in UnusedTreeScanner
 			case "compiler.err.illegal.char" -> IProblem.InvalidCharacterConstant;
-			case "compiler.err.enum.label.must.be.unqualified.enum" -> IProblem.UndefinedField;
+			case "compiler.err.enum.label.must.be.unqualified.enum" -> {
+				if (diagnostic instanceof JCDiagnostic jcDiagnostic
+						&& jcDiagnostic.getDiagnosticPosition() instanceof JCFieldAccess) {
+					yield IProblem.IllegalQualifiedEnumConstantLabel;
+				}
+				yield IProblem.UndefinedField;
+			}
 			case "compiler.err.bad.initializer" -> IProblem.ParsingErrorInsertToComplete;
 			case "compiler.err.cant.assign.val.to.var" -> IProblem.FinalFieldAssignment;
 			case "compiler.err.cant.inherit.from.final" -> isInAnonymousClass(diagnostic) ? IProblem.AnonymousClassCannotExtendFinalClass : IProblem.ClassExtendFinalClass;
