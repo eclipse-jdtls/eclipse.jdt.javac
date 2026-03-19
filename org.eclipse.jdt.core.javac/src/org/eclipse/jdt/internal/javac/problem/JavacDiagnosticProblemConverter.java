@@ -889,6 +889,15 @@ public class JavacDiagnosticProblemConverter {
 			&& methodDecl.getBody() != null) {
 			int start = methodDecl.getPreferredPosition();
 			int end = methodDecl.getBody().getStartPosition();
+			try {
+				String content = path.getCompilationUnit().getSourceFile().getCharContent(true).toString();
+				int closeParen = content.lastIndexOf(')', Math.min(end, content.length()) - 1);
+				if (closeParen >= start) {
+					end = closeParen + 1;
+				}
+			} catch (IOException ex) {
+				ILog.get().error(ex.getMessage(), ex);
+			}
 			return start != Position.NOPOS && end != Position.NOPOS && end > start
 					? new org.eclipse.jface.text.Position(start, end - start)
 					: null;
