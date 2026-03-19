@@ -34,6 +34,7 @@ public class JavacCompilationResult extends CompilationResult {
 	private List<CategorizedProblem> unnecessaryCasts = null;
 	private List<CategorizedProblem> noEffectAssignments = null;
 	private List<CategorizedProblem> unclosedCloseables = null;
+	private List<CategorizedProblem> unusedTypeParameters = null;
 	private List<CategorizedProblem> accessRestrictionProblems = null;
 
 	public JavacCompilationResult(ICompilationUnit compilationUnit) {
@@ -106,6 +107,13 @@ public class JavacCompilationResult extends CompilationResult {
 			this.unclosedCloseables = new ArrayList<>();
 		}
 		this.unclosedCloseables.addAll(problems);
+	}
+
+	public void getUnusedTypeParameters(List<CategorizedProblem> problems) {
+		if (this.unusedTypeParameters == null) {
+			this.unusedTypeParameters = new ArrayList<>();
+		}
+		this.unusedTypeParameters.addAll(problems);
 	}
 
 	public void setAccessRestrictionProblems(List<CategorizedProblem> problems) {
