@@ -552,14 +552,25 @@ public class JavacDiagnosticProblemConverter {
 				} else if (problemId == IProblem.SwitchExpressionsYieldMissingDefaultCase
 						&& diagnosticPath.getLeaf() instanceof JCTree.JCSwitchExpression switchExpr) {
 					return getPositionByNodeRangeOnly(jcDiagnostic, switchExpr.selector instanceof JCTree.JCParens parens? parens.expr : switchExpr.selector);
-				} else if (problemId == IProblem.UndefinedConstructor
-						&& diagnosticPath.getParentPath() != null
-						&& (diagnosticPath.getParentPath().getLeaf() instanceof JCNewClass
-							|| (!(diagnosticPath.getLeaf() instanceof JCNewClass) && diagnosticPath.getParentPath().getLeaf() instanceof JCVariableDecl /* case of enum components */))) {
-					return getPositionByNodeRangeOnly(jcDiagnostic, (JCTree)diagnosticPath.getParentPath().getLeaf());
-				} else if (problemId == IProblem.UninitializedBlankFinalField) {
-					org.eclipse.jface.text.Position constructorPosition = getConstructorDiagnosticPosition(diagnosticPath);
-					if (constructorPosition != null) return constructorPosition;
+				} else if (problemId == IProblem.UndefinedConstructor) {
+					if (diagnosticPath.getParentPath() != null && diagnosticPath.getParentPath().getLeaf() instanceof JCNewClass newClass) {
+						return getPositionByNodeRangeOnly(jcDiagnostic, newClass);
+					}
+					if (diagnosticPath.getLeaf() instanceof JCVariableDecl enumConstant && (enumConstant.mods.flags & Flags.ENUM) != 0) {
+						int startPosition = enumConstant.getStartPosition();
+						if (startPosition != Position.NOPOS) {
+							return new org.eclipse.jface.text.Position(startPosition, enumConstant.getName().length());
+						}
+					}
+					if (diagnosticPath.getLeaf() instanceof JCNewClass
+							&& diagnosticPath.getParentPath() != null
+							&& diagnosticPath.getParentPath().getLeaf() instanceof JCVariableDecl enumConstant
+							&& (enumConstant.mods.flags & Flags.ENUM) != 0) {
+						int startPosition = enumConstant.getStartPosition();
+						if (startPosition != Position.NOPOS) {
+							return new org.eclipse.jface.text.Position(startPosition, enumConstant.getName().length());
+						}
+					}
 				}
 			}
 
