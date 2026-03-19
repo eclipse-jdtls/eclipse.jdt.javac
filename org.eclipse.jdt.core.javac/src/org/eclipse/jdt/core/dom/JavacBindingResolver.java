@@ -451,6 +451,7 @@ public class JavacBindingResolver extends BindingResolver {
 			return filterCollectionFindKey(this.variableBindings.values(), key);
 		}
 	}
+
 	public final Bindings bindings = new Bindings();
 	private WorkingCopyOwner owner;
 	private HashMap<ASTNode, IBinding> resolvedBindingsCache = new HashMap<>();
@@ -2071,7 +2072,7 @@ public class JavacBindingResolver extends BindingResolver {
 			recipient = md.resolveBinding();
 		}
 		var javac = this.converter.domToJavac.get(annotation);
-		if (javac instanceof JCAnnotation jcAnnotation && (!jcAnnotation.type.isErroneous() || isRecoveringBindings())) {
+		if (javac instanceof JCAnnotation jcAnnotation && (jcAnnotation.type == null || !jcAnnotation.type.isErroneous() || isRecoveringBindings())) {
 			return this.bindings.getAnnotationBinding(jcAnnotation.attribute, recipient);
 		}
 		return null;
@@ -2458,6 +2459,10 @@ public class JavacBindingResolver extends BindingResolver {
 
 	public String getConverterRawText() {
 		return converter == null ? null : converter.rawText;
+	}
+
+	public CompilationUnit getConverterCompilationUnit() {
+		return this.converter == null ? null : converter.domCompilationUnit;
 	}
 
 	public static ExecutableType asExecutable(com.sun.tools.javac.code.Type t) {

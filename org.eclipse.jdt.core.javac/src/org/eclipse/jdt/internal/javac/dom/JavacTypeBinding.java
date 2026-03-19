@@ -35,6 +35,7 @@ import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.jdt.core.IAnnotatable;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IField;
@@ -266,6 +267,14 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	}
 
 	private IJavaElement computeJavaElement() {
+		ClassSymbol cs1 = this.typeSymbol != null && this.typeSymbol instanceof ClassSymbol cs2 ? cs2 : null;
+		boolean isAnnotation = (cs1 != null && (cs1.type.tsym.flags() & Flags.ANNOTATION) != 0);
+		if( isAnnotation ) {
+			IJavaElement je1 = computeAnnotationJavaElement();
+			if( je1 != null ) {
+				return je1;
+			}
+		}
 		if (isTypeVariable() && this.typeSymbol != null) {
 			if (this.typeSymbol.owner instanceof ClassSymbol ownerSymbol
 					&& ownerSymbol.type != null) {
@@ -282,6 +291,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				}
 			}
 		}
+
 		if (this.resolver.javaProject == null) {
 			return null;
 		}
@@ -400,6 +410,22 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				ILog.get().error(ex.getMessage(), ex);
 			}
 			return resolved(candidate);
+		}
+		return null;
+	}
+
+	private IJavaElement computeAnnotationJavaElement() {
+		if( this.typeSymbol.owner instanceof PackageSymbol ps) {
+			CompilationUnit domCu = this.resolver.getConverterCompilationUnit();
+			IJavaElement cu = domCu.getJavaElement();
+			IJavaElement parentElement = null;
+			if (cu instanceof ICompilationUnit && cu.getElementName().equals("package-info.java")) {
+				String pkgName = this.typeSymbol.owner.getQualifiedName().toString();
+				parentElement =  ((ICompilationUnit) cu).getPackageDeclaration(pkgName);
+				IJavaElement ret = ((IAnnotatable) parentElement).getAnnotation(getName());
+				return ret;
+			}
+
 		}
 		return null;
 	}

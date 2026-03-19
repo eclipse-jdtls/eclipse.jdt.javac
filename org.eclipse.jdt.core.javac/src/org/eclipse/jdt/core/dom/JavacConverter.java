@@ -149,6 +149,7 @@ class JavacConverter {
 	private static final String FAKE_IDENTIFIER = new String(RecoveryScanner.FAKE_IDENTIFIER);
 	public final AST ast;
 	final JCCompilationUnit javacCompilationUnit;
+	CompilationUnit domCompilationUnit;
 	final String rawText;
 	private final Context context;
 	final Map<ASTNode, JCTree> domToJavac = new HashMap<>();
@@ -180,11 +181,17 @@ class JavacConverter {
 
 	CompilationUnit convertCompilationUnit(JCCompilationUnit javacCompilationUnit) {
 		CompilationUnit res = this.ast.newCompilationUnit();
-		populateCompilationUnit(res, javacCompilationUnit);
+		populateCompilationUnitImpl(res, javacCompilationUnit);
+		this.domCompilationUnit = res;
 		return res;
 	}
 
 	void populateCompilationUnit(CompilationUnit res, JCCompilationUnit javacCompilationUnit) {
+		populateCompilationUnitImpl(res, javacCompilationUnit);
+		this.domCompilationUnit = res;
+	}
+
+	void populateCompilationUnitImpl(CompilationUnit res, JCCompilationUnit javacCompilationUnit) {
 		commonSettings(res, javacCompilationUnit);
 		res.setSourceRange(0, this.rawText.length());
 		res.setLineEndTable(toLineEndPosTable(javacCompilationUnit.getLineMap(), res.getLength()));
