@@ -17,12 +17,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up JDK 24 for x64
+      - name: Set up JDK 25 for x64
         uses: actions/setup-java@v4
         with:
-          java-version: '24'
+          java-version: '25'
           distribution: 'temurin'
           architecture: x64
           cache: maven
       - name: Check if code compiles
         run: mvn --batch-mode --update-snapshots compile
+  check-regressing-tests:
+    name: Check for New Passes/Failures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 25 for x64
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          architecture: x64
+          cache: maven
+      - name: Setup JBang
+        uses: jbangdev/setup-jbang@312c53a4221283f9c8e4aa84d8261b82f0c680fb
+      - name: Trust datho7561's Scripts
+        run: jbang trust add https://gist.github.com/datho7561/
+      - name: Run diffing script
+        run: xvfb-run jbang https://gist.github.com/datho7561/a6be9caa9dbf2a69f097bd9a82dfa770 > results.txt
+        continue-on-error: true
+      - name: Cat the results
+        run: cat results.txt
+      - name: Fail if regressing
+        run: "grep 'New failures:' results.txt && exit $(cat results.txt | grep 'New failures:' | sed -n 's/New failures: //p')"
