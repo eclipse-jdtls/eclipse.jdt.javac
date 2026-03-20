@@ -148,6 +148,8 @@ public class JavacResolverTaskListener implements TaskListener {
 				    .getSeverityString(CompilerOptions.UnclosedCloseable).equals(CompilerOptions.IGNORE);
 		boolean unusedTypeParameterIgnored = objectCompilerOptions
 					.getSeverityString(CompilerOptions.UnusedTypeParameter).equals(CompilerOptions.IGNORE);
+		boolean indirectStaticAccessIgnored = objectCompilerOptions
+					.getSeverityString(CompilerOptions.IndirectStaticAccess).equals(CompilerOptions.IGNORE);
 		if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")
 			    && unusedImportIgnored
 			    && unusedPrivateMemberIgnored
@@ -155,17 +157,20 @@ public class JavacResolverTaskListener implements TaskListener {
 				&& unnecessaryTypeCheckIgnored
 				&& noEffectAssignmentIgnored
 				&& unclosedCloseableIgnored
-				&& unusedTypeParameterIgnored) {
+				&& unusedTypeParameterIgnored
+				&& indirectStaticAccessIgnored) {
 			return;
 		}
 
 		// Add all problems related to unused elements to the dom
 		List<IProblem> allUnused = getUnusedElementProblems(e, dom);
 		List<IProblem> accessRestrictions = getAccessRestrictionProblems(e, dom);
+		List<IProblem> indirectStaticAccessProblems = getIndirectStaticAccessProblems(e);
 
 		List<IProblem> combined = new ArrayList<IProblem>();
 		combined.addAll(allUnused);
 		combined.addAll(accessRestrictions);
+		combined.addAll(indirectStaticAccessProblems);
 		addProblemsToDOM(dom,combined);
 
 	}
@@ -187,6 +192,13 @@ public class JavacResolverTaskListener implements TaskListener {
 			return new ArrayList<>(accessScanner.getAccessRestrictionProblems());
 		}
 		return new ArrayList<>();
+	}
+
+	private List<IProblem> getIndirectStaticAccessProblems(TaskEvent e) {
+		IndirectStaticAccessTreeScanner scanner = new IndirectStaticAccessTreeScanner(this.context,
+				new DefaultProblemFactory(), new CompilerOptions(compilerOptions));
+		scanner.scan(e.getCompilationUnit(), null);
+		return new ArrayList<>(scanner.getIndirectStaticAccessProblems());
 	}
 
 	private List<IProblem> getUnusedElementProblems(TaskEvent e, final CompilationUnit dom) {

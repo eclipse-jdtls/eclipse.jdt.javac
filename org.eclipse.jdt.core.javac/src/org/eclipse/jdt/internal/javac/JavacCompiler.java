@@ -111,10 +111,10 @@ public class JavacCompiler extends Compiler {
 				return true;
 			}).toList();
 
-		JavacCompilerTaskListener javacListener = new JavacCompilerTaskListener(this, this.compilerConfig, this.problemFactory, this.fileObjectToCUMap);
+		Context javacContext = new Context();
+		JavacCompilerTaskListener javacListener = new JavacCompilerTaskListener(this, this.compilerConfig, this.problemFactory, this.fileObjectToCUMap, javacContext);
 		int unitIndex = 0;
 		var tool = ToolProvider.getSystemJavaCompiler();
-		Context javacContext = new Context();
 		CacheFSInfo.preRegister(javacContext);
 		ProceedOnErrorTransTypes.preRegister(javacContext);
 		ProceedOnErrorGen.preRegister(javacContext);
