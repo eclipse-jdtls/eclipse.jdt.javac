@@ -1147,9 +1147,11 @@ public class JavacBindingResolver extends BindingResolver {
 		resolve();
 		JCTree javacElement = this.converter.domToJavac.get(method);
 		if (javacElement instanceof JCMethodDecl methodDecl && !(methodDecl.type instanceof ErrorType)) {
+			com.sun.tools.javac.code.Type methodDeclTypeToUse =  methodDecl.type != null ? methodDecl.type : (methodDecl.sym == null ? null : methodDecl.sym.type);
 			if (!this.isRecoveringBindings) {
-				if( methodDecl.type == null || methodDecl.type instanceof ErrorType)
+				if( methodDeclTypeToUse == null || methodDeclTypeToUse instanceof ErrorType)
 					return null;
+
 				if( methodDecl.restype == null || methodDecl.restype.type instanceof ErrorType) {
 					boolean methodDeclNameMatchesInit = Objects.equals(methodDecl.name.toString(), Names.instance(this.context).init.toString());
 					if( !methodDeclNameMatchesInit )
