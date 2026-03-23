@@ -115,6 +115,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.JCTree.JCWildcard;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.Convert;
 import com.sun.tools.javac.util.Names;
 
 /**
@@ -2039,7 +2040,13 @@ public class JavacBindingResolver extends BindingResolver {
 			Names names = Names.instance(context);
 			if (finder != null && modules != null && names != null) {
 				try {
-					ClassSymbol sym = finder.loadClass(modules.getDefaultModule(), names.fromString(typeName));
+					ModuleSymbol msym = modules.getDefaultModule();
+					var flatname = names.fromString(typeName);
+					com.sun.tools.javac.util.Name packageName = Convert.packagePart(flatname);
+					PackageSymbol ps = symtab.lookupPackage(msym, packageName);
+					ClassSymbol sym = symtab.getClass(ps.modle, flatname);
+
+//					ClassSymbol sym2 = finder.loadClass(modules.getDefaultModule(), names.fromString(typeName));
 					if (sym != null) {
 						type = sym.type;
 					}

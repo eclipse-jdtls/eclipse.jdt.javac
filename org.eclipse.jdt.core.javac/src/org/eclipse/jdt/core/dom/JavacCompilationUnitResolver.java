@@ -398,7 +398,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					}
 				}
 			}
-			requestor.acceptBinding(bindingKey, binding);
+			if (binding != null) {
+				requestor.acceptBinding(bindingKey, binding);
+			}
 		}
 
 	}
