@@ -145,7 +145,7 @@ public class JavacBindingResolver extends BindingResolver {
 	public class Bindings {
 		private Map<JavacAnnotationBinding, JavacAnnotationBinding> annotationBindings = new HashMap<>();
 		public JavacAnnotationBinding getAnnotationBinding(Compound ann, IBinding recipient) {
-			if (ann.type.isErroneous() && !isRecoveringBindings()) {
+			if (ann == null || ann.type == null || ( ann.type.isErroneous() && !isRecoveringBindings())) {
 				return null;
 			}
 			JavacAnnotationBinding newInstance = new JavacAnnotationBinding(ann, JavacBindingResolver.this, recipient) { };
