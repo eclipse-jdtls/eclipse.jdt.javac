@@ -21,14 +21,27 @@ import java.util.stream.Collectors;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IAnnotatable;
-import org.eclipse.jdt.core.IAnnotation;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IMember;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Annotation;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMemberValuePairBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.IModuleBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.ModuleDeclaration;
+import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 import com.sun.tools.javac.code.Attribute.Compound;
 
@@ -89,14 +102,67 @@ public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 
 	@Override
 	public IJavaElement getJavaElement() {
-		IBinding recipient = getRecipient();
-		IJavaElement recipientElement = recipient == null ? null : recipient.getJavaElement();
-		if( recipientElement != null && recipientElement instanceof IAnnotatable annot) {
-			IAnnotation found = annot.getAnnotation(getName());
-			if( found != null )
-				return found;
+		ASTNode node = this.resolver.findAstNodeForBinding(this);
+		if (!(node instanceof Annotation)) return null;
+		ASTNode parent = node.getParent();
+		IJavaElement parentElement = null;
+		switch (parent.getNodeType()) {
+		case ASTNode.PACKAGE_DECLARATION:
+			IJavaElement cu = ((CompilationUnit) parent.getParent()).getJavaElement();
+			if (cu instanceof ICompilationUnit) {
+				String pkgName = ((PackageDeclaration) parent).getName().getFullyQualifiedName();
+				parentElement =  ((ICompilationUnit) cu).getPackageDeclaration(pkgName);
+			}
+			break;
+		case ASTNode.ENUM_DECLARATION:
+		case ASTNode.TYPE_DECLARATION:
+		case ASTNode.ANNOTATION_TYPE_DECLARATION:
+			parentElement = ((AbstractTypeDeclaration) parent).resolveBinding().getJavaElement();
+			break;
+		case ASTNode.FIELD_DECLARATION:
+			VariableDeclarationFragment fragment = (VariableDeclarationFragment) ((FieldDeclaration) parent).fragments().get(0);
+			IVariableBinding variableBinding = fragment.resolveBinding();
+			if (variableBinding == null) {
+				return null;
+			}
+			parentElement = variableBinding.getJavaElement();
+			break;
+		case ASTNode.METHOD_DECLARATION:
+				IMethodBinding methodBinding = ((MethodDeclaration) parent).resolveBinding();
+				if (methodBinding == null) return null;
+				parentElement = methodBinding.getJavaElement();
+			break;
+		case ASTNode.MODULE_DECLARATION:
+			IModuleBinding moduleBinding = ((ModuleDeclaration) parent).resolveBinding();
+			if (moduleBinding == null) return null;
+			parentElement = moduleBinding.getJavaElement();
+		break;
+		case ASTNode.VARIABLE_DECLARATION_STATEMENT:
+			fragment = (VariableDeclarationFragment) ((VariableDeclarationStatement) parent).fragments().get(0);
+			variableBinding = fragment.resolveBinding();
+			if (variableBinding == null) {
+				return null;
+			}
+			parentElement = variableBinding.getJavaElement();
+			break;
+		default:
+			return null;
 		}
-		return getAnnotationTypeOptional().map(ITypeBinding::getJavaElement).orElse(null);
+		if (! (parentElement instanceof IAnnotatable)) return null;
+		if ((parentElement instanceof IMember) && ((IMember) parentElement).isBinary()) {
+			return ((IAnnotatable) parentElement).getAnnotation(getAnnotationType().getQualifiedName());
+		}
+		return ((IAnnotatable) parentElement).getAnnotation(getName());
+
+
+//		IBinding recipient = getRecipient();
+//		IJavaElement recipientElement = recipient == null ? null : recipient.getJavaElement();
+//		if( recipientElement != null && recipientElement instanceof IAnnotatable annot) {
+//			IAnnotation found = annot.getAnnotation(getName());
+//			if( found != null )
+//				return found;
+//		}
+//		return getAnnotationTypeOptional().map(ITypeBinding::getJavaElement).orElse(null);
 	}
 
 	@Override

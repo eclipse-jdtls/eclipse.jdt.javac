@@ -123,15 +123,6 @@ import com.sun.tools.javac.util.Names;
  */
 public class JavacBindingResolver extends BindingResolver {
 
-	private JavacTask javacTask; // TODO evaluate memory cost of storing the instance
-	// it will probably be better to run the `Enter` and then only extract interesting
-	// date from it.
-	public final Context context;
-	public Map<Symbol, ASTNode> symbolToDeclaration;
-	public final IJavaProject javaProject;
-	private JavacConverter converter;
-	boolean isRecoveringBindings = false;
-
 	public static class BindingKeyException extends Exception {
 		private static final long serialVersionUID = -4468681148041117634L;
 		public BindingKeyException(Throwable t) {
@@ -463,7 +454,17 @@ public class JavacBindingResolver extends BindingResolver {
 	public final Bindings bindings = new Bindings();
 	private WorkingCopyOwner owner;
 	private HashMap<ASTNode, IBinding> resolvedBindingsCache = new HashMap<>();
+	private Map<IBinding, ASTNode> resolvedBindingsCacheInverted = new HashMap<>();
 	private List<JCCompilationUnit> javacCompilationUnits;
+	private JavacTask javacTask; // TODO evaluate memory cost of storing the instance
+	// it will probably be better to run the `Enter` and then only extract interesting
+	// date from it.
+	public final Context context;
+	public Map<Symbol, ASTNode> symbolToDeclaration;
+	public final IJavaProject javaProject;
+	public JavacConverter converter;
+	boolean isRecoveringBindings = false;
+
 
 	public JavacBindingResolver(IJavaProject javaProject, JavacTask javacTask, Context context, JavacConverter converter, WorkingCopyOwner owner, List<JCCompilationUnit> javacCompilationUnits) {
 		this.javacTask = javacTask;
@@ -547,6 +548,10 @@ public class JavacBindingResolver extends BindingResolver {
 				this.symbolToDeclaration = wipSymbolToDeclaration;
 			}
 		}
+	}
+
+	public ASTNode findAstNodeForBinding(IBinding b) {
+		return resolvedBindingsCacheInverted.get(b);
 	}
 
 	@Override
@@ -1280,6 +1285,7 @@ public class JavacBindingResolver extends BindingResolver {
 		if (res == null) {
 			res = l.apply(node);
 			resolvedBindingsCache.put(node, res);
+			resolvedBindingsCacheInverted.put(res, node);
 		}
 		return res;
 	}
