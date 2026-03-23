@@ -2067,6 +2067,8 @@ public class JavacBindingResolver extends BindingResolver {
 			recipient = ((VariableDeclarationFragment)vds.fragments().get(0)).resolveBinding();
 		} else if (annotation.getParent() instanceof TypeDeclaration td) {
 			recipient = td.resolveBinding();
+		} else if( annotation.getParent() instanceof MethodDeclaration md) {
+			recipient = md.resolveBinding();
 		}
 		var javac = this.converter.domToJavac.get(annotation);
 		if (javac instanceof JCAnnotation jcAnnotation && (!jcAnnotation.type.isErroneous() || isRecoveringBindings())) {
