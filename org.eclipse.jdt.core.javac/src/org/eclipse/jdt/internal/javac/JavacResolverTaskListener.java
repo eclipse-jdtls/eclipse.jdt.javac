@@ -32,9 +32,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
-import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
-import com.sun.tools.javac.main.Arguments;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.tree.JCTree;
@@ -48,8 +46,6 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
-
-import jdk.javadoc.internal.doclint.DocLint;
 
 public class JavacResolverTaskListener implements TaskListener {
 	private final Context context;
@@ -114,14 +110,6 @@ public class JavacResolverTaskListener implements TaskListener {
 
 
 	private void finishedAnalyze(TaskEvent e, JCCompilationUnit u) {
-		var doclintOpts = Arguments.instance(context).getDocLintOpts();
-		if (doclintOpts == null && isInJavadoc(u, focalPoint)) {
-			// resolve doc comment bindings
-			DocLint doclint = (DocLint) DocLint.newDocLint();
-			doclint.init(task, doclintOpts.toArray(new String[doclintOpts.size()]));
-			doclint.scan(TreePath.getPath(u, u));
-		}
-
 		final JavaFileObject file = e.getSourceFile();
 		final CompilationUnit dom = filesToUnits.get(file);
 		if (dom == null) {
