@@ -1494,6 +1494,7 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file" -> JavacProblemIds.AuxiliaryClassAccessedOutsideItsSourceFile;
 			case "compiler.warn.restricted.method" -> IProblem.DiscouragedReference;
 			case "compiler.note.deprecated.filename.additional" -> IProblem.UsingDeprecatedMethod;
+			case "compiler.warn.unreachable.catch" -> IProblem.UnreachableCatch;
 			case "compiler.note.deprecated.recompile" -> -1;
 			default -> {
 				ILog.get().error("Could not accurately convert diagnostic (" + diagnostic.getCode() + ")\n" + diagnostic);
