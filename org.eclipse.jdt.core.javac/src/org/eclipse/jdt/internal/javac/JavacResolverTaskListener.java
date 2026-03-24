@@ -152,23 +152,23 @@ public class JavacResolverTaskListener implements TaskListener {
 					.getSeverityString(CompilerOptions.IndirectStaticAccess).equals(CompilerOptions.IGNORE);
 		boolean unqualifiedFieldAccessIgnored = objectCompilerOptions
 					.getSeverityString(CompilerOptions.UnqualifiedFieldAccess).equals(CompilerOptions.IGNORE);
-		if (!Options.instance(context).get(Option.XLINT_CUSTOM).contains("all")
-			    && unusedImportIgnored
-			    && unusedPrivateMemberIgnored
-			    && unusedLocalVariableIgnored
-				&& unnecessaryTypeCheckIgnored
-				&& noEffectAssignmentIgnored
-				&& unclosedCloseableIgnored
-				&& unusedTypeParameterIgnored
-				&& indirectStaticAccessIgnored
-				&& unqualifiedFieldAccessIgnored) {
+		boolean getAccessRestrictions = Options.instance(context).get(Option.XLINT_CUSTOM).contains("all");
+		boolean getUnusedProblems = !unusedImportIgnored
+				|| !unusedPrivateMemberIgnored
+				|| !unusedLocalVariableIgnored
+				|| !unnecessaryTypeCheckIgnored
+				|| !noEffectAssignmentIgnored
+				|| !unclosedCloseableIgnored
+				|| !unusedTypeParameterIgnored;
+		boolean getCodeStyleProblems = !indirectStaticAccessIgnored || !unqualifiedFieldAccessIgnored;
+		if (!getAccessRestrictions && !getUnusedProblems && !getCodeStyleProblems) {
 			return;
 		}
 
 		// Add all problems related to unused elements to the dom
-		List<IProblem> allUnused = getUnusedElementProblems(e, dom);
-		List<IProblem> accessRestrictions = getAccessRestrictionProblems(e, dom);
-		List<IProblem> codeStyles = getCodeStyleProblems(e);
+		List<IProblem> accessRestrictions = getAccessRestrictions ? getAccessRestrictionProblems(e, dom) : new ArrayList<>();
+		List<IProblem> allUnused = getUnusedProblems ? getUnusedElementProblems(e, dom) : new ArrayList<>();
+		List<IProblem> codeStyles = getCodeStyleProblems ? getCodeStyleProblems(e, !indirectStaticAccessIgnored, !unqualifiedFieldAccessIgnored) : new ArrayList<>();
 
 		List<IProblem> combined = new ArrayList<IProblem>();
 		combined.addAll(allUnused);
@@ -197,7 +197,7 @@ public class JavacResolverTaskListener implements TaskListener {
 		return new ArrayList<>();
 	}
 
-	private List<IProblem> getCodeStyleProblems(TaskEvent e) {
+	private List<IProblem> getCodeStyleProblems(TaskEvent e, boolean getIndirectStaticAccessProblems, boolean getUnqualifiedFieldAccessProblems) {
 		final TypeElement currentTopLevelType = e.getTypeElement();
 		CodeStyleTreeScanner scanner = new CodeStyleTreeScanner(this.context,
 				new DefaultProblemFactory(), new CompilerOptions(compilerOptions)) {
@@ -226,14 +226,18 @@ public class JavacResolverTaskListener implements TaskListener {
 		scanner.scan(unit, null);
 		List<IProblem> allCodeStyleProblems = new ArrayList<>();
 
-		List<CategorizedProblem> indirectStaticAccesses = scanner.getIndirectStaticAccessProblems();
-		if (!indirectStaticAccesses.isEmpty()) {
-			allCodeStyleProblems.addAll(indirectStaticAccesses);
+		if (getIndirectStaticAccessProblems) {
+			List<CategorizedProblem> indirectStaticAccesses = scanner.getIndirectStaticAccessProblems();
+			if (!indirectStaticAccesses.isEmpty()) {
+				allCodeStyleProblems.addAll(indirectStaticAccesses);
+			}
 		}
 
-		List<CategorizedProblem> unqualifiedFieldAccesses = scanner.getUnqualifiedFieldAccessProblems();
-		if (!unqualifiedFieldAccesses.isEmpty()) {
-			allCodeStyleProblems.addAll(unqualifiedFieldAccesses);
+		if (getUnqualifiedFieldAccessProblems) {
+			List<CategorizedProblem> unqualifiedFieldAccesses = scanner.getUnqualifiedFieldAccessProblems();
+			if (!unqualifiedFieldAccesses.isEmpty()) {
+				allCodeStyleProblems.addAll(unqualifiedFieldAccesses);
+			}
 		}
 		return allCodeStyleProblems;
 	}
