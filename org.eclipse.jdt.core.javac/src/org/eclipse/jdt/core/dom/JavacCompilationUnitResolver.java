@@ -76,20 +76,12 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.internal.compiler.CompilationResult;
 import org.eclipse.jdt.internal.compiler.batch.FileSystem.Classpath;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
-import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
 import org.eclipse.jdt.internal.compiler.env.AccessRuleSet;
-import org.eclipse.jdt.internal.compiler.env.IBinaryType;
 import org.eclipse.jdt.internal.compiler.env.IDependent;
-import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
-import org.eclipse.jdt.internal.compiler.env.ISourceType;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
-import org.eclipse.jdt.internal.compiler.impl.ITypeRequestor;
 import org.eclipse.jdt.internal.compiler.impl.ReferenceContext;
-import org.eclipse.jdt.internal.compiler.lookup.LookupEnvironment;
-import org.eclipse.jdt.internal.compiler.lookup.PackageBinding;
 import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
 import org.eclipse.jdt.internal.compiler.util.Util;
-import org.eclipse.jdt.internal.core.CancelableNameEnvironment;
 import org.eclipse.jdt.internal.core.JavaModelManager;
 import org.eclipse.jdt.internal.core.JavaProject;
 import org.eclipse.jdt.internal.core.dom.ICompilationUnitResolver;
@@ -280,41 +272,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			bindingResolver[0] = null;
 
 			final Map<String, IBinding> bindingMap = new HashMap<>();
-			{
-				INameEnvironment environment = null;
-				if (project instanceof JavaProject javaProject) {
-					try {
-						environment = new CancelableNameEnvironment(javaProject, workingCopyOwner, monitor);
-					} catch (JavaModelException e) {
-						// fall through
-					}
-				}
-				if (environment == null) {
-					environment = new NameEnvironmentWithProgress(new Classpath[0], null, monitor);
-				}
-				LookupEnvironment lu = new LookupEnvironment(new ITypeRequestor() {
-
-					@Override
-					public void accept(IBinaryType binaryType, PackageBinding packageBinding,
-							AccessRestriction accessRestriction) {
-						// do nothing
-					}
-
-					@Override
-					public void accept(org.eclipse.jdt.internal.compiler.env.ICompilationUnit unit,
-							AccessRestriction accessRestriction) {
-						// do nothing
-					}
-
-					@Override
-					public void accept(ISourceType[] sourceType, PackageBinding packageBinding,
-							AccessRestriction accessRestriction) {
-						// do nothing
-					}
-
-				}, new CompilerOptions(compilerOptions), null, environment);
-				requestor.additionalBindingResolver = javacAdditionalBindingCreator(bindingMap, environment, lu, bindingResolver);
-			}
+			requestor.additionalBindingResolver = javacAdditionalBindingCreator(bindingMap, bindingResolver);
 
 			units.forEach((a,b) -> {
 				if (bindingResolver[0] == null && b.ast.getBindingResolver() instanceof JavacBindingResolver javacBindingResolver) {
@@ -357,18 +315,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 		for (CompilationUnit cu : units) {
 			cu.accept(new BindingBuilder(bindingMap));
-		}
-
-		INameEnvironment environment = null;
-		if (project instanceof JavaProject javaProject) {
-			try {
-				environment = new CancelableNameEnvironment(javaProject, null, monitor);
-			} catch (JavaModelException e) {
-				// do nothing
-			}
-		}
-		if (environment == null) {
-			environment = new NameEnvironmentWithProgress(cp, null, monitor);
 		}
 
 		// resolve the requested bindings
@@ -1574,7 +1520,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	}
 
-	private static Function<String, IBinding> javacAdditionalBindingCreator(Map<String, IBinding> bindingMap, INameEnvironment environment, LookupEnvironment lu, BindingResolver[] bindingResolverPointer) {
+	private static Function<String, IBinding> javacAdditionalBindingCreator(Map<String, IBinding> bindingMap, BindingResolver[] bindingResolverPointer) {
 
 		return key -> {
 
