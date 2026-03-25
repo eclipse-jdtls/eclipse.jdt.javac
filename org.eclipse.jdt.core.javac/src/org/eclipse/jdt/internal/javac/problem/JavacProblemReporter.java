@@ -5,6 +5,7 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.internal.compiler.IErrorHandlingPolicy;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
@@ -21,6 +22,20 @@ public class JavacProblemReporter extends ProblemHandler {
 		this.referenceContext = referenceContext;
 		this.severityUtility = new ProblemReporter(policy, options, problemFactory);
 	}
+
+	public void assignmentHasNoEffect(VariableDeclarationFragment frag, char[] name){
+		int severity = computeSeverity(IProblem.AssignmentHasNoEffect);
+		if (severity == ProblemSeverities.Ignore) return;
+		String[] arguments = new String[] { new String(name) };
+		this.handle(
+				IProblem.AssignmentHasNoEffect,
+				arguments,
+				arguments,
+				severity,
+				frag.getStartPosition(),
+				frag.getStartPosition() + frag.getLength());
+	}
+
 	public void redundantSpecificationOfTypeArguments(Type location, ITypeBinding[] argumentTypes) {
 		int severity = this.severityUtility.computeSeverity(IProblem.RedundantSpecificationOfTypeArguments);
 		if (severity != ProblemSeverities.Ignore) {

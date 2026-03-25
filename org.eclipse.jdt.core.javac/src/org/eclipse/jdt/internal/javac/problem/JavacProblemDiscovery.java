@@ -1,14 +1,17 @@
 package org.eclipse.jdt.internal.javac.problem;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
-import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
@@ -16,6 +19,7 @@ import org.eclipse.jdt.core.dom.JdtCoreDomPackagePrivateUtility;
 import org.eclipse.jdt.core.dom.MarkerAnnotation;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.ParameterizedType;
+import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -27,11 +31,21 @@ import org.eclipse.jdt.internal.javac.dom.JavacTypeBinding;
 
 public class JavacProblemDiscovery extends ASTVisitor {
 	private JavacProblemReporter reporter = null;
+	private CompilationUnit currentCU = null;
 	public JavacProblemDiscovery(Map<String, String> compilerOptions, ReferenceContext referenceContext) {
 		reporter = new JavacProblemReporter(DefaultErrorHandlingPolicies.proceedWithAllProblems(),
 				new CompilerOptions(compilerOptions),
 				new DefaultProblemFactory(Locale.getDefault()), referenceContext);
 	}
+
+
+
+	@Override
+	public boolean visit(CompilationUnit cu) {
+		currentCU = cu;
+		return true;
+	}
+
 	@Override
 	public boolean visit(ParameterizedType node) {
 		ASTNode parent = node.getParent();
@@ -63,11 +77,20 @@ public class JavacProblemDiscovery extends ASTVisitor {
 	}
 
 	@Override
-	public boolean visit(Assignment node) {
-		// TODO
-//		if( node.getOperator() == Assignment.Operator.ASSIGN ) {
-//			return true;
-//		}
+	public boolean visit(VariableDeclarationFragment frag) {
+		int fragStart = frag.getStartPosition();
+		IProblem match = Arrays.asList(currentCU.getProblems()).stream()
+				.filter(x -> x.getID() == IProblem.UninitializedLocalVariable && x.getSourceStart() == fragStart).findFirst().orElse(null);
+		if( match != null ) {
+			if( frag.getInitializer() != null && frag.getInitializer() instanceof SimpleName sn) {
+				SimpleName lhs = frag.getName();
+				IBinding lhsBinding = lhs.resolveBinding();
+				IBinding rhsBinding = sn.resolveBinding();
+				if( lhsBinding == rhsBinding) {
+					reporter.assignmentHasNoEffect(frag, lhs.getIdentifier().toCharArray());
+				}
+			}
+		}
 		return true;
 	}
 

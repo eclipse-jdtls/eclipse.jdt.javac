@@ -1136,7 +1136,7 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.warn.underscore.as.identifier" -> IProblem.IllegalUseOfUnderscoreAsAnIdentifier;
 			case "compiler.err.var.might.not.have.been.initialized" -> {
 				VarSymbol symbol = getDiagnosticArgumentByType(diagnostic, VarSymbol.class);
-				yield symbol.owner instanceof ClassSymbol ?
+				yield symbol != null && symbol.owner instanceof ClassSymbol ?
 						IProblem.UninitializedBlankFinalField :
 						IProblem.UninitializedLocalVariable;
 			}
