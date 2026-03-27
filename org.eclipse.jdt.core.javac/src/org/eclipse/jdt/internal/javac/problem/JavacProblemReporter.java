@@ -69,7 +69,7 @@ public class JavacProblemReporter extends ProblemHandler {
 			0,
 			new String[] { binding.getName(), typesAsString(binding, true),
 					binding.getDeclaringClass().getName(), },
-			severity, method.getName().getStartPosition(), method.getStartPosition() + method.getLength() - 1);
+			severity, method.getName().getStartPosition(), method.getName().getStartPosition() + method.getName().getLength() - 1);
 	}
 
 	public void missingOverrideAnnotationForInterfaceMethodImplementation(MethodDeclaration method) {
