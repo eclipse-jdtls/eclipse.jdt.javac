@@ -944,16 +944,23 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public IVariableBinding[] getDeclaredFields() {
-		if (this.typeSymbol.members() == null) {
-			return new IVariableBinding[0];
-		}
-		return StreamSupport.stream(this.typeSymbol.members().getSymbols().spliterator(), false)
-			.filter(VarSymbol.class::isInstance)
-			.map(VarSymbol.class::cast)
-			.filter(sym -> sym.name != this.names.error)
-			.map(varSym -> this.resolver.bindings.getVariableBinding(varSym))
-			.filter(Objects::nonNull)
-			.toArray(IVariableBinding[]::new);
+	    if (this.typeSymbol.members() == null) {
+	        return new IVariableBinding[0];
+	    }
+
+	    List<IVariableBinding> fields = StreamSupport.stream(this.typeSymbol.members().getSymbols().spliterator(), false)
+	        .filter(VarSymbol.class::isInstance)
+	        .map(VarSymbol.class::cast)
+	        .filter(sym -> sym.name != this.names.error)
+	        .map(varSym -> this.resolver.bindings.getVariableBinding(varSym))
+	        .filter(Objects::nonNull)
+	        .collect(Collectors.toList());
+
+	    if (isEnum()) {
+	        Collections.reverse(fields);
+	    }
+
+	    return fields.toArray(IVariableBinding[]::new);
 	}
 
 	@Override

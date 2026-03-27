@@ -4,6 +4,7 @@ import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.internal.compiler.IErrorHandlingPolicy;
@@ -161,6 +162,25 @@ public class JavacProblemReporter extends ProblemHandler {
 		return buffer.toString();
 	}
 
+	public void missingEnumConstantInSwitch(SwitchStatement statement, String enumTypeName, String missingConstant) {
+	    int severity = this.severityUtility.computeSeverity(IProblem.MissingEnumConstantCase);
+	    if (severity == ProblemSeverities.Ignore) {
+	        return;
+	    }
+
+	    int sourceStart = statement.getExpression().getStartPosition();
+	    int sourceEnd = statement.getExpression().getStartPosition() + statement.getExpression().getLength() - 1;
+
+	    String[] arguments = new String[] { enumTypeName, missingConstant };
+
+	    this.handle(
+	            IProblem.MissingEnumConstantCase,
+	            arguments,
+	            arguments,
+	            severity,
+	            sourceStart,
+	            sourceEnd);
+	}
 
 
 	// use this private API when the compilation unit result can be found through the
