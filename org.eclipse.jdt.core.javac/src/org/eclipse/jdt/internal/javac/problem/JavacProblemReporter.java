@@ -162,7 +162,7 @@ public class JavacProblemReporter extends ProblemHandler {
 		return buffer.toString();
 	}
 
-	public void missingEnumConstantsInSwitch(SwitchStatement statement, String[] missingConstants) {
+	public void missingEnumConstantInSwitch(SwitchStatement statement, String enumTypeName, String missingConstant) {
 	    int severity = this.severityUtility.computeSeverity(IProblem.MissingEnumConstantCase);
 	    if (severity == ProblemSeverities.Ignore) {
 	        return;
@@ -171,15 +171,16 @@ public class JavacProblemReporter extends ProblemHandler {
 	    int sourceStart = statement.getExpression().getStartPosition();
 	    int sourceEnd = statement.getExpression().getStartPosition() + statement.getExpression().getLength() - 1;
 
+	    String[] arguments = new String[] { enumTypeName, missingConstant };
+
 	    this.handle(
 	            IProblem.MissingEnumConstantCase,
-	            missingConstants,
-	            missingConstants,
+	            arguments,
+	            arguments,
 	            severity,
 	            sourceStart,
 	            sourceEnd);
 	}
-
 
 
 	// use this private API when the compilation unit result can be found through the

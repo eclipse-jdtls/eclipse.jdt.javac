@@ -22,7 +22,6 @@ import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JdtCoreDomPackagePrivateUtility;
 import org.eclipse.jdt.core.dom.MarkerAnnotation;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SwitchCase;
@@ -211,6 +210,7 @@ public class JavacProblemDiscovery extends ASTVisitor {
 
 	    Set<String> handledConstants = new LinkedHashSet<>();
 	    boolean hasDefault = false;
+	    boolean hasInvalidCaseLabel = false;
 
 	    for (Object stmtObj : node.statements()) {
 	        if (stmtObj instanceof SwitchCase sc) {
@@ -223,12 +223,24 @@ public class JavacProblemDiscovery extends ASTVisitor {
 	            List<Expression> expressions = sc.expressions();
 
 	            for (Expression caseExpr : expressions) {
-	                if (caseExpr instanceof Name name) {
-	                    IBinding b = name.resolveBinding();
-	                    if (b instanceof IVariableBinding vb && vb.isEnumConstant()) {
-	                        handledConstants.add(vb.getName());
-	                    }
+	                if (!(caseExpr instanceof SimpleName simpleName)) {
+	                    hasInvalidCaseLabel = true;
+	                    continue;
 	                }
+
+	                IBinding b = simpleName.resolveBinding();
+	                if (!(b instanceof IVariableBinding vb) || !vb.isEnumConstant()) {
+	                    hasInvalidCaseLabel = true;
+	                    continue;
+	                }
+
+	                ITypeBinding declaringType = vb.getDeclaringClass();
+	                if (declaringType == null || !declaringType.isEqualTo(typeBinding)) {
+	                    hasInvalidCaseLabel = true;
+	                    continue;
+	                }
+
+	                handledConstants.add(vb.getName());
 	            }
 	        }
 	    }
@@ -236,8 +248,11 @@ public class JavacProblemDiscovery extends ASTVisitor {
 	    Set<String> missing = new LinkedHashSet<>(enumConstants);
 	    missing.removeAll(handledConstants);
 
-	    if (!missing.isEmpty() && !hasDefault) {
-	        reporter.missingEnumConstantsInSwitch(node, missing.toArray(new String[0]));
+	    if (!missing.isEmpty() && !hasDefault && !hasInvalidCaseLabel) {
+	        String enumTypeName = typeBinding.getName();
+	        for (String missingConstant : missing) {
+	            reporter.missingEnumConstantInSwitch(node, enumTypeName, missingConstant);
+	        }
 	    }
 
 	    return true;
