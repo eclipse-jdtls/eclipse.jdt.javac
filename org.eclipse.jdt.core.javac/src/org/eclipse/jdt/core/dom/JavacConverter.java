@@ -41,6 +41,7 @@ import org.eclipse.jdt.core.dom.PrimitiveType.Code;
 import org.eclipse.jdt.internal.codeassist.DOMCodeSelector;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.parser.RecoveryScanner;
+import org.eclipse.jdt.internal.javac.JavacUtils;
 
 import com.sun.source.tree.CaseTree.CaseKind;
 import com.sun.source.tree.ModuleTree.ModuleKind;
@@ -631,9 +632,9 @@ class JavacConverter {
 			if (javacClassDecl.getModifiers() != null) {
 				searchNameFrom = Math.max(searchNameFrom, TreeInfo.getEndPos(javacClassDecl.getModifiers(), this.javacCompilationUnit.endPositions));
 			}
-			int namePosition = this.rawText.indexOf(simpName.getIdentifier(), searchNameFrom);
-			if (namePosition >= 0) {
-				simpName.setSourceRange(namePosition, simpName.getIdentifier().length());
+			int[] nameMatch = JavacUtils.findMatch(this.rawText, simpName.getIdentifier(), searchNameFrom, this.rawText.length());
+			if (nameMatch != null) {
+				simpName.setSourceRange(nameMatch[0], nameMatch[1]);
 			} else if (!MISSING_IDENTIFIER.equals(simpName.getFullyQualifiedName())) {
 				// lombok case
 				if (DOMCodeSelector.isGenerated(res)) {
@@ -3548,9 +3549,9 @@ class JavacConverter {
 		@Override
 		public boolean visit(QualifiedName node) {
 			if (node.getStartPosition() < 0) {
-				int foundOffset = findPositionOfText(node.getFullyQualifiedName(), node.getParent(), siblingsOf(node));
-				if (foundOffset >= 0) {
-					node.setSourceRange(foundOffset, node.getFullyQualifiedName().length());
+				int[] match = findPositionOfText(node.getFullyQualifiedName(), node.getParent(), siblingsOf(node));
+				if (match != null) {
+					node.setSourceRange(match[0], match[1]);
 				}
 			}
 			return true;
@@ -3568,9 +3569,9 @@ class JavacConverter {
 		@Override
 		public boolean visit(SimpleName name) {
 			if (name.getStartPosition() < 0 && ! FAKE_IDENTIFIER.equals(name.getIdentifier())) {
-				int foundOffset = findPositionOfText(name.getIdentifier(), name.getParent(), siblingsOf(name));
-				if (foundOffset >= 0) {
-					name.setSourceRange(foundOffset, name.getIdentifier().length());
+				int[] match = findPositionOfText(name.getIdentifier(), name.getParent(), siblingsOf(name));
+				if (match != null) {
+					name.setSourceRange(match[0], match[1]);
 				}
 			}
 			return false;
@@ -3614,31 +3615,28 @@ class JavacConverter {
 			}
 		}
 
-		private int findPositionOfText(String text, ASTNode in, List<ASTNode> excluding) {
+		private int[] findPositionOfText(String text, ASTNode in, List<ASTNode> excluding) {
 			int current = in.getStartPosition();
 			PriorityQueue<ASTNode> excluded = new PriorityQueue<>(Comparator.comparing(ASTNode::getStartPosition));
 			if( current == -1 ) {
-				return -1;
+				return null;
 			}
 			if (excluded.isEmpty()) {
-				int position = this.contents.indexOf(text, current, current + in.getLength());
-				if (position >= 0) {
-					return position;
-				}
+				return JavacUtils.findMatch(this.contents, text, current, current + in.getLength());
 			} else {
 				ASTNode currentExclusion = null;
 				while ((currentExclusion = excluded.poll()) != null) {
 					if (currentExclusion.getStartPosition() >= current) {
 						int rangeEnd = currentExclusion.getStartPosition();
-						int position = this.contents.indexOf(text, current, rangeEnd);
-						if (position >= 0) {
+						int[] position = JavacUtils.findMatch(this.contents, text, current, rangeEnd);
+						if (position != null) {
 							return position;
 						}
 						current = rangeEnd + currentExclusion.getLength();
 					}
 				}
 			}
-			return -1;
+			return null;
 		}
 	}
 

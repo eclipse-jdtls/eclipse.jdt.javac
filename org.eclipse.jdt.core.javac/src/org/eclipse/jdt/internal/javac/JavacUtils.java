@@ -553,4 +553,55 @@ public class JavacUtils {
 		return false;
 
 	}
+
+	public static int[] findMatch(String content, String text, int searchStart, int searchEnd) {
+		int directMatch = content.indexOf(text, searchStart, searchEnd);
+		if (directMatch >= 0) {
+			return new int[] { directMatch, text.length() };
+		}
+		for (int offset = searchStart; offset < searchEnd; offset++) {
+			int cursor = offset;
+			boolean matches = true;
+			for (int i = 0; i < text.length(); i++) {
+				int nextCursor = findCharacterMatch(content, text.charAt(i), cursor, searchEnd);
+				if (nextCursor < 0) {
+					matches = false;
+					break;
+				}
+				cursor = nextCursor;
+			}
+			if (matches) {
+				return new int[] { offset, cursor - offset };
+			}
+		}
+		return null;
+	}
+
+	private static int findCharacterMatch(String content, char expected, int cursor, int searchEnd) {
+		if (cursor >= searchEnd) {
+			return -1;
+		}
+		char sourceChar = content.charAt(cursor);
+		int sourceLength = 1;
+		if (sourceChar == '\\' && cursor + 1 < searchEnd && content.charAt(cursor + 1) == 'u') {
+			int hexOffset = cursor + 2;
+			while (hexOffset < searchEnd && content.charAt(hexOffset) == 'u') {
+				hexOffset++;
+			}
+			if (hexOffset + 4 > searchEnd) {
+				return -1;
+			}
+			int value = 0;
+			for (int i = hexOffset; i < hexOffset + 4; i++) {
+				int digit = Character.digit(content.charAt(i), 16);
+				if (digit < 0) {
+					return -1;
+				}
+				value = (value << 4) + digit;
+			}
+			sourceChar = (char) value;
+			sourceLength = hexOffset + 4 - cursor;
+		}
+		return sourceChar == expected ? cursor + sourceLength : -1;
+	}
 }

@@ -44,6 +44,7 @@ import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
 import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
+import org.eclipse.jdt.internal.javac.JavacUtils;
 
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.Tree;
@@ -952,12 +953,9 @@ public class JavacDiagnosticProblemConverter {
 		if (name != null && !name.isEmpty()) {
 			String content = loadDocumentText(jcDiagnostic);
 			if (content != null && content.length() > startPosition) {
-				String temp = content.substring(startPosition);
-				int ind = temp.indexOf(name);
-				if (ind >= 0) {
-					int offset = startPosition + ind;
-					int length = name.length();
-					return new org.eclipse.jface.text.Position(offset, length);
+				int[] match = JavacUtils.findMatch(content, name, startPosition, content.length());
+				if (match != null) {
+					return new org.eclipse.jface.text.Position(match[0], match[1]);
 				}
 			}
 		}
