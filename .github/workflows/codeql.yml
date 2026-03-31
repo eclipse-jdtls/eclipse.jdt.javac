@@ -2,12 +2,38 @@ name: CodeQL call
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
   schedule:
     - cron: '15 8 * * 1'
 
 jobs:
-  callCodeQLworkflow:
-    uses: eclipse-platform/eclipse.platform.releng.aggregator/.github/workflows/codeQLworkflow.yml@master
+  CodeQL:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: manual
+      - name: Set up JDK 26 for x64
+        uses: actions/setup-java@v4
+        with:
+          java-version: '26'
+          distribution: 'temurin'
+          architecture: x64
+          cache: maven
+      - name: Build the code
+        run: mvn --batch-mode --update-snapshots compile
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:java-kotlin"

@@ -10,7 +10,7 @@ pipeline {
 	}
 	tools {
 		maven 'apache-maven-latest'
-		jdk 'openjdk-jdk25-latest'
+		jdk 'openjdk-jdk26-latest'
 	}
 	stages {
 		stage('Fetch and install forked tests') {
