@@ -2028,8 +2028,10 @@ public class DOMCompletionEngine implements ICompletionEngine {
 			expectedConstructorTypeBinding = this.expectedTypes.getExpectedTypes().get(0);
 		}
 		if (expectedConstructorTypeBinding != null) {
-			completeConstructor(expectedConstructorTypeBinding, classInstanceCreation, this.javaProject, exactType);
-			if (classInstanceCreation.getType().getStartPosition() + classInstanceCreation.getType().getLength() < this.offset) {
+			if (!this.requestor.isIgnored(CompletionProposal.CONSTRUCTOR_INVOCATION)) {
+				completeConstructor(expectedConstructorTypeBinding, classInstanceCreation, this.javaProject, exactType);
+			}
+			if (!this.requestor.isIgnored(CompletionProposal.CONSTRUCTOR_INVOCATION) && classInstanceCreation.getType().getStartPosition() + classInstanceCreation.getType().getLength() < this.offset) {
 				List<CompletionProposal> expectedProposals = defaultCompletionBindings.toProposals(true).toList();
 				expectedProposals.forEach(this.requestor::accept);
 			}
@@ -2058,7 +2060,9 @@ public class DOMCompletionEngine implements ICompletionEngine {
 					}) //
 					.forEach(this.requestor::accept);
 		}
-		suggestDefaultCompletions = false;
+		if (!this.requestor.isIgnored(CompletionProposal.CONSTRUCTOR_INVOCATION) || !!this.requestor.isIgnored(CompletionProposal.TYPE_REF)) {
+			suggestDefaultCompletions = false;
+		}
 	}
 
 	private void completeMethodDeclaration(MethodDeclaration methodDeclaration) {
