@@ -50,7 +50,8 @@ import com.sun.tools.javac.util.Options;
 public class JavacResolverTaskListener implements TaskListener {
 	private final Context context;
 	private final JavacDiagnosticProblemConverter problemConverter;
-	private final Map<String, String> compilerOptions;
+	private final CompilerOptions compilerOptions;
+	private final DefaultProblemFactory problemFactory;
 	private final IJavaProject javaProject;
 	private final UnusedProblemFactory unusedProblemFactory;
 	private final JavacTask task;
@@ -63,7 +64,8 @@ public class JavacResolverTaskListener implements TaskListener {
 			JavacTask task, int focalPoint, Map<JavaFileObject, CompilationUnit> filesToUnits, int flags) {
 		this.context = context;
 		this.problemConverter = problemConverter;
-		this.compilerOptions = compilerOptions;
+		this.compilerOptions = new CompilerOptions(compilerOptions);
+		this.problemFactory = new DefaultProblemFactory();
 		this.javaProject = javaProject;
 		this.unusedProblemFactory = unusedProblemFactory;
 		this.task = task;
@@ -121,25 +123,26 @@ public class JavacResolverTaskListener implements TaskListener {
 		}
 
 		// check if the diagnostics are actually enabled before trying to collect them
-		var objectCompilerOptions = new CompilerOptions(compilerOptions);
-		boolean unusedImportIgnored = objectCompilerOptions
+		boolean unusedImportIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.UnusedImport).equals(CompilerOptions.IGNORE);
-		boolean unusedPrivateMemberIgnored = objectCompilerOptions
+		boolean unusedPrivateMemberIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.UnusedPrivateMember).equals(CompilerOptions.IGNORE);
-		boolean unusedLocalVariableIgnored = objectCompilerOptions
+		boolean unusedLocalVariableIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.UnusedLocalVariable).equals(CompilerOptions.IGNORE);
-		boolean unnecessaryTypeCheckIgnored = objectCompilerOptions
+		boolean unnecessaryTypeCheckIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.UnnecessaryTypeCheck).equals(CompilerOptions.IGNORE);
-		boolean noEffectAssignmentIgnored = objectCompilerOptions
+		boolean noEffectAssignmentIgnored = this.compilerOptions
 				    .getSeverityString(CompilerOptions.NoEffectAssignment).equals(CompilerOptions.IGNORE);
-		boolean unclosedCloseableIgnored = objectCompilerOptions
+		boolean unclosedCloseableIgnored = this.compilerOptions
 				    .getSeverityString(CompilerOptions.UnclosedCloseable).equals(CompilerOptions.IGNORE);
-		boolean unusedTypeParameterIgnored = objectCompilerOptions
+		boolean unusedTypeParameterIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.UnusedTypeParameter).equals(CompilerOptions.IGNORE);
-		boolean indirectStaticAccessIgnored = objectCompilerOptions
+		boolean indirectStaticAccessIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.IndirectStaticAccess).equals(CompilerOptions.IGNORE);
-		boolean unqualifiedFieldAccessIgnored = objectCompilerOptions
+		boolean unqualifiedFieldAccessIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.UnqualifiedFieldAccess).equals(CompilerOptions.IGNORE);
+		boolean deadCodeIgnored = this.compilerOptions
+					.getSeverityString(CompilerOptions.DeadCode).equals(CompilerOptions.IGNORE);
 
 		boolean getAccessRestrictions = Options.instance(context).get(Option.XLINT_CUSTOM).contains("all");
 		boolean getUnusedProblems = !unusedImportIgnored
@@ -150,7 +153,10 @@ public class JavacResolverTaskListener implements TaskListener {
 				|| !unclosedCloseableIgnored
 				|| !unusedTypeParameterIgnored;
 		boolean getCodeStyleProblems = !indirectStaticAccessIgnored || !unqualifiedFieldAccessIgnored;
-		if (!getAccessRestrictions && !getUnusedProblems && !getCodeStyleProblems) {
+		if (!getAccessRestrictions
+				&& !getUnusedProblems
+				&& !getCodeStyleProblems
+				&& !deadCodeIgnored) {
 			return;
 		}
 
@@ -164,11 +170,15 @@ public class JavacResolverTaskListener implements TaskListener {
 		List<IProblem> codeStyles = getCodeStyleProblems
 				? getCodeStyleProblems(e, !indirectStaticAccessIgnored, !unqualifiedFieldAccessIgnored)
 				: new ArrayList<>();
+		List<IProblem> deadCodes = !deadCodeIgnored
+				? getDeadCodeProblems(e)
+				: new ArrayList<>();
 
 		List<IProblem> combined = new ArrayList<IProblem>();
 		combined.addAll(allUnused);
 		combined.addAll(accessRestrictions);
 		combined.addAll(codeStyles);
+		combined.addAll(deadCodes);
 		addProblemsToDOM(dom,combined);
 
 	}
@@ -179,8 +189,7 @@ public class JavacResolverTaskListener implements TaskListener {
 			try {
 				INameEnvironment environment = new SearchableEnvironment(internalJavaProject,
 						(WorkingCopyOwner) null, false, JavaProject.NO_RELEASE);
-				accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(),
-						new CompilerOptions(compilerOptions));
+				accessScanner = new AccessRestrictionTreeScanner(environment, this.problemFactory, this.compilerOptions);
 				accessScanner.scan(e.getCompilationUnit(), null);
 			} catch (JavaModelException javaModelException) {
 				// do nothing
@@ -194,8 +203,7 @@ public class JavacResolverTaskListener implements TaskListener {
 
 	private List<IProblem> getCodeStyleProblems(TaskEvent e, boolean getIndirectStaticAccessProblems, boolean getUnqualifiedFieldAccessProblems) {
 		final TypeElement currentTopLevelType = e.getTypeElement();
-		CodeStyleTreeScanner scanner = new CodeStyleTreeScanner(this.context,
-				new DefaultProblemFactory(), new CompilerOptions(compilerOptions)) {
+		CodeStyleTreeScanner scanner = new CodeStyleTreeScanner(this.context, this.problemFactory, this.compilerOptions) {
 			@Override
 			public Void visitClass(ClassTree node, Void p) {
 				if (node instanceof JCClassDecl classDecl) {
@@ -235,6 +243,34 @@ public class JavacResolverTaskListener implements TaskListener {
 			}
 		}
 		return allCodeStyleProblems;
+	}
+
+	private List<IProblem> getDeadCodeProblems(TaskEvent e) {
+		final TypeElement currentTopLevelType = e.getTypeElement();
+		DeadCodeTreeScanner scanner = new DeadCodeTreeScanner(this.problemFactory, this.compilerOptions) {
+			@Override
+			public Void visitClass(ClassTree node, Void p) {
+				if (node instanceof JCClassDecl classDecl) {
+					/**
+					 * If a Java file contains multiple top-level types, it will trigger multiple
+					 * ANALYZE taskEvents for the same compilation unit. Each ANALYZE taskEvent
+					 * corresponds to the completion of analysis for a single top-level type.
+					 * Therefore, in the ANALYZE task event listener, we only visit the class and
+					 * nested classes that belong to the currently analyzed top-level type.
+					 */
+					if (Objects.equals(currentTopLevelType, classDecl.sym)
+							|| !(classDecl.sym.owner instanceof PackageSymbol)) {
+						return super.visitClass(node, p);
+					} else {
+						return null; // Skip if it does not belong to the currently analyzed top-level type.
+					}
+				}
+
+				return super.visitClass(node, p);
+			}
+		};
+		scanner.scan(e.getCompilationUnit(), null);
+		return new ArrayList<>(scanner.getDeadCodeProblems());
 	}
 
 	private List<IProblem> getUnusedElementProblems(TaskEvent e, final CompilationUnit dom,

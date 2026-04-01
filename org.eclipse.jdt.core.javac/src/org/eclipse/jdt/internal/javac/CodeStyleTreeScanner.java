@@ -113,8 +113,7 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 						fieldAccess,
 						IProblem.IndirectAccessToStaticField,
 						new String[] { declaringTypeName, fieldName },
-						new String[] { shortDeclaringTypeName, fieldName },
-						toSeverity(IProblem.IndirectAccessToStaticField));
+						new String[] { shortDeclaringTypeName, fieldName });
 				this.indirectStaticAccessProblems.add(problem);
 			} else if (fieldAccess.sym instanceof MethodSymbol method) {
 				String parameters = getParameterTypes(method);
@@ -125,8 +124,7 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 						fieldAccess,
 						IProblem.IndirectAccessToStaticMethod,
 						new String[] { declaringTypeName, methodName, parameters },
-						new String[] { shortDeclaringTypeName, methodName, parameters },
-						toSeverity(IProblem.IndirectAccessToStaticMethod));
+						new String[] { shortDeclaringTypeName, methodName, parameters });
 				this.indirectStaticAccessProblems.add(problem);
 			}
 		}
@@ -146,8 +144,7 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 					ident,
 					IProblem.UnqualifiedFieldAccess,
 					new String[] { declaringTypeName, fieldName },
-					new String[] { shortDeclaringTypeName, fieldName },
-					toSeverity(IProblem.UnqualifiedFieldAccess));
+					new String[] { shortDeclaringTypeName, fieldName });
 			this.unqualifiedFieldAccessProblems.add(problem);
 		}
 	}
@@ -160,7 +157,7 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 		return this.unqualifiedFieldAccessProblems;
 	}
 
-	private CategorizedProblem toCategorizedProblem(JCFieldAccess fieldAccess, int problemId, String[] problemArguments, String[] messageArguments, int severity) {
+	private CategorizedProblem toCategorizedProblem(JCFieldAccess fieldAccess, int problemId, String[] problemArguments, String[] messageArguments) {
 		char[] fileName = this.unit.getSourceFile().getName().toCharArray();
 		int startPos = fieldAccess.selected.getEndPosition(this.unit.endPositions) + 1;
 		int endPos = startPos + fieldAccess.name.length() - 1;
@@ -170,10 +167,12 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 					problemId,
 					problemArguments,
 					messageArguments,
-					severity, startPos, endPos, line, column);
+					toSeverity(problemId),
+					startPos, endPos,
+					line, column);
 	}
 
-	private CategorizedProblem toCategorizedProblem(JCIdent ident, int problemId, String[] problemArguments, String[] messageArguments, int severity) {
+	private CategorizedProblem toCategorizedProblem(JCIdent ident, int problemId, String[] problemArguments, String[] messageArguments) {
 		char[] fileName = this.unit.getSourceFile().getName().toCharArray();
 		int startPos = ident.getStartPosition();
 		int endPos = startPos + ident.name.length() - 1;
@@ -183,7 +182,9 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 				problemId,
 				problemArguments,
 				messageArguments,
-				severity, startPos, endPos, line, column);
+				toSeverity(problemId),
+				startPos, endPos,
+				line, column);
 	}
 
 	private String getParameterTypes(MethodSymbol method) {

@@ -39,6 +39,7 @@ public class JavacCompilationResult extends CompilationResult {
 	private List<CategorizedProblem> accessRestrictionProblems = null;
 	private List<CategorizedProblem> indirectStaticAccessProblems = null;
 	private List<CategorizedProblem> unqualifiedFieldAccessProblems = null;
+	private List<CategorizedProblem> deadCodeProblems = null;
 
 	public JavacCompilationResult(ICompilationUnit compilationUnit) {
 		this(compilationUnit, 0, 0, Integer.MAX_VALUE);
@@ -149,6 +150,13 @@ public class JavacCompilationResult extends CompilationResult {
 		this.unqualifiedFieldAccessProblems.addAll(problems);
 	}
 
+	public void addDeadCodeProblems(List<CategorizedProblem> problems) {
+		if (this.deadCodeProblems == null) {
+			this.deadCodeProblems = new ArrayList<>();
+		}
+		this.deadCodeProblems.addAll(problems);
+	}
+
 	public List<CategorizedProblem> getAdditionalProblems() {
 		if (this.unusedMembers == null
 				&& this.unusedLocalVariables == null
@@ -159,7 +167,8 @@ public class JavacCompilationResult extends CompilationResult {
 				&& this.unusedTypeParameters == null
 				&& this.accessRestrictionProblems == null
 				&& this.indirectStaticAccessProblems == null
-				&& this.unqualifiedFieldAccessProblems == null) {
+				&& this.unqualifiedFieldAccessProblems == null
+				&& this.deadCodeProblems == null) {
 			return null;
 		}
 
@@ -193,6 +202,9 @@ public class JavacCompilationResult extends CompilationResult {
 		}
 		if (this.unqualifiedFieldAccessProblems != null) {
 			problems.addAll(this.unqualifiedFieldAccessProblems);
+		}
+		if (this.deadCodeProblems != null) {
+			problems.addAll(this.deadCodeProblems);
 		}
 		return problems;
 	}

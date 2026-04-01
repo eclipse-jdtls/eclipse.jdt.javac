@@ -142,6 +142,7 @@ public class JavacCompilerTaskListener implements TaskListener {
 			boolean getAccessRestrictions = Options.instance(context).get(Option.XLINT_CUSTOM).contains("all");
 			boolean getIndirectStaticAccessProblems = this.javacCompiler.options.getSeverity(CompilerOptions.IndirectStaticAccess) != ProblemSeverities.Ignore;
 			boolean getUnqualifiedFieldAccessProblems = this.javacCompiler.options.getSeverity(CompilerOptions.UnqualifiedFieldAccess) != ProblemSeverities.Ignore;
+			boolean getDeadCodeProblems = this.javacCompiler.options.getSeverity(CompilerOptions.DeadCode) != ProblemSeverities.Ignore;
 
 			UnusedTreeScanner<Void, Void> unusedTreeScanner = null;
 			if (getUnusedPrivateMembers || getUnusedLocalVariables || getUnusedImports || getUnnecessaryCasts
@@ -329,6 +330,34 @@ public class JavacCompilerTaskListener implements TaskListener {
 				codeStyleScanner.scan(unit, null);
 			}
 
+			DeadCodeTreeScanner deadCodeScanner = null;
+			if (getDeadCodeProblems) {
+				deadCodeScanner = new DeadCodeTreeScanner(this.problemFactory, this.javacCompiler.options) {
+					@Override
+					public Void visitClass(ClassTree node, Void p) {
+						if (node instanceof JCClassDecl classDecl) {
+							/**
+							 * If a Java file contains multiple top-level types, it will
+							 * trigger multiple ANALYZE taskEvents for the same compilation
+							 * unit. Each ANALYZE taskEvent corresponds to the completion
+							 * of analysis for a single top-level type. Therefore, in the
+							 * ANALYZE task event listener, we only visit the class and nested
+							 * classes that belong to the currently analyzed top-level type.
+							 */
+							if (Objects.equals(currentTopLevelType, classDecl.sym)
+									|| !(classDecl.sym.owner instanceof PackageSymbol)) {
+								return super.visitClass(node, p);
+							} else {
+								return null; // Skip if it does not belong to the currently analyzed top-level type.
+							}
+						}
+
+						return super.visitClass(node, p);
+					}
+				};
+				deadCodeScanner.scan(unit, null);
+			}
+
 			if (unusedTreeScanner != null) {
 				if (getUnusedPrivateMembers) {
 					result.addUnusedMembers(unusedTreeScanner.getUnusedPrivateMembers(this.unusedProblemFactory));
@@ -362,6 +391,9 @@ public class JavacCompilerTaskListener implements TaskListener {
 				if (getUnqualifiedFieldAccessProblems) {
 					result.addUnqualifiedFieldAccessProblems(codeStyleScanner.getUnqualifiedFieldAccessProblems());
 				}
+			}
+			if (deadCodeScanner != null) {
+				result.addDeadCodeProblems(deadCodeScanner.getDeadCodeProblems());
 			}
 		}
 	}
