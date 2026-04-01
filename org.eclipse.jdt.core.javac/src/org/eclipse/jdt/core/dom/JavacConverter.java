@@ -478,7 +478,10 @@ class JavacConverter {
 		if( javac != null ) {
 			int start = javac.getStartPosition();
 			if (start >= 0) {
-				int endPos = javac.getEndPosition(this.javacCompilationUnit.endPositions);
+				int endPos = -1;
+				if (this.javacCompilationUnit.endPositions != null) {
+					endPos = javac.getEndPosition(this.javacCompilationUnit.endPositions);
+				}
 				if( endPos < 0 ) {
 					endPos = start + javac.toString().length();
 				}

@@ -55,7 +55,7 @@
 				<configuration>
 					<toolchains>
 						<jdk>
-							<id>JavaSE-25</id>
+							<id>JavaSE-26</id>
 						</jdk>
 					</toolchains>
 				</configuration>
@@ -65,7 +65,7 @@
 				<artifactId>target-platform-configuration</artifactId>
 				<version>${tycho-version}</version>
 				<configuration>
-					<executionEnvironment>JavaSE-25</executionEnvironment>
+					<executionEnvironment>JavaSE-26</executionEnvironment>
 				</configuration>
 			</plugin>
 			<plugin>
