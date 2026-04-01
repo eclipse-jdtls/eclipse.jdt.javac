@@ -112,13 +112,17 @@ public class JavacLambdaBinding extends JavacMethodBinding {
 		if( this.jcLambda != null ) {
 			allFound = true;
 			List<Type> paramTypes = jcLambda.params.stream().map(p -> p.sym.type).toList();
-			for (int i = 0; i < res.length; i++) {
+			int count = Math.min(res.length, paramTypes.size());
+			for (int i = 0; i < count; i++) {
 				Type paramType = paramTypes.get(i);
 				ITypeBinding paramBinding = this.resolver.bindings.getTypeBinding(paramType);
 				if (paramBinding == null) {
 					allFound = false;
 				}
 				res[i] = paramBinding;
+			}
+			if (count != res.length) {
+			    allFound = false;
 			}
 		}
 
