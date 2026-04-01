@@ -84,21 +84,29 @@ public abstract class JavacPackageBinding implements IPackageBinding {
 
 	@Override
 	public IJavaElement getJavaElement() {
-		System.err.println("Hardocded binding->IJavaElement to 1st package");
 		if (this.resolver.javaProject == null) {
 			return null;
 		}
 		try {
 			IPackageFragmentRoot[] roots = this.resolver.javaProject.getAllPackageFragmentRoots();
 			String qName = this.getQualifiedNameInternal();
+			String moduleName = this.packageSymbol.modle.isUnnamed() ? null : this.packageSymbol.modle.getQualifiedName().toString();
 			IJavaElement ret = Arrays.stream(roots)
+				.filter(root -> {
+					if (moduleName == null) {
+						return root.getModuleDescription() == null;
+					}
+					if (root.getModuleDescription() == null) {
+						return false;
+					}
+					return root.getModuleDescription().getElementName().equals(moduleName);
+				})
 				.map(root -> root.getPackageFragment(qName))
 				.filter(Objects::nonNull)
 				.filter(IPackageFragment::exists)
 				.findFirst()
 				.orElse(null);
 
-			// TODO need to make sure the package is accessible in the module. :|
 			return ret;
 		} catch (JavaModelException e) {
 			// TODO Auto-generated catch block
