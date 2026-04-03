@@ -1106,16 +1106,15 @@ class JavacConverter {
 		res.modifiers().addAll(convert(javac.getModifiers(), res));
 
 		JCTree type = javac.getType();
-		if (type instanceof JCAnnotatedType annotatedType) {
-			annotatedType.getAnnotations().stream()
-				.map(this::convert)
-				.forEach(res.varargsAnnotations()::add);
-			type = annotatedType.getUnderlyingType();
-		}
-
-		if ( (javac.mods.flags & VARARGS) != 0) {
+		if ((javac.mods.flags & VARARGS) != 0) {
+			if (type instanceof JCAnnotatedType annotatedType) {
+				annotatedType.getAnnotations().stream()
+					.map(this::convert)
+					.forEach(res.varargsAnnotations()::add);
+				type = annotatedType.getUnderlyingType();
+			}
 			// We have varity
-			if(type instanceof JCArrayTypeTree arr) {
+			if (type instanceof JCArrayTypeTree arr) {
 				type = unwrapDimensions(arr, 1);
 			}
 			res.setVarargs(true);
