@@ -15,21 +15,21 @@ package org.eclipse.jdt.internal.javac;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.lang.model.element.TypeElement;
+
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
-import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
-import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
+import org.eclipse.jdt.internal.javac.JavacUtils;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ConditionalExpressionTree;
-import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCConditional;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 
-class DeadCodeTreeScanner extends TreeScanner<Void, Void> {
+class DeadCodeTreeScanner extends TopLevelTreeScanner<Void, Void> {
 
 	private final IProblemFactory problemFactory;
 	private final CompilerOptions compilerOptions;
@@ -38,7 +38,8 @@ class DeadCodeTreeScanner extends TreeScanner<Void, Void> {
 
 	private JCCompilationUnit unit = null;
 
-	DeadCodeTreeScanner(IProblemFactory problemFactory, CompilerOptions compilerOptions) {
+	DeadCodeTreeScanner(IProblemFactory problemFactory, CompilerOptions compilerOptions, TypeElement currentTopLevelType) {
+		super(currentTopLevelType);
 		this.problemFactory = problemFactory;
 		this.compilerOptions = compilerOptions;
 	}
@@ -83,19 +84,8 @@ class DeadCodeTreeScanner extends TreeScanner<Void, Void> {
 				problemId,
 				new String[0],
 				new String[0],
-				toSeverity(problemId),
+				JavacUtils.toSeverity(this.compilerOptions, problemId),
 				startPos, endPos,
 				line, column);
-	}
-
-	private int toSeverity(int jdtProblemId) {
-		int irritant = ProblemReporter.getIrritant(jdtProblemId);
-		if (irritant != 0) {
-			int res = this.compilerOptions.getSeverity(irritant);
-			res &= ~ProblemSeverities.Optional; // reject optional flag at this stage
-			return res;
-		}
-
-		return ProblemSeverities.Warning;
 	}
 }

@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
 
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
@@ -47,7 +48,6 @@ import com.sun.source.tree.TryTree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -80,7 +80,7 @@ import com.sun.tools.javac.tree.JCTree.JCTypeCast;
 import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
-public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
+public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 	final Set<Tree> privateDecls = new LinkedHashSet<>();
 	final Set<Symbol> usedElements = new HashSet<>();
 	final Map<String, List<JCImport>> unusedImports = new LinkedHashMap<>();
@@ -100,6 +100,10 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	private int callableDepth = 0;
 
 	private final UnusedDocTreeScanner unusedDocTreeScanner = new UnusedDocTreeScanner();
+
+	public UnusedTreeScanner(TypeElement currentTopLevelType) {
+		super(currentTopLevelType);
+	}
 
 	@Override
 	public R scan(Tree tree, P p) {

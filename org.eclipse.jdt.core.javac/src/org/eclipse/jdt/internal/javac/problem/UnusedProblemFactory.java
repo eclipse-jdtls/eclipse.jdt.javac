@@ -29,8 +29,8 @@ import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
-import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
+import org.eclipse.jdt.internal.javac.JavacUtils;
 import org.eclipse.jdt.internal.javac.UnusedTreeScanner.CloseableState;
 
 import com.sun.source.tree.CompilationUnitTree;
@@ -64,7 +64,7 @@ public class UnusedProblemFactory {
 	}
 
 	public List<CategorizedProblem> addUnusedImports(CompilationUnitTree unit, Map<String, List<JCImport>> unusedImports) {
-		int severity = this.toSeverity(IProblem.UnusedImport);
+		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnusedImport);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return Collections.emptyList();
 		}
@@ -122,7 +122,7 @@ public class UnusedProblemFactory {
 		for (Tree decl : unusedPrivateDecls) {
 			CategorizedProblem problem = null;
 			if (decl instanceof JCClassDecl classDecl) {
-				int severity = this.toSeverity(IProblem.UnusedPrivateType);
+				int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnusedPrivateType);
 				if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 					continue;
 				}
@@ -159,7 +159,7 @@ public class UnusedProblemFactory {
 			} else if (decl instanceof JCMethodDecl methodDecl) {
 				int problemId = methodDecl.sym.isConstructor() ? IProblem.UnusedPrivateConstructor
 						: IProblem.UnusedPrivateMethod;
-				int severity = this.toSeverity(problemId);
+				int severity = JavacUtils.toSeverity(this.compilerOptions, problemId);
 				if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 					continue;
 				}
@@ -195,7 +195,7 @@ public class UnusedProblemFactory {
 				String[] arguments = new String[] {
 					typeName, name
 				};
-				int severity = this.toSeverity(IProblem.UnusedPrivateField);
+				int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnusedPrivateField);
 				if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 					continue;
 				}
@@ -234,7 +234,7 @@ public class UnusedProblemFactory {
 				problemId = IProblem.ExceptionParameterIsNeverUsed;
 			}
 
-			int severity = this.toSeverity(problemId);
+			int severity = JavacUtils.toSeverity(this.compilerOptions, problemId);
 			if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 				continue;
 			}
@@ -253,7 +253,7 @@ public class UnusedProblemFactory {
 			return Collections.emptyList();
 		}
 
-		int severity = this.toSeverity(IProblem.UnusedTypeParameter);
+		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnusedTypeParameter);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return Collections.emptyList();
 		}
@@ -278,7 +278,7 @@ public class UnusedProblemFactory {
 	}
 
 	public List<CategorizedProblem> addUnnecessaryCasts(CompilationUnitTree unit, List<JCTypeCast> unnecessaryCasts) {
-		int severity = this.toSeverity(IProblem.UnnecessaryCast);
+		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnnecessaryCast);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return Collections.emptyList();
 		}
@@ -308,7 +308,7 @@ public class UnusedProblemFactory {
 	}
 
 	public List<CategorizedProblem> addNoEffectAssignments(CompilationUnitTree unit, List<JCAssign> noEffectAssignments) {
-		int severity = this.toSeverity(IProblem.AssignmentHasNoEffect);
+		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.AssignmentHasNoEffect);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return Collections.emptyList();
 		}
@@ -346,7 +346,7 @@ public class UnusedProblemFactory {
 			Symbol symbol = entry.getKey();
 			CloseableState problemInfo = entry.getValue();
 			int problemId = problemInfo.potential() ? IProblem.PotentiallyUnclosedCloseable : IProblem.UnclosedCloseable;
-			int severity = this.toSeverity(problemId);
+			int severity = JavacUtils.toSeverity(this.compilerOptions, problemId);
 			if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) continue;
 
 			String varName = symbol.name.toString();
@@ -385,16 +385,5 @@ public class UnusedProblemFactory {
 		}
 
 		return mergedMap;
-	}
-
-	private int toSeverity(int jdtProblemId) {
-		int irritant = ProblemReporter.getIrritant(jdtProblemId);
-		if (irritant != 0) {
-			int res = this.compilerOptions.getSeverity(irritant);
-			res &= ~ProblemSeverities.Optional; // reject optional flag at this stage
-			return res;
-		}
-
-		return ProblemSeverities.Warning;
 	}
 }

@@ -26,8 +26,7 @@ import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
 import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
 import org.eclipse.jdt.internal.compiler.env.NameEnvironmentAnswer;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
-import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
-import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
+import org.eclipse.jdt.internal.javac.JavacUtils;
 
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.LinkTree;
@@ -392,7 +391,7 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 
 		this.accessRestrictionProblems.add(this.problemFactory.createProblem(unit.getSourceFile().getName().toCharArray(), //
 				IProblem.UnusedWarningToken, //
-				UNNECESSARY_SUPPRESS_ARGS, 0, UNNECESSARY_SUPPRESS_ARGS, toSeverity(IProblem.UnusedWarningToken), //
+				UNNECESSARY_SUPPRESS_ARGS, 0, UNNECESSARY_SUPPRESS_ARGS, JavacUtils.toSeverity(this.compilerOptions, IProblem.UnusedWarningToken), //
 				startPos, endPos, line, column));
 	}
 
@@ -434,7 +433,7 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		int realProblemId = problemId & 0xFFFF;
 
 		String simpleName = getSimpleNameFromFQN(fqn);
-		int severity = toSeverity(problemId);
+		int severity = JavacUtils.toSeverity(this.compilerOptions, problemId);
 
 		int line = unit.getLineMap().getLineNumber(startPos);
 		int column = unit.getLineMap().getColumnNumber(startPos);
@@ -475,16 +474,6 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		return currentUnitName;
 	}
 
-	private int toSeverity(int jdtProblemId) {
-		int irritant = ProblemReporter.getIrritant(jdtProblemId);
-		if (irritant != 0) {
-			int res = this.compilerOptions.getSeverity(irritant);
-			res &= ~ProblemSeverities.Optional; // reject optional flag at this stage
-			return res;
-		}
-
-		return ProblemSeverities.Warning;
-	}
 
 	private static String toDisplayString(Symbol.MethodSymbol sym) {
 		StringBuilder builder = new StringBuilder();

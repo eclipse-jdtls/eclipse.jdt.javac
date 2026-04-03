@@ -26,13 +26,11 @@ import org.eclipse.jdt.internal.core.SearchableEnvironment;
 import org.eclipse.jdt.internal.javac.problem.JavacDiagnosticProblemConverter;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
-import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
-import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.tree.JCTree;
@@ -161,9 +159,11 @@ public class JavacResolverTaskListener implements TaskListener {
 		}
 
 		// Add all problems related to unused elements to the dom
-		List<IProblem> accessRestrictions = getAccessRestrictions ? getAccessRestrictionProblems(e, dom) : new ArrayList<>();
+		List<IProblem> accessRestrictions = getAccessRestrictions
+				? getAccessRestrictionProblems(e)
+				: new ArrayList<>();
 		List<IProblem> allUnused = getUnusedProblems
-				? getUnusedElementProblems(e, dom,
+				? getUnusedElementProblems(e,
 					!unusedPrivateMemberIgnored, !unusedLocalVariableIgnored, !unusedImportIgnored, !unnecessaryTypeCheckIgnored,
 					!noEffectAssignmentIgnored, !unclosedCloseableIgnored, !unusedTypeParameterIgnored)
 				: new ArrayList<>();
@@ -183,7 +183,7 @@ public class JavacResolverTaskListener implements TaskListener {
 
 	}
 
-	private List<IProblem> getAccessRestrictionProblems(TaskEvent e, CompilationUnit dom) {
+	private List<IProblem> getAccessRestrictionProblems(TaskEvent e) {
 		AccessRestrictionTreeScanner accessScanner = null;
 		if (javaProject instanceof JavaProject internalJavaProject) {
 			try {
@@ -203,28 +203,7 @@ public class JavacResolverTaskListener implements TaskListener {
 
 	private List<IProblem> getCodeStyleProblems(TaskEvent e, boolean getIndirectStaticAccessProblems, boolean getUnqualifiedFieldAccessProblems) {
 		final TypeElement currentTopLevelType = e.getTypeElement();
-		CodeStyleTreeScanner scanner = new CodeStyleTreeScanner(this.context, this.problemFactory, this.compilerOptions) {
-			@Override
-			public Void visitClass(ClassTree node, Void p) {
-				if (node instanceof JCClassDecl classDecl) {
-					/**
-					 * If a Java file contains multiple top-level types, it will trigger multiple
-					 * ANALYZE taskEvents for the same compilation unit. Each ANALYZE taskEvent
-					 * corresponds to the completion of analysis for a single top-level type.
-					 * Therefore, in the ANALYZE task event listener, we only visit the class and
-					 * nested classes that belong to the currently analyzed top-level type.
-					 */
-					if (Objects.equals(currentTopLevelType, classDecl.sym)
-							|| !(classDecl.sym.owner instanceof PackageSymbol)) {
-						return super.visitClass(node, p);
-					} else {
-						return null; // Skip if it does not belong to the currently analyzed top-level type.
-					}
-				}
-
-				return super.visitClass(node, p);
-			}
-		};
+		CodeStyleTreeScanner scanner = new CodeStyleTreeScanner(this.context, this.problemFactory, this.compilerOptions, currentTopLevelType);
 		final CompilationUnitTree unit = e.getCompilationUnit();
 		scanner.scan(unit, null);
 		List<IProblem> allCodeStyleProblems = new ArrayList<>();
@@ -247,58 +226,16 @@ public class JavacResolverTaskListener implements TaskListener {
 
 	private List<IProblem> getDeadCodeProblems(TaskEvent e) {
 		final TypeElement currentTopLevelType = e.getTypeElement();
-		DeadCodeTreeScanner scanner = new DeadCodeTreeScanner(this.problemFactory, this.compilerOptions) {
-			@Override
-			public Void visitClass(ClassTree node, Void p) {
-				if (node instanceof JCClassDecl classDecl) {
-					/**
-					 * If a Java file contains multiple top-level types, it will trigger multiple
-					 * ANALYZE taskEvents for the same compilation unit. Each ANALYZE taskEvent
-					 * corresponds to the completion of analysis for a single top-level type.
-					 * Therefore, in the ANALYZE task event listener, we only visit the class and
-					 * nested classes that belong to the currently analyzed top-level type.
-					 */
-					if (Objects.equals(currentTopLevelType, classDecl.sym)
-							|| !(classDecl.sym.owner instanceof PackageSymbol)) {
-						return super.visitClass(node, p);
-					} else {
-						return null; // Skip if it does not belong to the currently analyzed top-level type.
-					}
-				}
-
-				return super.visitClass(node, p);
-			}
-		};
+		DeadCodeTreeScanner scanner = new DeadCodeTreeScanner(this.problemFactory, this.compilerOptions, currentTopLevelType);
 		scanner.scan(e.getCompilationUnit(), null);
 		return new ArrayList<>(scanner.getDeadCodeProblems());
 	}
 
-	private List<IProblem> getUnusedElementProblems(TaskEvent e, final CompilationUnit dom,
+	private List<IProblem> getUnusedElementProblems(TaskEvent e,
 			boolean getUnusedPrivateMembers, boolean getUnusedLocalVariables, boolean getUnusedImports, boolean getUnnecessaryCasts,
 			boolean getNoEffectAssignments, boolean getUnclosedCloseables, boolean getUnusedTypeParameters) {
 		final TypeElement currentTopLevelType = e.getTypeElement();
-		UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>() {
-			@Override
-			public Void visitClass(ClassTree node, Void p) {
-				if (node instanceof JCClassDecl classDecl) {
-					/**
-					 * If a Java file contains multiple top-level types, it will trigger multiple
-					 * ANALYZE taskEvents for the same compilation unit. Each ANALYZE taskEvent
-					 * corresponds to the completion of analysis for a single top-level type.
-					 * Therefore, in the ANALYZE task event listener, we only visit the class and
-					 * nested classes that belong to the currently analyzed top-level type.
-					 */
-					if (Objects.equals(currentTopLevelType, classDecl.sym)
-							|| !(classDecl.sym.owner instanceof PackageSymbol)) {
-						return super.visitClass(node, p);
-					} else {
-						return null; // Skip if it does not belong to the currently analyzed top-level type.
-					}
-				}
-
-				return super.visitClass(node, p);
-			}
-		};
+		UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>(currentTopLevelType);
 		final CompilationUnitTree unit = e.getCompilationUnit();
 		try {
 			scanner.scan(unit, null);
@@ -368,8 +305,8 @@ public class JavacResolverTaskListener implements TaskListener {
 		return allUnusedProblems;
 	}
 
-	private static void addProblemsToDOM(CompilationUnit dom, List<IProblem> accessRestrictionProblems) {
-		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, new ArrayList<>(accessRestrictionProblems));
+	private static void addProblemsToDOM(CompilationUnit dom, List<IProblem> problems) {
+		JdtCoreDomPackagePrivateUtility.addProblemsToDOM(dom, new ArrayList<>(problems));
 	}
 
 	private static class TrimUnvisibleContentScanner extends TreeScanner {

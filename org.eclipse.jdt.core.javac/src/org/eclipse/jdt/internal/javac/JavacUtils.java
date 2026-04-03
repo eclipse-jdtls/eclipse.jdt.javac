@@ -49,6 +49,8 @@ import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
+import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import org.eclipse.jdt.internal.core.ClasspathEntry;
 import org.eclipse.jdt.internal.core.JavaProject;
 
@@ -599,5 +601,16 @@ public class JavacUtils {
 			sourceLength = hexOffset + 4 - cursor;
 		}
 		return sourceChar == expected ? cursor + sourceLength : -1;
+	}
+
+	public static int toSeverity(CompilerOptions compilerOptions, int jdtProblemId) {
+		int irritant = ProblemReporter.getIrritant(jdtProblemId);
+		if (irritant != 0) {
+			int res = compilerOptions.getSeverity(irritant);
+			res &= ~ProblemSeverities.Optional; // reject optional flag at this stage
+			return res;
+		}
+
+		return ProblemSeverities.Warning;
 	}
 }

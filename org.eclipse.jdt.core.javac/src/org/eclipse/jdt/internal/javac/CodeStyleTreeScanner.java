@@ -17,18 +17,18 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
+import javax.lang.model.element.TypeElement;
+
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
-import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
-import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
+import org.eclipse.jdt.internal.javac.JavacUtils;
 
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
@@ -40,7 +40,7 @@ import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
 import com.sun.tools.javac.util.Context;
 
-public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
+public class CodeStyleTreeScanner extends TopLevelTreeScanner<Void, Void> {
 
 	private final IProblemFactory problemFactory;
 	private final CompilerOptions compilerOptions;
@@ -52,7 +52,8 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 
 	private JCCompilationUnit unit = null;
 
-	CodeStyleTreeScanner(Context context, IProblemFactory problemFactory, CompilerOptions compilerOptions) {
+	CodeStyleTreeScanner(Context context, IProblemFactory problemFactory, CompilerOptions compilerOptions, TypeElement currentTopLevelType) {
+		super(currentTopLevelType);
 		this.problemFactory = problemFactory;
 		this.compilerOptions = compilerOptions;
 		this.types = Types.instance(context);
@@ -167,7 +168,7 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 					problemId,
 					problemArguments,
 					messageArguments,
-					toSeverity(problemId),
+					JavacUtils.toSeverity(this.compilerOptions, problemId),
 					startPos, endPos,
 					line, column);
 	}
@@ -182,7 +183,7 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 				problemId,
 				problemArguments,
 				messageArguments,
-				toSeverity(problemId),
+				JavacUtils.toSeverity(this.compilerOptions, problemId),
 				startPos, endPos,
 				line, column);
 	}
@@ -196,16 +197,5 @@ public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 			result.append(parameter.type.toString());
 		}
 		return result.toString();
-	}
-
-	private int toSeverity(int jdtProblemId) {
-		int irritant = ProblemReporter.getIrritant(jdtProblemId);
-		if (irritant != 0) {
-			int res = this.compilerOptions.getSeverity(irritant);
-			res &= ~ProblemSeverities.Optional; // reject optional flag at this stage
-			return res;
-		}
-
-		return ProblemSeverities.Warning;
 	}
 }

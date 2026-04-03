@@ -147,7 +147,7 @@ public class JavacCompilerTaskListener implements TaskListener {
 			UnusedTreeScanner<Void, Void> unusedTreeScanner = null;
 			if (getUnusedPrivateMembers || getUnusedLocalVariables || getUnusedImports || getUnnecessaryCasts
 					|| getNoEffectAssignments || getUnclosedCloseables || getUnusedTypeParameters) {
-				unusedTreeScanner = new UnusedTreeScanner<>() {
+				unusedTreeScanner = new UnusedTreeScanner<>(currentTopLevelType) {
 
 					@Override
 					public Void visitModule(com.sun.source.tree.ModuleTree node, Void p) {
@@ -161,32 +161,19 @@ public class JavacCompilerTaskListener implements TaskListener {
 
 					@Override
 					public Void visitClass(ClassTree node, Void p) {
-						if (node instanceof JCClassDecl classDecl) {
-							/**
-							 * If a Java file contains multiple top-level types, it will
-							 * trigger multiple ANALYZE taskEvents for the same compilation
-							 * unit. Each ANALYZE taskEvent corresponds to the completion
-							 * of analysis for a single top-level type. Therefore, in the
-							 * ANALYZE task event listener, we only visit the class and nested
-							 * classes that belong to the currently analyzed top-level type.
-							 */
-							if (Objects.equals(currentTopLevelType, classDecl.sym)
-								|| !(classDecl.sym.owner instanceof PackageSymbol)) {
-								String fullName = classDecl.sym.flatName().toString();
-								String compoundName = fullName.replace('.', '/');
-								Symbol enclosingClassSymbol = this.getEnclosingClass(classDecl.sym);
-								ClassFile enclosingClassFile = enclosingClassSymbol == null ? null : visitedClasses.get(enclosingClassSymbol);
-								IContainer expectedOutputDir = computeOutputDirectory(cu);
-								ClassFile currentClass = new JavacClassFile(fullName, enclosingClassFile, expectedOutputDir, tempDir);
-								visitedClasses.put(classDecl.sym, currentClass);
-								result.record(compoundName.toCharArray(), currentClass);
-								recordTypeHierarchy(classDecl.sym);
-							} else {
-								return null; // Skip if it does not belong to the currently analyzed top-level type.
-							}
+						Void visitResult = super.visitClass(node, p);
+						if (visitResult != null && node instanceof JCClassDecl classDecl) {
+							String fullName = classDecl.sym.flatName().toString();
+							String compoundName = fullName.replace('.', '/');
+							Symbol enclosingClassSymbol = this.getEnclosingClass(classDecl.sym);
+							ClassFile enclosingClassFile = enclosingClassSymbol == null ? null : visitedClasses.get(enclosingClassSymbol);
+							IContainer expectedOutputDir = computeOutputDirectory(cu);
+							ClassFile currentClass = new JavacClassFile(fullName, enclosingClassFile, expectedOutputDir, tempDir);
+							visitedClasses.put(classDecl.sym, currentClass);
+							result.record(compoundName.toCharArray(), currentClass);
+							recordTypeHierarchy(classDecl.sym);
 						}
-
-						return super.visitClass(node, p);
+						return visitResult;
 					}
 
 					@Override
@@ -304,57 +291,13 @@ public class JavacCompilerTaskListener implements TaskListener {
 
 			CodeStyleTreeScanner codeStyleScanner = null;
 			if (getIndirectStaticAccessProblems || getUnqualifiedFieldAccessProblems) {
-				codeStyleScanner = new CodeStyleTreeScanner(this.context, this.problemFactory, this.javacCompiler.options) {
-					@Override
-					public Void visitClass(ClassTree node, Void p) {
-						if (node instanceof JCClassDecl classDecl) {
-							/**
-							 * If a Java file contains multiple top-level types, it will
-							 * trigger multiple ANALYZE taskEvents for the same compilation
-							 * unit. Each ANALYZE taskEvent corresponds to the completion
-							 * of analysis for a single top-level type. Therefore, in the
-							 * ANALYZE task event listener, we only visit the class and nested
-							 * classes that belong to the currently analyzed top-level type.
-							 */
-							if (Objects.equals(currentTopLevelType, classDecl.sym)
-									|| !(classDecl.sym.owner instanceof PackageSymbol)) {
-								return super.visitClass(node, p);
-							} else {
-								return null; // Skip if it does not belong to the currently analyzed top-level type.
-							}
-						}
-
-						return super.visitClass(node, p);
-					}
-				};
+				codeStyleScanner = new CodeStyleTreeScanner(this.context, this.problemFactory, this.javacCompiler.options, currentTopLevelType);
 				codeStyleScanner.scan(unit, null);
 			}
 
 			DeadCodeTreeScanner deadCodeScanner = null;
 			if (getDeadCodeProblems) {
-				deadCodeScanner = new DeadCodeTreeScanner(this.problemFactory, this.javacCompiler.options) {
-					@Override
-					public Void visitClass(ClassTree node, Void p) {
-						if (node instanceof JCClassDecl classDecl) {
-							/**
-							 * If a Java file contains multiple top-level types, it will
-							 * trigger multiple ANALYZE taskEvents for the same compilation
-							 * unit. Each ANALYZE taskEvent corresponds to the completion
-							 * of analysis for a single top-level type. Therefore, in the
-							 * ANALYZE task event listener, we only visit the class and nested
-							 * classes that belong to the currently analyzed top-level type.
-							 */
-							if (Objects.equals(currentTopLevelType, classDecl.sym)
-									|| !(classDecl.sym.owner instanceof PackageSymbol)) {
-								return super.visitClass(node, p);
-							} else {
-								return null; // Skip if it does not belong to the currently analyzed top-level type.
-							}
-						}
-
-						return super.visitClass(node, p);
-					}
-				};
+				deadCodeScanner = new DeadCodeTreeScanner(this.problemFactory, this.javacCompiler.options, currentTopLevelType);
 				deadCodeScanner.scan(unit, null);
 			}
 
