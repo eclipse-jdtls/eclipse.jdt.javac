@@ -99,6 +99,7 @@ public class JavacDiagnosticProblemConverter {
 	private static final String COMPILER_WARN_NON_SERIALIZABLE_INSTANCE_FIELD = "compiler.warn.non.serializable.instance.field";
 	private static final String COMPILER_WARN_MISSING_SVUID = "compiler.warn.missing.SVUID";
 	private static final Pattern SOURCE_VERSION_EXTRACTOR = Pattern.compile("--?source ([-0-9]+)");
+	private static final String COMPILER_ERR_TYPE_ANNOTATION_INADMISSIBLE = "compiler.err.type.annotation.inadmissible";
 	private final CompilerOptions compilerOptions;
 	private final Context context;
 	private final Map<JavaFileObject, JCCompilationUnit> units = new HashMap<>();
@@ -114,6 +115,9 @@ public class JavacDiagnosticProblemConverter {
 	}
 
 	public JavacProblem[] createJavacProblems(Diagnostic<? extends JavaFileObject> diagnostic) {
+		if (diagnostic instanceof JCDiagnostic jcDiagnostic && COMPILER_ERR_TYPE_ANNOTATION_INADMISSIBLE.equals(jcDiagnostic.getCode())) {
+			return createTypeAnnotationAtQualifiedNameProblems(jcDiagnostic);
+		}
 		if (diagnostic instanceof JCDiagnostic jcDiagnostic && COMPILER_ERR_DOES_NOT_OVERRIDE_ABSTRACT.equals(jcDiagnostic.getCode())) {
 			return createDoesNotOverrideAbstractProblems(jcDiagnostic);
 		}
@@ -135,6 +139,44 @@ public class JavacDiagnosticProblemConverter {
 			}
 		}
 		return (JavacProblem[]) ret.toArray(new JavacProblem[ret.size()]);
+	}
+	private JavacProblem[] createTypeAnnotationAtQualifiedNameProblems(JCDiagnostic diagnostic) {
+		TreePath path = getTreePath(diagnostic);
+		if (path != null
+				&& path.getParentPath() != null
+				&& path.getParentPath().getLeaf() instanceof JCVariableDecl varDecl
+				&& !varDecl.mods.annotations.isEmpty()) {
+
+			List<JavacProblem> problems = new ArrayList<>();
+			String[] arguments = getDiagnosticStringArguments(diagnostic);
+			int problemId = IProblem.TypeAnnotationAtQualifiedName;
+			int severity = toSeverity(problemId, diagnostic);
+			String problemMessage = getProblemMessage(diagnostic, problemId, arguments, null);
+
+			for (JCAnnotation annotation : varDecl.mods.annotations) {
+				int start = annotation.getStartPosition();
+				int end = start + Math.max(annotation.toString().length() - 1, 0);
+				int[] lineAndColumn = getProblemLineColumnFromOffset(diagnostic, start);
+				int line = lineAndColumn != null ? lineAndColumn[0] : (int) diagnostic.getLineNumber();
+				int column = lineAndColumn != null ? lineAndColumn[1] : (int) diagnostic.getColumnNumber();
+
+				problems.add(new JavacProblem(
+						diagnostic.getSource().getName().toCharArray(),
+						problemMessage,
+						diagnostic.getCode(),
+						problemId,
+						arguments,
+						severity,
+						start,
+						end,
+						line,
+						column));
+			}
+
+			return problems.toArray(new JavacProblem[0]);
+		}
+
+		return new JavacProblem[] { problemIdToJavacProblem(IProblem.TypeAnnotationAtQualifiedName, diagnostic) };
 	}
 
 	/**
@@ -1456,6 +1498,7 @@ public class JavacDiagnosticProblemConverter {
 				}
 				yield IProblem.DisallowedTargetForAnnotation;
 			}
+			case "compiler.err.type.annotation.inadmissible" -> IProblem.TypeAnnotationAtQualifiedName;
 			case "compiler.err.pkg.annotations.sb.in.package-info.java" -> IProblem.InvalidFileNameForPackageAnnotations;
 			case "compiler.err.unexpected.type" -> IProblem.TypeMismatch;
 			case "compiler.err.intf.annotation.members.cant.have.params" -> IProblem.AnnotationMembersCannotHaveParameters;
