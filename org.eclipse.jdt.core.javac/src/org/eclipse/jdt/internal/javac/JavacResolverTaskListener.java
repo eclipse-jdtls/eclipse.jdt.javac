@@ -184,12 +184,13 @@ public class JavacResolverTaskListener implements TaskListener {
 	}
 
 	private List<IProblem> getAccessRestrictionProblems(TaskEvent e) {
+		final TypeElement currentTopLevelType = e.getTypeElement();
 		AccessRestrictionTreeScanner accessScanner = null;
 		if (javaProject instanceof JavaProject internalJavaProject) {
 			try {
 				INameEnvironment environment = new SearchableEnvironment(internalJavaProject,
 						(WorkingCopyOwner) null, false, JavaProject.NO_RELEASE);
-				accessScanner = new AccessRestrictionTreeScanner(environment, this.problemFactory, this.compilerOptions);
+				accessScanner = new AccessRestrictionTreeScanner(environment, this.problemFactory, this.compilerOptions, currentTopLevelType);
 				accessScanner.scan(e.getCompilationUnit(), null);
 			} catch (JavaModelException javaModelException) {
 				// do nothing

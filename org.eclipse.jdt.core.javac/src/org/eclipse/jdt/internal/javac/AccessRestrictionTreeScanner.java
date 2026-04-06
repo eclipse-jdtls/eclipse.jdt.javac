@@ -19,6 +19,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import javax.lang.model.element.TypeElement;
+
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
@@ -85,7 +87,8 @@ public class AccessRestrictionTreeScanner extends TopLevelTreeScanner<Void, Void
 	private int suppressedWarningsCount = 0;
 
 	public AccessRestrictionTreeScanner(INameEnvironment nameEnvironment, IProblemFactory problemFactory,
-			CompilerOptions compilerOptions) {
+			CompilerOptions compilerOptions, TypeElement currentTopLevelType) {
+		super(currentTopLevelType);
 		this.nameEnvironment = nameEnvironment;
 		this.problemFactory = problemFactory;
 		this.compilerOptions = compilerOptions;

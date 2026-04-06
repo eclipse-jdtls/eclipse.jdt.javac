@@ -285,7 +285,7 @@ public class JavacCompilerTaskListener implements TaskListener {
 
 			AccessRestrictionTreeScanner accessRestrictionScanner = null;
 			if (getAccessRestrictions) {
-				accessRestrictionScanner = new AccessRestrictionTreeScanner(javacCompiler.lookupEnvironment.nameEnvironment, this.problemFactory, this.javacCompiler.options);
+				accessRestrictionScanner = new AccessRestrictionTreeScanner(javacCompiler.lookupEnvironment.nameEnvironment, this.problemFactory, this.javacCompiler.options, currentTopLevelType);
 				accessRestrictionScanner.scan(unit, null);
 			}
 
