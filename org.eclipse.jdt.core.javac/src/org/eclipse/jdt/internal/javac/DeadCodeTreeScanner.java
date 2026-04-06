@@ -22,12 +22,12 @@ import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.ConditionalExpressionTree;
-import com.sun.source.util.TreeScanner;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCConditional;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.source.tree.CompilationUnitTree;
+import shaded.com.sun.source.tree.ConditionalExpressionTree;
+import shaded.com.sun.source.util.TreeScanner;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCConditional;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
 
 class DeadCodeTreeScanner extends TreeScanner<Void, Void> {
 

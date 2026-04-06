@@ -17,17 +17,17 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import javax.tools.FileObject;
-import javax.tools.JavaFileManager;
+import shaded.javax.tools.FileObject;
+import shaded.javax.tools.JavaFileManager;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.dom.JavacCompilationUnitResolver.VirtualSourceFile;
 
-import com.sun.tools.javac.api.ClientCodeWrapper;
-import com.sun.tools.javac.file.FSInfo;
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Context.Factory;
+import shaded.com.sun.tools.javac.api.ClientCodeWrapper;
+import shaded.com.sun.tools.javac.file.FSInfo;
+import shaded.com.sun.tools.javac.file.JavacFileManager;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.Context.Factory;
 
 /// An implementation of [JavacFileManager] suitable for local parsing/resolution.
 /// It allows to reuse the filesystems for the referenced jars so they're not duplicated,

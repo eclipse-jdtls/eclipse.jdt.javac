@@ -15,7 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import javax.lang.model.element.ModuleElement.DirectiveKind;
+import shaded.javax.lang.model.element.ModuleElement.DirectiveKind;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IJavaElement;
@@ -28,21 +28,21 @@ import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 
-import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Directive.ExportsDirective;
-import com.sun.tools.javac.code.Directive.OpensDirective;
-import com.sun.tools.javac.code.Directive.ProvidesDirective;
-import com.sun.tools.javac.code.Directive.RequiresDirective;
-import com.sun.tools.javac.code.Directive.UsesDirective;
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Symbol.ModuleSymbol;
-import com.sun.tools.javac.code.Type.ModuleType;
-import com.sun.tools.javac.tree.JCTree.JCDirective;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
-import com.sun.tools.javac.tree.JCTree.JCRequires;
+import shaded.com.sun.tools.javac.code.Attribute;
+import shaded.com.sun.tools.javac.code.Directive.ExportsDirective;
+import shaded.com.sun.tools.javac.code.Directive.OpensDirective;
+import shaded.com.sun.tools.javac.code.Directive.ProvidesDirective;
+import shaded.com.sun.tools.javac.code.Directive.RequiresDirective;
+import shaded.com.sun.tools.javac.code.Directive.UsesDirective;
+import shaded.com.sun.tools.javac.code.Flags;
+import shaded.com.sun.tools.javac.code.Kinds;
+import shaded.com.sun.tools.javac.code.Symbol.ModuleSymbol;
+import shaded.com.sun.tools.javac.code.Type.ModuleType;
+import shaded.com.sun.tools.javac.tree.JCTree.JCDirective;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCRequires;
 public abstract class JavacModuleBinding implements IModuleBinding {
 
 	final JavacBindingResolver resolver;

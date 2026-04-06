@@ -12,7 +12,7 @@ package org.eclipse.jdt.internal.javac.dom;
 
 import java.util.Objects;
 
-import javax.lang.model.type.ExecutableType;
+import shaded.javax.lang.model.type.ExecutableType;
 
 import org.eclipse.jdt.core.dom.IAnnotationBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -20,11 +20,11 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JavacBindingResolver.BindingKeyException;
 
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.JCNoType;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.JCNoType;
 
 public abstract class JavacErrorMethodBinding extends JavacMethodBinding {
 

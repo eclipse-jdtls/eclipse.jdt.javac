@@ -30,12 +30,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.PackageElement;
-import javax.lang.model.type.TypeKind;
-import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
-
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
@@ -46,52 +40,57 @@ import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import org.eclipse.jdt.internal.javac.JavacUtils;
 
-import com.sun.source.tree.AnnotationTree;
-import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
-import com.sun.source.util.TreePath;
-import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Kinds.KindName;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol; 
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;  
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.ClassType;
-import com.sun.tools.javac.code.TypeTag;
-import com.sun.tools.javac.code.Types;
-import com.sun.tools.javac.parser.Scanner;
-import com.sun.tools.javac.parser.ScannerFactory;
-import com.sun.tools.javac.parser.Tokens.Token;
-import com.sun.tools.javac.parser.Tokens.TokenKind;
-import com.sun.tools.javac.tree.EndPosTable;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCAnnotation;
-import com.sun.tools.javac.tree.JCTree.JCAssign;
-import com.sun.tools.javac.tree.JCTree.JCBlock;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCConstantCaseLabel;
-import com.sun.tools.javac.tree.JCTree.JCEnhancedForLoop;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
-import com.sun.tools.javac.tree.JCTree.JCNewClass;
-import com.sun.tools.javac.tree.JCTree.JCPrimitiveTypeTree;
-import com.sun.tools.javac.tree.JCTree.JCReturn;
-import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
-import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.DiagnosticSource;
-import com.sun.tools.javac.util.JCDiagnostic;
-import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
-import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Name;
-import com.sun.tools.javac.util.Position;
+import shaded.com.sun.source.tree.AnnotationTree;
+import shaded.com.sun.source.tree.Tree;
+import shaded.com.sun.source.tree.Tree.Kind;
+import shaded.com.sun.source.util.TreePath;
+import shaded.com.sun.tools.javac.api.JavacTrees;
+import shaded.com.sun.tools.javac.code.Flags;
+import shaded.com.sun.tools.javac.code.Kinds;
+import shaded.com.sun.tools.javac.code.Kinds.KindName;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.ClassType;
+import shaded.com.sun.tools.javac.code.TypeTag;
+import shaded.com.sun.tools.javac.code.Types;
+import shaded.com.sun.tools.javac.parser.Scanner;
+import shaded.com.sun.tools.javac.parser.ScannerFactory;
+import shaded.com.sun.tools.javac.parser.Tokens.Token;
+import shaded.com.sun.tools.javac.parser.Tokens.TokenKind;
+import shaded.com.sun.tools.javac.tree.EndPosTable;
+import shaded.com.sun.tools.javac.tree.JCTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAnnotation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssign;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBlock;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCConstantCaseLabel;
+import shaded.com.sun.tools.javac.tree.JCTree.JCEnhancedForLoop;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewClass;
+import shaded.com.sun.tools.javac.tree.JCTree.JCPrimitiveTypeTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCReturn;
+import shaded.com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import shaded.com.sun.tools.javac.tree.TreeInfo;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.DiagnosticSource;
+import shaded.com.sun.tools.javac.util.JCDiagnostic;
+import shaded.com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import shaded.com.sun.tools.javac.util.Log;
+import shaded.com.sun.tools.javac.util.Name;
+import shaded.com.sun.tools.javac.util.Position;
+import shaded.javax.lang.model.element.Modifier;
+import shaded.javax.lang.model.element.PackageElement;
+import shaded.javax.lang.model.type.TypeKind;
+import shaded.javax.tools.Diagnostic;
+import shaded.javax.tools.JavaFileObject;
 
 public class JavacDiagnosticProblemConverter {
 	private static final String COMPILER_ERR_DOES_NOT_OVERRIDE_ABSTRACT = "compiler.err.does.not.override.abstract";
@@ -306,7 +305,7 @@ public class JavacDiagnosticProblemConverter {
 				if (superType.tsym instanceof ClassSymbol superClass && queued.add(superClass)) {
 					toVisit.add(superClass);
 				}
-				for (com.sun.tools.javac.util.List<Type> interfaces = types.interfaces(current.type);
+				for (shaded.com.sun.tools.javac.util.List<Type> interfaces = types.interfaces(current.type);
 						interfaces.nonEmpty();
 						interfaces = interfaces.tail) {
 					if (interfaces.head.tsym instanceof ClassSymbol interfaceSymbol && queued.add(interfaceSymbol)) {
@@ -1495,7 +1494,7 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.note.deprecated.recompile" -> -1;
 			default -> {
 				ILog.get().error("Could not accurately convert diagnostic (" + diagnostic.getCode() + ")\n" + diagnostic);
-				if (diagnostic.getKind() == javax.tools.Diagnostic.Kind.ERROR && diagnostic.getCode().startsWith("compiler.err")) {
+				if (diagnostic.getKind() == shaded.javax.tools.Diagnostic.Kind.ERROR && diagnostic.getCode().startsWith("compiler.err")) {
 					yield IProblem.Unclassified;
 				}
 				yield -1;

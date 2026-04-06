@@ -12,18 +12,18 @@ package org.eclipse.jdt.internal.javac;
 
 import java.util.function.Predicate;
 
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.comp.TransTypes;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCAssign;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
-import com.sun.tools.javac.tree.JCTree.JCParens;
-import com.sun.tools.javac.tree.JCTree.JCTypeCast;
-import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Context.Factory;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.comp.TransTypes;
+import shaded.com.sun.tools.javac.tree.JCTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssign;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCParens;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeCast;
+import shaded.com.sun.tools.javac.tree.TreeInfo;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.Context.Factory;
 
 public class ProceedOnErrorTransTypes extends TransTypes {
 

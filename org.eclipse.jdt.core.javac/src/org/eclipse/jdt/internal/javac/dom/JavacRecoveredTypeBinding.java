@@ -31,14 +31,14 @@ import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 
-import com.sun.tools.javac.code.Type.ArrayType;
-import com.sun.tools.javac.code.Type.PackageType;
+import shaded.com.sun.tools.javac.code.Type.ArrayType;
+import shaded.com.sun.tools.javac.code.Type.PackageType;
 
 public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 
 	private final ASTNode domNode;
 
-	public JavacRecoveredTypeBinding(com.sun.tools.javac.code.Type type, org.eclipse.jdt.core.dom.ASTNode domName, JavacBindingResolver resolver) {
+	public JavacRecoveredTypeBinding(shaded.com.sun.tools.javac.code.Type type, org.eclipse.jdt.core.dom.ASTNode domName, JavacBindingResolver resolver) {
 		super(type, type != null ? type.tsym : null, null, null, false, resolver);
 		this.domNode = domName;
 	}

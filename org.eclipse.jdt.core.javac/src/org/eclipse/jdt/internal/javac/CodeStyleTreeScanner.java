@@ -24,21 +24,21 @@ import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.IdentifierTree;
-import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.util.TreeScanner;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.PackageSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.Types;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.util.Context;
+import shaded.com.sun.source.tree.ClassTree;
+import shaded.com.sun.source.tree.CompilationUnitTree;
+import shaded.com.sun.source.tree.IdentifierTree;
+import shaded.com.sun.source.tree.MemberSelectTree;
+import shaded.com.sun.source.util.TreeScanner;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.PackageSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.Types;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.util.Context;
 
 public class CodeStyleTreeScanner extends TreeScanner<Void, Void> {
 

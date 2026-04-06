@@ -24,11 +24,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.NullType;
-import javax.lang.model.type.TypeKind;
-import javax.tools.JavaFileObject;
-
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.runtime.ILog;
@@ -83,40 +78,44 @@ import org.eclipse.jdt.internal.core.ResolvedBinaryType;
 import org.eclipse.jdt.internal.core.ResolvedSourceType;
 import org.eclipse.jdt.internal.core.SourceType;
 
-import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Attribute.TypeCompound;
-import com.sun.tools.javac.code.BoundKind;
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Kinds.Kind;
-import com.sun.tools.javac.code.Kinds.KindSelector;
-import com.sun.tools.javac.code.Scope.LookupKind;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.CompletionFailure;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.PackageSymbol;
-import com.sun.tools.javac.code.Symbol.RootPackageSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
-import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.ArrayType;
-import com.sun.tools.javac.code.Type.CapturedType;
-import com.sun.tools.javac.code.Type.ClassType;
-import com.sun.tools.javac.code.Type.ErrorType;
-import com.sun.tools.javac.code.Type.IntersectionClassType;
-import com.sun.tools.javac.code.Type.JCNoType;
-import com.sun.tools.javac.code.Type.JCVoidType;
-import com.sun.tools.javac.code.Type.TypeVar;
-import com.sun.tools.javac.code.Type.WildcardType;
-import com.sun.tools.javac.code.TypeMetadata;
-import com.sun.tools.javac.code.TypeMetadata.Annotations;
-import com.sun.tools.javac.code.TypeTag;
-import com.sun.tools.javac.code.Types;
-import com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
-import com.sun.tools.javac.util.Name;
-import com.sun.tools.javac.util.Names;
+import shaded.com.sun.tools.javac.code.Attribute;
+import shaded.com.sun.tools.javac.code.Attribute.TypeCompound;
+import shaded.com.sun.tools.javac.code.BoundKind;
+import shaded.com.sun.tools.javac.code.Flags;
+import shaded.com.sun.tools.javac.code.Kinds;
+import shaded.com.sun.tools.javac.code.Kinds.Kind;
+import shaded.com.sun.tools.javac.code.Kinds.KindSelector;
+import shaded.com.sun.tools.javac.code.Scope.LookupKind;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.CompletionFailure;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.PackageSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.RootPackageSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.ArrayType;
+import shaded.com.sun.tools.javac.code.Type.CapturedType;
+import shaded.com.sun.tools.javac.code.Type.ClassType;
+import shaded.com.sun.tools.javac.code.Type.ErrorType;
+import shaded.com.sun.tools.javac.code.Type.IntersectionClassType;
+import shaded.com.sun.tools.javac.code.Type.JCNoType;
+import shaded.com.sun.tools.javac.code.Type.JCVoidType;
+import shaded.com.sun.tools.javac.code.Type.TypeVar;
+import shaded.com.sun.tools.javac.code.Type.WildcardType;
+import shaded.com.sun.tools.javac.code.TypeMetadata;
+import shaded.com.sun.tools.javac.code.TypeMetadata.Annotations;
+import shaded.com.sun.tools.javac.code.TypeTag;
+import shaded.com.sun.tools.javac.code.Types;
+import shaded.com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
+import shaded.com.sun.tools.javac.util.Name;
+import shaded.com.sun.tools.javac.util.Names;
+import shaded.javax.lang.model.type.ExecutableType;
+import shaded.javax.lang.model.type.NullType;
+import shaded.javax.lang.model.type.TypeKind;
+import shaded.javax.tools.JavaFileObject;
 
 public abstract class JavacTypeBinding implements ITypeBinding {
 
@@ -193,7 +192,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	    return h;
 	}
 	private static int hashAnnotations(
-	        List<? extends javax.lang.model.element.AnnotationMirror> anns) {
+	        List<? extends shaded.javax.lang.model.element.AnnotationMirror> anns) {
 
 	    if (anns == null || anns.isEmpty()) {
 	        return 0;
