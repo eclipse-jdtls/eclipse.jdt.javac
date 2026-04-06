@@ -6,9 +6,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import javax.lang.model.element.TypeElement;
-import javax.tools.JavaFileObject;
-
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
@@ -26,24 +23,26 @@ import org.eclipse.jdt.internal.core.SearchableEnvironment;
 import org.eclipse.jdt.internal.javac.problem.JavacDiagnosticProblemConverter;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.Tree;
-import com.sun.source.util.JavacTask;
-import com.sun.source.util.TaskEvent;
-import com.sun.source.util.TaskListener;
-import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.tree.TreeScanner;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
-import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.Options;
+import shaded.com.sun.source.tree.CompilationUnitTree;
+import shaded.com.sun.source.tree.Tree;
+import shaded.com.sun.source.util.JavacTask;
+import shaded.com.sun.source.util.TaskEvent;
+import shaded.com.sun.source.util.TaskListener;
+import shaded.com.sun.tools.javac.main.Option;
+import shaded.com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
+import shaded.com.sun.tools.javac.tree.JCTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import shaded.com.sun.tools.javac.tree.TreeInfo;
+import shaded.com.sun.tools.javac.tree.TreeMaker;
+import shaded.com.sun.tools.javac.tree.TreeScanner;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import shaded.com.sun.tools.javac.util.Names;
+import shaded.com.sun.tools.javac.util.Options;
+import shaded.javax.lang.model.element.TypeElement;
+import shaded.javax.tools.JavaFileObject;
 
 public class JavacResolverTaskListener implements TaskListener {
 	private final Context context;
@@ -367,8 +366,8 @@ public class JavacResolverTaskListener implements TaskListener {
 					treeMaker.Throw(
 							treeMaker.NewClass(null, null,
 									treeMaker.Ident(Names.instance(context).fromString(RuntimeException.class.getSimpleName())),
-									com.sun.tools.javac.util.List.of(treeMaker.Literal("Out of focalPosition scope")), null)); //$NON-NLS-1$
-				decl.body.stats = com.sun.tools.javac.util.List.of(throwNewRuntimeExceptionOutOfFocalPositionScope);
+									shaded.com.sun.tools.javac.util.List.of(treeMaker.Literal("Out of focalPosition scope")), null)); //$NON-NLS-1$
+				decl.body.stats = shaded.com.sun.tools.javac.util.List.of(throwNewRuntimeExceptionOutOfFocalPositionScope);
 			}
 		}
 	}
@@ -376,7 +375,7 @@ public class JavacResolverTaskListener implements TaskListener {
 		@Override
 		public void visitMethodDef(JCMethodDecl method) {
 			if (method.body != null) {
-				method.body.stats = com.sun.tools.javac.util.List.nil();
+				method.body.stats = shaded.com.sun.tools.javac.util.List.nil();
 			}
 		}
 	}
@@ -393,7 +392,7 @@ public class JavacResolverTaskListener implements TaskListener {
 			if (method.body != null &&
 				(focalPoint < method.getStartPosition()
 				|| method.getEndPosition(compilationUnit.endPositions) < focalPoint)) {
-				method.body.stats = com.sun.tools.javac.util.List.nil();
+				method.body.stats = shaded.com.sun.tools.javac.util.List.nil();
 				// add a `throw new RuntimeException();` ?
 			}
 		}
@@ -402,12 +401,12 @@ public class JavacResolverTaskListener implements TaskListener {
 			var comment = compilationUnit.docComments.getComment(tree);
 			if (comment != null &&
 				(focalPoint < comment.getPos().getStartPosition() || comment.getPos().getEndPosition(compilationUnit.endPositions) < focalPoint)) {
-				compilationUnit.docComments.putComment(tree, new com.sun.tools.javac.parser.Tokens.Comment() {
+				compilationUnit.docComments.putComment(tree, new shaded.com.sun.tools.javac.parser.Tokens.Comment() {
 					@Override public boolean isDeprecated() { return comment.isDeprecated(); }
 					@Override public CommentStyle getStyle() { return comment.getStyle(); }
 					@Override public int getSourcePos(int index) { return comment.getSourcePos(index); }
 					@Override public DiagnosticPosition getPos() { return comment.getPos(); }
-					@Override public com.sun.tools.javac.parser.Tokens.Comment stripIndent() { return comment.stripIndent(); }
+					@Override public shaded.com.sun.tools.javac.parser.Tokens.Comment stripIndent() { return comment.stripIndent(); }
 					@Override public String getText() { return ""; }
 				});
 			}

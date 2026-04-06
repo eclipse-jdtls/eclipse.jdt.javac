@@ -26,9 +26,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import javax.lang.model.element.TypeElement;
-import javax.tools.JavaFileObject;
-
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.ILog;
@@ -41,27 +38,29 @@ import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import org.eclipse.jdt.internal.core.builder.SourceFile;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.IdentifierTree;
-import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.util.TaskEvent;
-import com.sun.source.util.TaskListener;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.PackageSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.ArrayType;
-import com.sun.tools.javac.code.Type.MethodType;
-import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Options;
+import shaded.com.sun.source.tree.ClassTree;
+import shaded.com.sun.source.tree.CompilationUnitTree;
+import shaded.com.sun.source.tree.IdentifierTree;
+import shaded.com.sun.source.tree.MemberSelectTree;
+import shaded.com.sun.source.util.TaskEvent;
+import shaded.com.sun.source.util.TaskListener;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.PackageSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.ArrayType;
+import shaded.com.sun.tools.javac.code.Type.MethodType;
+import shaded.com.sun.tools.javac.main.Option;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.Options;
+import shaded.javax.lang.model.element.TypeElement;
+import shaded.javax.tools.JavaFileObject;
 
 public class JavacCompilerTaskListener implements TaskListener {
 	private Map<ICompilationUnit, JavacCompilationResult> results = new HashMap<>();
@@ -154,7 +153,7 @@ public class JavacCompilerTaskListener implements TaskListener {
 				unusedTreeScanner = new UnusedTreeScanner<>(currentTopLevelType) {
 
 					@Override
-					public Void visitModule(com.sun.source.tree.ModuleTree node, Void p) {
+					public Void visitModule(shaded.com.sun.source.tree.ModuleTree node, Void p) {
 						if (node instanceof JCModuleDecl moduleDecl) {
 							IContainer expectedOutputDir = computeOutputDirectory(cu);
 							ClassFile currentClass = new JavacClassFile(moduleDecl, expectedOutputDir, tempDir);

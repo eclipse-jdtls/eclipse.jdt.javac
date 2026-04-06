@@ -21,8 +21,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.lang.model.type.ExecutableType;
-
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
@@ -50,20 +48,21 @@ import org.eclipse.jdt.internal.core.ResolvedSourceMethod;
 import org.eclipse.jdt.internal.core.SourceMethod;
 import org.eclipse.jdt.internal.core.util.Util;
 
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
-import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.ForAll;
-import com.sun.tools.javac.code.Type.JCNoType;
-import com.sun.tools.javac.code.Type.MethodType;
-import com.sun.tools.javac.code.Type.TypeVar;
-import com.sun.tools.javac.util.ListBuffer;
+import shaded.com.sun.tools.javac.code.Flags;
+import shaded.com.sun.tools.javac.code.Kinds;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.ForAll;
+import shaded.com.sun.tools.javac.code.Type.JCNoType;
+import shaded.com.sun.tools.javac.code.Type.MethodType;
+import shaded.com.sun.tools.javac.code.Type.TypeVar;
+import shaded.com.sun.tools.javac.util.ListBuffer;
+import shaded.javax.lang.model.type.ExecutableType;
 
 public abstract class JavacMethodBinding implements IMethodBinding {
 
@@ -178,7 +177,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return this.methodSymbol != null ? toInt(this.methodSymbol.getModifiers()) | extraModifiers : extraModifiers;
 	}
 
-	static int toInt(Set<javax.lang.model.element.Modifier> javac) {
+	static int toInt(Set<shaded.javax.lang.model.element.Modifier> javac) {
 		if (javac == null) {
 			return 0;
 		}
@@ -187,7 +186,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return res[0];
 	}
 
-	private static int toInt(javax.lang.model.element.Modifier javac) {
+	private static int toInt(shaded.javax.lang.model.element.Modifier javac) {
 		return switch (javac) {
 			case PUBLIC -> Modifier.PUBLIC;
 			case PROTECTED -> Modifier.PROTECTED;
@@ -474,9 +473,9 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		return candidates[0];
 	}
 
-	private String resolveTypeName(com.sun.tools.javac.code.Type type, boolean binary) {
+	private String resolveTypeName(shaded.com.sun.tools.javac.code.Type type, boolean binary) {
 		if (binary) {
-			if (type instanceof com.sun.tools.javac.code.Type.ArrayType arrayType) {
+			if (type instanceof shaded.com.sun.tools.javac.code.Type.ArrayType arrayType) {
 				return resolveTypeName(arrayType.elemtype, binary) + "[]";
 			}
 			TypeSymbol sym = type.asElement();
@@ -637,7 +636,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public boolean isCanonicalConstructor() {
-		// see com.sun.tools.javac.code.Flags.RECORD
+		// see shaded.com.sun.tools.javac.code.Flags.RECORD
 		return (this.methodSymbol.flags() & Flags.RECORD) != 0;
 	}
 

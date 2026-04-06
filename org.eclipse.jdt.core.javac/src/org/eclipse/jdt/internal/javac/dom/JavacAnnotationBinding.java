@@ -43,7 +43,7 @@ import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
-import com.sun.tools.javac.code.Attribute.Compound;
+import shaded.com.sun.tools.javac.code.Attribute.Compound;
 
 public abstract class JavacAnnotationBinding implements IAnnotationBinding {
 
