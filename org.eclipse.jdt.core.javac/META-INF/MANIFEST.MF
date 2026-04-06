@@ -7,8 +7,9 @@ Bundle-Version: 1.0.0.qualifier
 Fragment-Host: org.eclipse.jdt.core
 Automatic-Module-Name: org.eclipse.jdt.core.javac
 Bundle-ClassPath: .,
- lib/nb-javac-jdk-26+27.jar,
- lib/nb-javac-jdk-26+27-api.jar
+ lib/nb-javac-api-shaded-jdk-26-35.jar,
+ lib/nb-javac-shaded-jdk-26-35.jar,
+ lib/nnb-doclint-shaded-1.0-SNAPSHOT.jar
 Require-Capability: osgi.ee; filter:="(&(osgi.ee=JavaSE)(version=25))"
 Import-Package: org.eclipse.core.resources,
  org.eclipse.jdt.core.dom,

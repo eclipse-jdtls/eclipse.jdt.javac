@@ -14,12 +14,11 @@ package org.eclipse.jdt.internal.javac;
 
 import java.util.Objects;
 
-import javax.lang.model.element.TypeElement;
-
-import com.sun.source.tree.ClassTree;
-import com.sun.source.util.TreeScanner;
-import com.sun.tools.javac.code.Symbol.PackageSymbol;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.source.tree.ClassTree;
+import shaded.com.sun.source.util.TreeScanner;
+import shaded.com.sun.tools.javac.code.Symbol.PackageSymbol;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.javax.lang.model.element.TypeElement;
 
 public abstract class TopLevelTreeScanner<R, P> extends TreeScanner<R, P> {
 

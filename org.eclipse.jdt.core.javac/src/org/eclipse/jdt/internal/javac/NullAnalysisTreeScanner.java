@@ -22,50 +22,49 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeElement;
-
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
-import com.sun.source.tree.AssignmentTree;
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.IfTree;
-import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.VariableTree;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCAnnotatedType;
-import com.sun.tools.javac.tree.JCTree.JCAnnotation;
-import com.sun.tools.javac.tree.JCTree.JCArrayTypeTree;
-import com.sun.tools.javac.tree.JCTree.JCAssign;
-import com.sun.tools.javac.tree.JCTree.JCBinary;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCConditional;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCIf;
-import com.sun.tools.javac.tree.JCTree.JCLiteral;
-import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.tree.JCTree.JCNewArray;
-import com.sun.tools.javac.tree.JCTree.JCNewClass;
-import com.sun.tools.javac.tree.JCTree.JCParens;
-import com.sun.tools.javac.tree.JCTree.JCTypeApply;
-import com.sun.tools.javac.tree.JCTree.JCTypeCast;
-import com.sun.tools.javac.tree.JCTree.JCTypeIntersection;
-import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
-import com.sun.tools.javac.tree.JCTree.JCUnary;
-import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
-import com.sun.tools.javac.tree.JCTree.JCWildcard;
-import com.sun.tools.javac.tree.JCTree.Tag;
+import shaded.com.sun.source.tree.AssignmentTree;
+import shaded.com.sun.source.tree.ClassTree;
+import shaded.com.sun.source.tree.CompilationUnitTree;
+import shaded.com.sun.source.tree.IfTree;
+import shaded.com.sun.source.tree.MemberSelectTree;
+import shaded.com.sun.source.tree.MethodTree;
+import shaded.com.sun.source.tree.VariableTree;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.tree.JCTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAnnotatedType;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAnnotation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCArrayTypeTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssign;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBinary;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCConditional;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIf;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLiteral;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewArray;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewClass;
+import shaded.com.sun.tools.javac.tree.JCTree.JCParens;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeApply;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeCast;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeIntersection;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeParameter;
+import shaded.com.sun.tools.javac.tree.JCTree.JCUnary;
+import shaded.com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCWildcard;
+import shaded.com.sun.tools.javac.tree.JCTree.Tag;
+import shaded.javax.lang.model.element.ElementKind;
+import shaded.javax.lang.model.element.TypeElement;
 
 class NullAnalysisTreeScanner extends TopLevelTreeScanner<Void, Void> {
 
@@ -194,7 +193,7 @@ class NullAnalysisTreeScanner extends TopLevelTreeScanner<Void, Void> {
 	}
 
 	@Override
-	public Void visitTypeParameter(com.sun.source.tree.TypeParameterTree node, Void p) {
+	public Void visitTypeParameter(shaded.com.sun.source.tree.TypeParameterTree node, Void p) {
 		if (node instanceof JCTypeParameter typeParameter) {
 			EnumSet<DefaultLocation> defaults = resolveDefaultLocations(null);
 			reportRedundantNonNullIfPresent(typeParameter.annotations, typeParameter, DefaultLocation.TYPE_PARAMETER, defaults);

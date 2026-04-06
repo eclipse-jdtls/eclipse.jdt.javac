@@ -19,28 +19,28 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import javax.annotation.processing.Processor;
-import javax.tools.FileObject;
-import javax.tools.ForwardingFileObject;
-import javax.tools.ForwardingJavaFileManager;
-import javax.tools.JavaFileManager;
-import javax.tools.JavaFileObject;
-import javax.tools.JavaFileObject.Kind;
+import shaded.javax.annotation.processing.Processor;
+import shaded.javax.tools.FileObject;
+import shaded.javax.tools.ForwardingFileObject;
+import shaded.javax.tools.ForwardingJavaFileManager;
+import shaded.javax.tools.JavaFileManager;
+import shaded.javax.tools.JavaFileObject;
+import shaded.javax.tools.JavaFileObject.Kind;
 
 import org.eclipse.core.runtime.ILog;
 
-import com.sun.source.util.Plugin;
-import com.sun.tools.javac.file.PathFileObject;
-import com.sun.tools.javac.main.Arguments;
-import com.sun.tools.javac.main.DelegatingJavaFileManager;
-import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.platform.PlatformDescription;
-import com.sun.tools.javac.platform.PlatformUtils;
-import com.sun.tools.javac.resources.CompilerProperties.Errors;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Context.Factory;
-import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Options;
+import shaded.com.sun.source.util.Plugin;
+import shaded.com.sun.tools.javac.file.PathFileObject;
+import shaded.com.sun.tools.javac.main.Arguments;
+import shaded.com.sun.tools.javac.main.DelegatingJavaFileManager;
+import shaded.com.sun.tools.javac.main.Option;
+import shaded.com.sun.tools.javac.platform.PlatformDescription;
+import shaded.com.sun.tools.javac.platform.PlatformUtils;
+import shaded.com.sun.tools.javac.resources.CompilerProperties.Errors;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.Context.Factory;
+import shaded.com.sun.tools.javac.util.Log;
+import shaded.com.sun.tools.javac.util.Options;
 
 public class CachingJDKPlatformArguments extends Arguments {
 

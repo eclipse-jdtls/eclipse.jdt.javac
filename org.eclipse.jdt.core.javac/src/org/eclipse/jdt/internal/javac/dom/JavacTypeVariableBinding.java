@@ -21,10 +21,10 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JavacBindingResolver.BindingKeyException;
 
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.TypeVar;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.TypeVar;
 
 /**
  * Note that this isn't API and isn't part of the IBinding tree type.

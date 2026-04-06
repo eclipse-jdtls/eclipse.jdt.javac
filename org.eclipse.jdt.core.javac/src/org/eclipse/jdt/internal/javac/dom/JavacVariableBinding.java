@@ -15,7 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import javax.lang.model.element.ElementKind;
+import shaded.javax.lang.model.element.ElementKind;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IAnnotation;
@@ -60,15 +60,15 @@ import org.eclipse.jdt.internal.core.ResolvedSourceField;
 import org.eclipse.jdt.internal.core.SourceField;
 import org.eclipse.jdt.internal.core.util.Util;
 
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.TypeVar;
+import shaded.com.sun.tools.javac.code.Flags;
+import shaded.com.sun.tools.javac.code.Kinds;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.TypeVar;
 
 public abstract class JavacVariableBinding implements IVariableBinding {
 
