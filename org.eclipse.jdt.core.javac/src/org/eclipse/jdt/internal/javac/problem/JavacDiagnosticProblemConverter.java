@@ -666,7 +666,7 @@ public class JavacDiagnosticProblemConverter {
 					case JCIdent jcIdent: return getPositionByNodeRangeOnly(jcDiagnostic, jcIdent);
 					case JCMethodInvocation methodInvocation: return getPositionByNodeRangeOnly(jcDiagnostic, methodInvocation);
 					case JCFieldAccess jcFieldAccess:
-						if (problemId == IProblem.NonStaticFieldFromStaticInvocation) {
+						if (problemId == IProblem.NonStaticFieldFromStaticInvocation || problemId == IProblem.UnsafeTypeConversion) {
 							int start = jcFieldAccess.getStartPosition();
 							int end = jcFieldAccess.getEndPosition(endPos);
 							return new org.eclipse.jface.text.Position(start, end - start);
@@ -1244,7 +1244,7 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.warn.prob.found.req" ->
 				diagnostic.getMessage(Locale.ENGLISH).split("\n")[0].contains("cast") ?
 						IProblem.UnsafeGenericCast :
-						IProblem.UncheckedAccessOfValueOfFreeTypeVariable;
+						IProblem.UnsafeTypeConversion;
 			case "compiler.warn.restricted.type.not.allowed" -> IProblem.RestrictedTypeName;
 			case "compiler.err.override.weaker.access" -> IProblem.MethodReducesVisibility;
 			case "compiler.err.enum.constant.expected" -> IProblem.Syntax;
@@ -1424,7 +1424,7 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.err.enum.constant.not.expected" -> IProblem.UndefinedMethod;
 			case "compiler.warn.poor.choice.for.module.name" -> IProblem.ModuleRelated;
 			case "compiler.err.try.without.catch.finally.or.resource.decls" -> IProblem.Syntax;
-			case "compiler.warn.unchecked.meth.invocation.applied" -> IProblem.UnsafeTypeConversion;
+			case "compiler.warn.unchecked.meth.invocation.applied" -> IProblem.UnsafeRawGenericMethodInvocation; // not in ECJ
 			case "compiler.warn.override.unchecked.ret" -> IProblem.UnsafeReturnTypeOverride;
 			case "compiler.warn.override.varargs.missing" -> IProblem.VarargsConflict;
 			case "compiler.err.encl.class.required" -> IProblem.MissingEnclosingInstanceForConstructorCall;
