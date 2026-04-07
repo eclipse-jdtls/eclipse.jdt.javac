@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
@@ -31,6 +32,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.IfTree;
 import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
@@ -412,11 +414,21 @@ class DeadCodeTreeScanner extends TopLevelTreeScanner<Void, Void> {
 
 	private Symbol symbolOf(JCExpression expression) {
 		expression = unwrapParens(expression);
+		Symbol symbol = null;
 		if (expression instanceof JCIdent ident) {
-			return ident.sym;
+			symbol = ident.sym;
+		} else if (expression instanceof JCFieldAccess fieldAccess) {
+			symbol = fieldAccess.sym;
 		}
-		if (expression instanceof JCFieldAccess fieldAccess) {
-			return fieldAccess.sym;
+		if (symbol instanceof VarSymbol varSymbol) {
+			ElementKind kind = varSymbol.getKind();
+			if (kind == ElementKind.LOCAL_VARIABLE
+					|| kind == ElementKind.PARAMETER
+					|| kind == ElementKind.EXCEPTION_PARAMETER
+					|| kind == ElementKind.RESOURCE_VARIABLE
+					|| kind == ElementKind.BINDING_VARIABLE) {
+				return varSymbol;
+			}
 		}
 		return null;
 	}
