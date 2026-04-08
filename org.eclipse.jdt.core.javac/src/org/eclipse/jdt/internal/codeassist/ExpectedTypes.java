@@ -177,17 +177,7 @@ public class ExpectedTypes {
 					}
 					ITypeBinding[] typeParameters = parameterizedType.getTypeParameters();
 					if (typeParameters.length > index) {
-						ITypeBinding expectedType = typeParameters[index];
-						if (expectedType != null) {
-							if (expectedType.isTypeVariable() || expectedType.isWildcardType()) {
-								if (expectedType.getSuperclass() != null) {
-									expectedTypes.add(expectedType.getSuperclass());
-								}
-								expectedTypes.addAll(Arrays.asList(expectedType.getInterfaces()));
-							} else {
-								expectedTypes.add(expectedType);
-							}
-						}
+						addExpectedType(typeParameters[index]);
 						if (this.expectedTypes.isEmpty()) {
 							this.expectedTypes.add(parent2.getAST().resolveWellKnownType(Object.class.getName()));
 						}
@@ -214,9 +204,9 @@ public class ExpectedTypes {
 			}
 			if (parent2 instanceof ParameterizedType parameterizedType) {
 				ITypeBinding typeBinding = parameterizedType.getType().resolveBinding().getTypeDeclaration();
-				// TODO: does this ever happen for other entries?
-				if (typeBinding.getTypeParameters()[0].isWildcardType() && typeBinding.getTypeParameters()[0].getBound() != null) {
-					this.expectedTypes.add(typeBinding.getTypeParameters()[0].getBound());
+				ITypeBinding[] typeParameters = typeBinding.getTypeParameters();
+				if (typeParameters.length > 0) {
+					addExpectedType(typeParameters[0]);
 				} else {
 					this.expectedTypes.add(parent2.getAST().resolveWellKnownType(Object.class.getName()));
 				}
@@ -764,6 +754,19 @@ public class ExpectedTypes {
 			res.addAll(avaiableMethods(typeBinding.getSuperclass()));
 		}
 		return res;
+	}
+
+	private void addExpectedType(ITypeBinding expectedType) {
+		if (expectedType != null) {
+			if (expectedType.isTypeVariable() || expectedType.isWildcardType()) {
+				if (expectedType.getSuperclass() != null) {
+					expectedTypes.add(expectedType.getSuperclass());
+				}
+				expectedTypes.addAll(Arrays.asList(expectedType.getInterfaces()));
+			} else {
+				expectedTypes.add(expectedType);
+			}
+		}
 	}
 
 	public List<ITypeBinding> getExpectedTypes() {
