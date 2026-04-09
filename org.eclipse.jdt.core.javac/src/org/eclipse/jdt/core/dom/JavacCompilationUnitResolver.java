@@ -241,11 +241,12 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		try {
 			for (IPackageFragmentRoot root : project.getPackageFragmentRoots()) {
 				if (root.getResource() instanceof IFolder) {
-					IPackageFragment pack = root.getPackageFragment(this.getClass().getName() + ".MOCK_WORKING_COPY_PACKAGE_" + System.nanoTime());
-					ICompilationUnit mockUnit = pack.getCompilationUnit("A.java");
+					long nanoTime = System.nanoTime();
+					IPackageFragment pack = root.getPackageFragment(this.getClass().getName() + ".MOCK_WORKING_COPY_PACKAGE_" + nanoTime);
+					ICompilationUnit mockUnit = pack.getCompilationUnit("MockWorkingCopyClass" + nanoTime + ".java");
 					mockUnit.becomeWorkingCopy(monitor);
 					mockUnit.getBuffer().setContents("package " + pack.getElementName() + ";\n" +
-							"class A{}");
+							"class MockWorkingCopyClass" + nanoTime + "{}");
 					return mockUnit;
 				}
 			}
