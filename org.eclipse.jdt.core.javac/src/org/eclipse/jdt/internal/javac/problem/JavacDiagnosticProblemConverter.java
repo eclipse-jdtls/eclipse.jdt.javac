@@ -479,6 +479,21 @@ public class JavacDiagnosticProblemConverter {
 			JCCompilationUnit unit = units.get(diagnostic.getSource());
 			EndPosTable endPos = unit != null ? unit.endPositions : null;
 			if (diagnosticPath != null) {
+				if (problemId == IProblem.NotVisibleType
+						&& diagnosticPath.getLeaf() instanceof JCFieldAccess fieldAccess) {
+					JCExpression receiver = fieldAccess.getExpression();
+					if (receiver instanceof JCMethodInvocation receiverInvocation) {
+						JCExpression select = receiverInvocation.getMethodSelect();
+						if (select instanceof JCIdent ident) {
+							return getPositionByNodeRangeOnly(jcDiagnostic, ident);
+						}
+						if (select instanceof JCFieldAccess access) {
+							return new org.eclipse.jface.text.Position(
+									access.getPreferredPosition() + 1,
+									access.getIdentifier().length());
+						}
+					}
+				}
 				if (problemId == IProblem.ParameterMismatch) {
 					// Javac points to the arg, which JDT expects the method name
 					diagnosticPath = diagnosticPath.getParentPath();
@@ -1833,8 +1848,19 @@ public class JavacDiagnosticProblemConverter {
 						while (treePath != null && !(treePath.getLeaf() instanceof JCMethodDecl)) {
 							treePath = treePath.getParentPath();
 						}
-						return treePath != null && treePath.getLeaf() instanceof JCMethodDecl methodDecl && (methodDecl.sym.flags() & Flags.GENERATEDCONSTR) != 0 ?
-							IProblem.NotVisibleConstructorInDefaultConstructor : IProblem.NotVisibleConstructor;
+						return treePath != null && treePath.getLeaf() instanceof JCMethodDecl methodDecl
+								&& (methodDecl.sym.flags() & Flags.GENERATEDCONSTR) != 0
+										? IProblem.NotVisibleConstructorInDefaultConstructor
+										: IProblem.NotVisibleConstructor;
+					}
+
+					if (methodSymbol.owner instanceof Symbol.ClassSymbol owner) {
+						boolean methodIsPublic = (methodSymbol.flags() & Flags.PUBLIC) != 0;
+						boolean ownerIsPublic = (owner.flags() & Flags.PUBLIC) != 0;
+
+						if (methodIsPublic && !ownerIsPublic) {
+							return IProblem.NotVisibleType;
+						}
 					}
 
 					return IProblem.NotVisibleMethod;
