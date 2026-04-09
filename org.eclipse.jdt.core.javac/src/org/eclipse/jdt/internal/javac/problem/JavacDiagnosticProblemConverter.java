@@ -124,11 +124,14 @@ public class JavacDiagnosticProblemConverter {
 				|| (nestedDiagnostic.getSource() == null && findSymbol(nestedDiagnostic) instanceof ClassSymbol classSymbol
 					&& classSymbol.sourcefile == diagnostic.getSource()));
 		Diagnostic<? extends JavaFileObject> selectedDiagnostic = useNestedDiagnostic ? nestedDiagnostic : diagnostic;
+		Diagnostic<? extends JavaFileObject> positionedDiagnostic = useNestedDiagnostic && selectedDiagnostic.getPosition() < 0
+				? diagnostic
+				: selectedDiagnostic;
 		int[] problemIds = toProblemIds(selectedDiagnostic);
 		List<JavacProblem> ret = new ArrayList<>();
 		for( int i = 0; i < problemIds.length; i++ ) {
 			if (problemIds[i] != -1) { // cannot use < 0 as IProblem.Javadoc < 0
-				JavacProblem p = problemIdToJavacProblem(problemIds[i], selectedDiagnostic);
+				JavacProblem p = problemIdToJavacProblem(problemIds[i], positionedDiagnostic);
 				if( p != null ) {
 					ret.add(p);
 				}
@@ -1493,6 +1496,7 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.warn.restricted.method" -> IProblem.DiscouragedReference;
 			case "compiler.note.deprecated.filename.additional" -> IProblem.UsingDeprecatedMethod;
 			case "compiler.note.deprecated.recompile" -> -1;
+			case "compiler.misc.doesnt.implement.sealed" -> IProblem.SealedNotDirectSuperInterface;
 			default -> {
 				ILog.get().error("Could not accurately convert diagnostic (" + diagnostic.getCode() + ")\n" + diagnostic);
 				if (diagnostic.getKind() == javax.tools.Diagnostic.Kind.ERROR && diagnostic.getCode().startsWith("compiler.err")) {
