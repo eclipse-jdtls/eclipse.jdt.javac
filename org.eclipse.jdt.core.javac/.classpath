@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
+	<classpathentry exported="true" kind="lib" path="lib/nnb-doclint-1.0-SNAPSHOT.jar" sourcepath="/home/rob/apps/claude/doclint-standalone/target/nnb-doclint-1.0-SNAPSHOT-sources.jar"/>
 	<classpathentry kind="lib" path="lib/nb-javac-jdk-26+27-api.jar"/>
 	<classpathentry kind="lib" path="lib/nb-javac-jdk-26+27.jar" sourcepath="/Users/fbricon/Dev/souk/nb-javac/make/langtools/netbeans/nb-javac/src"/>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>

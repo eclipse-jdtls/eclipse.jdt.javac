@@ -8,7 +8,8 @@ Fragment-Host: org.eclipse.jdt.core
 Automatic-Module-Name: org.eclipse.jdt.core.javac
 Bundle-ClassPath: .,
  lib/nb-javac-jdk-26+27.jar,
- lib/nb-javac-jdk-26+27-api.jar
+ lib/nb-javac-jdk-26+27-api.jar,
+ lib/nnb-doclint-1.0-SNAPSHOT.jar
 Require-Capability: osgi.ee; filter:="(&(osgi.ee=JavaSE)(version=25))"
 Import-Package: org.eclipse.core.resources,
  org.eclipse.jdt.core.dom,
