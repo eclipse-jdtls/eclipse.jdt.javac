@@ -2394,8 +2394,13 @@ class JavacConverter {
 			Expression e = convertExpression(jcExpressionStatement.getExpression());
 			ExpressionStatement res = this.ast.newExpressionStatement(e);
 			commonSettings(res, javac);
-			if( e instanceof ClassInstanceCreation)
-				res.setSourceRange(e.getStartPosition(), e.getLength());
+			if( e instanceof ClassInstanceCreation) {
+				int jcEnd = javac.getEndPosition(this.javacCompilationUnit.endPositions);
+				int exprEnd = e.getStartPosition() + e.getLength();
+				if( !(jcEnd == exprEnd  + 1 && jcEnd < this.rawText.length() && this.rawText.charAt(jcEnd-1) == ';')) {
+					res.setSourceRange(e.getStartPosition(), e.getLength());
+				}
+			}
 			String asRaw = getRawTextForNode(res);
 			if( asRaw == null || !asRaw.endsWith(";")) {
 				res.setFlags(res.getFlags() | ASTNode.RECOVERED);
