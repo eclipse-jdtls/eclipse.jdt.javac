@@ -2396,6 +2396,10 @@ class JavacConverter {
 			commonSettings(res, javac);
 			if( e instanceof ClassInstanceCreation)
 				res.setSourceRange(e.getStartPosition(), e.getLength());
+			String asRaw = getRawTextForNode(res);
+			if( asRaw == null || !asRaw.endsWith(";")) {
+				res.setFlags(res.getFlags() | ASTNode.RECOVERED);
+			}
 			return res;
 		}
 		if (javac instanceof JCVariableDecl jcVariableDecl) {
@@ -3772,5 +3776,12 @@ class JavacConverter {
 		}
 	}
 
+	private String getRawTextForNode(ASTNode node) {
+		int end = node.getStartPosition() + node.getLength();
+		if( end >= this.rawText.length() ) {
+			return null;
+		}
+		return this.rawText.substring(node.getStartPosition(), end);
+	}
 
 }
