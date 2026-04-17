@@ -1671,9 +1671,12 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public boolean isFromSource() {
-		return this.resolver.findDeclaringNode(this) != null ||
-				getJavaElement() instanceof SourceType ||
-				(getDeclaringClass() != null && getDeclaringClass().isFromSource()) ||
+		if (this.resolver.findDeclaringNode(this) != null ||
+				getJavaElement() instanceof SourceType) {
+			return true;
+		}
+		ITypeBinding declaringClass = getDeclaringClass();
+		return (declaringClass != null && declaringClass != this && getDeclaringClass().isFromSource()) ||
 				this.isCapture();
 	}
 
