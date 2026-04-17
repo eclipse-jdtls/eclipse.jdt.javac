@@ -521,9 +521,8 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	static void getKey(StringBuilder builder, MethodSymbol methodSymbol, ExecutableType methodType, Type parentType, boolean useSlashes, JavacBindingResolver resolver) throws BindingKeyException {
 
 		if (parentType != null) {
-			JavacTypeBinding parentBinding = resolver.bindings.getTypeBinding(parentType);
-			String parentKey = parentBinding.getKeyWithPossibleGenerics(parentType, parentType.tsym);
-			builder.append(parentKey);
+		    Type erased = resolver.getTypes().erasure(parentType);
+		    JavacTypeBinding.getKey(builder, erased, false, false, true, resolver);
 		} else {
 			Symbol ownerSymbol = methodSymbol.owner;
 			while (ownerSymbol != null && !(ownerSymbol instanceof TypeSymbol)) {
