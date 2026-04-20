@@ -40,6 +40,8 @@ public class JavacCompilationResult extends CompilationResult {
 	private List<CategorizedProblem> indirectStaticAccessProblems = null;
 	private List<CategorizedProblem> unqualifiedFieldAccessProblems = null;
 	private List<CategorizedProblem> deadCodeProblems = null;
+	private List<CategorizedProblem> redundantNullAnnotationProblems = null;
+	private List<CategorizedProblem> potentialNullReferenceProblems = null;
 
 	public JavacCompilationResult(ICompilationUnit compilationUnit) {
 		this(compilationUnit, 0, 0, Integer.MAX_VALUE);
@@ -157,6 +159,20 @@ public class JavacCompilationResult extends CompilationResult {
 		this.deadCodeProblems.addAll(problems);
 	}
 
+	public void addRedundantNullAnnotationProblems(List<CategorizedProblem> problems) {
+		if (this.redundantNullAnnotationProblems == null) {
+			this.redundantNullAnnotationProblems = new ArrayList<>();
+		}
+		this.redundantNullAnnotationProblems.addAll(problems);
+	}
+
+	public void addPotentialNullReferenceProblems(List<CategorizedProblem> problems) {
+		if (this.potentialNullReferenceProblems == null) {
+			this.potentialNullReferenceProblems = new ArrayList<>();
+		}
+		this.potentialNullReferenceProblems.addAll(problems);
+	}
+
 	public List<CategorizedProblem> getAdditionalProblems() {
 		if (this.unusedMembers == null
 				&& this.unusedLocalVariables == null
@@ -168,7 +184,9 @@ public class JavacCompilationResult extends CompilationResult {
 				&& this.accessRestrictionProblems == null
 				&& this.indirectStaticAccessProblems == null
 				&& this.unqualifiedFieldAccessProblems == null
-				&& this.deadCodeProblems == null) {
+				&& this.deadCodeProblems == null
+				&& this.redundantNullAnnotationProblems == null
+				&& this.potentialNullReferenceProblems == null) {
 			return null;
 		}
 
@@ -205,6 +223,12 @@ public class JavacCompilationResult extends CompilationResult {
 		}
 		if (this.deadCodeProblems != null) {
 			problems.addAll(this.deadCodeProblems);
+		}
+		if (this.redundantNullAnnotationProblems != null) {
+			problems.addAll(this.redundantNullAnnotationProblems);
+		}
+		if (this.potentialNullReferenceProblems != null) {
+			problems.addAll(this.potentialNullReferenceProblems);
 		}
 		return problems;
 	}

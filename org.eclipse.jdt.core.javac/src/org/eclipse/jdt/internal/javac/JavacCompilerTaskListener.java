@@ -143,6 +143,10 @@ public class JavacCompilerTaskListener implements TaskListener {
 			boolean getIndirectStaticAccessProblems = this.javacCompiler.options.getSeverity(CompilerOptions.IndirectStaticAccess) != ProblemSeverities.Ignore;
 			boolean getUnqualifiedFieldAccessProblems = this.javacCompiler.options.getSeverity(CompilerOptions.UnqualifiedFieldAccess) != ProblemSeverities.Ignore;
 			boolean getDeadCodeProblems = this.javacCompiler.options.getSeverity(CompilerOptions.DeadCode) != ProblemSeverities.Ignore;
+			boolean getRedundantNullProblems = this.javacCompiler.options.isAnnotationBasedNullAnalysisEnabled
+					&& this.javacCompiler.options.getSeverity(CompilerOptions.RedundantNullAnnotation) != ProblemSeverities.Ignore;
+			boolean getPotentialNullProblems = this.javacCompiler.options.isAnnotationBasedNullAnalysisEnabled
+					&& this.javacCompiler.options.getSeverity(CompilerOptions.PotentialNullReference) != ProblemSeverities.Ignore;
 
 			UnusedTreeScanner<Void, Void> unusedTreeScanner = null;
 			if (getUnusedPrivateMembers || getUnusedLocalVariables || getUnusedImports || getUnnecessaryCasts
@@ -301,6 +305,12 @@ public class JavacCompilerTaskListener implements TaskListener {
 				deadCodeScanner.scan(unit, null);
 			}
 
+			NullAnalysisTreeScanner nullAnalysisScanner = null;
+			if (getRedundantNullProblems || getPotentialNullProblems) {
+				nullAnalysisScanner = new NullAnalysisTreeScanner(this.problemFactory, this.javacCompiler.options, currentTopLevelType);
+				nullAnalysisScanner.scan(unit, null);
+			}
+
 			if (unusedTreeScanner != null) {
 				if (getUnusedPrivateMembers) {
 					result.addUnusedMembers(unusedTreeScanner.getUnusedPrivateMembers(this.unusedProblemFactory));
@@ -337,6 +347,14 @@ public class JavacCompilerTaskListener implements TaskListener {
 			}
 			if (deadCodeScanner != null) {
 				result.addDeadCodeProblems(deadCodeScanner.getDeadCodeProblems());
+			}
+			if (nullAnalysisScanner != null) {
+				if (getRedundantNullProblems) {
+					result.addRedundantNullAnnotationProblems(nullAnalysisScanner.getRedundantNullAnnotationProblems());
+				}
+				if (getPotentialNullProblems) {
+					result.addPotentialNullReferenceProblems(nullAnalysisScanner.getPotentialNullReferenceProblems());
+				}
 			}
 		}
 	}
