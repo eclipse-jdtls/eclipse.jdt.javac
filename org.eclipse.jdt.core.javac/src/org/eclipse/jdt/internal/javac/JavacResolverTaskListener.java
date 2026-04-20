@@ -141,6 +141,12 @@ public class JavacResolverTaskListener implements TaskListener {
 					.getSeverityString(CompilerOptions.UnqualifiedFieldAccess).equals(CompilerOptions.IGNORE);
 		boolean deadCodeIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.DeadCode).equals(CompilerOptions.IGNORE);
+		boolean redundantNullAnnotationIgnored = this.compilerOptions
+					.getSeverityString(CompilerOptions.RedundantNullAnnotation).equals(CompilerOptions.IGNORE)
+					|| !this.compilerOptions.isAnnotationBasedNullAnalysisEnabled;
+		boolean potentialNullReferenceIgnored = this.compilerOptions
+					.getSeverityString(CompilerOptions.PotentialNullReference).equals(CompilerOptions.IGNORE)
+					|| !this.compilerOptions.isAnnotationBasedNullAnalysisEnabled;
 
 		boolean getAccessRestrictions = Options.instance(context).get(Option.XLINT_CUSTOM).contains("all");
 		boolean getUnusedProblems = !unusedImportIgnored
@@ -151,10 +157,12 @@ public class JavacResolverTaskListener implements TaskListener {
 				|| !unclosedCloseableIgnored
 				|| !unusedTypeParameterIgnored;
 		boolean getCodeStyleProblems = !indirectStaticAccessIgnored || !unqualifiedFieldAccessIgnored;
+		boolean getNullAnalysisProblems = !redundantNullAnnotationIgnored || !potentialNullReferenceIgnored;
 		if (!getAccessRestrictions
 				&& !getUnusedProblems
 				&& !getCodeStyleProblems
-				&& !deadCodeIgnored) {
+				&& !deadCodeIgnored
+				&& !getNullAnalysisProblems) {
 			return;
 		}
 
@@ -173,12 +181,16 @@ public class JavacResolverTaskListener implements TaskListener {
 		List<IProblem> deadCodes = !deadCodeIgnored
 				? getDeadCodeProblems(e)
 				: new ArrayList<>();
+		List<IProblem> nullAnalysis = getNullAnalysisProblems
+				? getNullAnalysisProblems(e, !redundantNullAnnotationIgnored, !potentialNullReferenceIgnored)
+				: new ArrayList<>();
 
 		List<IProblem> combined = new ArrayList<IProblem>();
 		combined.addAll(allUnused);
 		combined.addAll(accessRestrictions);
 		combined.addAll(codeStyles);
 		combined.addAll(deadCodes);
+		combined.addAll(nullAnalysis);
 		addProblemsToDOM(dom,combined);
 
 	}
@@ -230,6 +242,30 @@ public class JavacResolverTaskListener implements TaskListener {
 		DeadCodeTreeScanner scanner = new DeadCodeTreeScanner(this.problemFactory, this.compilerOptions, currentTopLevelType);
 		scanner.scan(e.getCompilationUnit(), null);
 		return new ArrayList<>(scanner.getDeadCodeProblems());
+	}
+
+	private List<IProblem> getNullAnalysisProblems(TaskEvent e,
+			boolean getRedundantNullAnnotationProblems, boolean getPotentialNullReferenceProblems) {
+		final TypeElement currentTopLevelType = e.getTypeElement();
+		NullAnalysisTreeScanner scanner = new NullAnalysisTreeScanner(this.problemFactory, this.compilerOptions, currentTopLevelType);
+		final CompilationUnitTree unit = e.getCompilationUnit();
+		scanner.scan(unit, null);
+		List<IProblem> allNullAnalysisProblems = new ArrayList<>();
+
+		if (getRedundantNullAnnotationProblems) {
+			List<CategorizedProblem> redundantNullAnnotationProblems = scanner.getRedundantNullAnnotationProblems();
+			if (!redundantNullAnnotationProblems.isEmpty()) {
+				allNullAnalysisProblems.addAll(redundantNullAnnotationProblems);
+			}
+		}
+
+		if (getPotentialNullReferenceProblems) {
+			List<CategorizedProblem> potentialNullReferenceProblems = scanner.getPotentialNullReferenceProblems();
+			if (!potentialNullReferenceProblems.isEmpty()) {
+				allNullAnalysisProblems.addAll(potentialNullReferenceProblems);
+			}
+		}
+		return allNullAnalysisProblems;
 	}
 
 	private List<IProblem> getUnusedElementProblems(TaskEvent e,
