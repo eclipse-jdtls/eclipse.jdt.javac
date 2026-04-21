@@ -88,9 +88,11 @@ public class DOMASTNodeUtils {
 			|| node instanceof AnnotationTypeMemberDeclaration
 			|| node instanceof Initializer
 			|| node instanceof LambdaExpression
-			|| node.getLocationInParent() == FieldDeclaration.FRAGMENTS_PROPERTY
 			|| node.getLocationInParent() == RecordDeclaration.RECORD_COMPONENTS_PROPERTY) {
 			return node;
+		}
+		if( node.getLocationInParent() == FieldDeclaration.FRAGMENTS_PROPERTY ) {
+			return node.getParent();
 		}
 		if (node instanceof ClassInstanceCreation newInst && newInst.getAnonymousClassDeclaration() != null) {
 			return (newInst.getAnonymousClassDeclaration());
