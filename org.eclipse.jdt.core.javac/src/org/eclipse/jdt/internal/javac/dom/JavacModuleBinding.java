@@ -70,8 +70,13 @@ public abstract class JavacModuleBinding implements IModuleBinding {
 
 	@Override
 	public IAnnotationBinding[] getAnnotations() {
-		// TODO - don't see any way to get this?
-		List<Attribute.Compound> list = moduleSymbol.getRawAttributes();
+		// Works some of the time, but not all
+		List<Attribute.Compound> list = moduleSymbol.getAnnotationMirrors();
+		List<Attribute.Compound> list2 = moduleSymbol.getRawAttributes();
+		List<Attribute.Compound> seen = new ArrayList<>();
+		for (var a : list) if( !seen.contains(a)) seen.add(a);
+		for (var a : list2) if( !seen.contains(a)) seen.add(a);
+
 		return list.stream().map(x -> this.resolver.bindings.getAnnotationBinding(x, this)).toArray(JavacAnnotationBinding[]::new);
 	}
 

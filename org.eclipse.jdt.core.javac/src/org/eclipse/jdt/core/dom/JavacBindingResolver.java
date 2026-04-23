@@ -530,7 +530,8 @@ public class JavacBindingResolver extends BindingResolver {
 				Map<Symbol, ASTNode> wipSymbolToDeclaration = new HashMap<>();
 				this.converter.domToJavac.forEach((jdt, javac) -> {
 					// We don't want FieldDeclaration (ref ASTConverterTest2.test0433)
-					if (jdt instanceof MethodDeclaration ||
+					if (jdt instanceof ModuleDeclaration ||
+						jdt instanceof MethodDeclaration ||
 						jdt instanceof VariableDeclaration ||
 						jdt instanceof EnumConstantDeclaration ||
 						jdt instanceof AnnotationTypeMemberDeclaration ||
@@ -2458,6 +2459,14 @@ public class JavacBindingResolver extends BindingResolver {
 
 	public String getConverterRawText() {
 		return converter == null ? null : converter.rawText;
+	}
+
+	public JCTree findJCTreeForSymbol(Symbol s) {
+		ASTNode dom = symbolToDeclaration.get(s);
+		if( dom != null ) {
+			return converter.domToJavac.get(dom);
+		}
+		return null;
 	}
 
 	public static ExecutableType asExecutable(com.sun.tools.javac.code.Type t) {
