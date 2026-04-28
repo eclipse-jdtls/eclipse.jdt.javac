@@ -2132,9 +2132,7 @@ class JavacConverter {
 			Dimension varargsDimension = (Dimension) arrayType.dimensions().removeLast();
 			declaration.varargsAnnotations().addAll(ASTNode.copySubtrees(this.ast, varargsDimension.annotations()));
 			if (arrayType.dimensions().isEmpty()) {
-				Type elementType = arrayType.getElementType();
-				elementType.delete();
-				return elementType;
+				return (Type) ASTNode.copySubtree(this.ast, arrayType.getElementType());
 			}
 			return arrayType;
 		}
