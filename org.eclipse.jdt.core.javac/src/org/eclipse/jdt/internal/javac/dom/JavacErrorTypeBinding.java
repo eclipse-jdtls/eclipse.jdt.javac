@@ -12,9 +12,9 @@ package org.eclipse.jdt.internal.javac.dom;
 
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
-import com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeSymbol;
+import shaded.com.sun.tools.javac.code.Type;
 
 /**
  * Represents a binding for a type that javac struggles to recover,

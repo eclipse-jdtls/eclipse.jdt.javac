@@ -11,11 +11,11 @@ package org.eclipse.jdt.internal.javac;
 
 import java.util.Set;
 
-import javax.lang.model.element.Element;
+import shaded.javax.lang.model.element.Element;
 
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.model.JavacTypes;
-import com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.model.JavacTypes;
+import shaded.com.sun.tools.javac.util.Context;
 
 public class AvoidNPEJavacTypes extends JavacTypes {
 

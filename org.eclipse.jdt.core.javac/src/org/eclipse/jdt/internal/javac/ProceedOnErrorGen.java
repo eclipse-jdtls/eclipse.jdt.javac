@@ -10,42 +10,42 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.javac;
 
-import static com.sun.tools.javac.jvm.ByteCodes.athrow;
+import static shaded.com.sun.tools.javac.jvm.ByteCodes.athrow;
 
-import com.sun.tools.javac.code.Kinds.Kind;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.ErrorType;
-import com.sun.tools.javac.comp.Attr;
-import com.sun.tools.javac.comp.AttrContext;
-import com.sun.tools.javac.comp.Env;
-import com.sun.tools.javac.jvm.Gen;
-import com.sun.tools.javac.tree.JCTree.JCArrayAccess;
-import com.sun.tools.javac.tree.JCTree.JCAssign;
-import com.sun.tools.javac.tree.JCTree.JCBinary;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCErroneous;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCIf;
-import com.sun.tools.javac.tree.JCTree.JCInstanceOf;
-import com.sun.tools.javac.tree.JCTree.JCLiteral;
-import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
-import com.sun.tools.javac.tree.JCTree.JCNewClass;
-import com.sun.tools.javac.tree.JCTree.JCParens;
-import com.sun.tools.javac.tree.JCTree.JCReturn;
-import com.sun.tools.javac.tree.JCTree.JCThrow;
-import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
-import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.Names;
+import shaded.com.sun.tools.javac.code.Kinds.Kind;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.ErrorType;
+import shaded.com.sun.tools.javac.comp.Attr;
+import shaded.com.sun.tools.javac.comp.AttrContext;
+import shaded.com.sun.tools.javac.comp.Env;
+import shaded.com.sun.tools.javac.jvm.Gen;
+import shaded.com.sun.tools.javac.tree.JCTree.JCArrayAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssign;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBinary;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCErroneous;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIf;
+import shaded.com.sun.tools.javac.tree.JCTree.JCInstanceOf;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLiteral;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewClass;
+import shaded.com.sun.tools.javac.tree.JCTree.JCParens;
+import shaded.com.sun.tools.javac.tree.JCTree.JCReturn;
+import shaded.com.sun.tools.javac.tree.JCTree.JCThrow;
+import shaded.com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import shaded.com.sun.tools.javac.tree.TreeInfo;
+import shaded.com.sun.tools.javac.tree.TreeMaker;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.List;
+import shaded.com.sun.tools.javac.util.Names;
 
 public class ProceedOnErrorGen extends Gen {
 

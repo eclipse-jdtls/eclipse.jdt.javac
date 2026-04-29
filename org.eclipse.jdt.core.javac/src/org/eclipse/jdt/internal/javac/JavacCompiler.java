@@ -22,12 +22,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticListener;
-import javax.tools.JavaFileManager;
-import javax.tools.JavaFileObject;
-import javax.tools.ToolProvider;
-
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IJavaProject;
@@ -49,24 +43,29 @@ import org.eclipse.jdt.internal.core.builder.SourceFile;
 import org.eclipse.jdt.internal.javac.problem.JavacDiagnosticProblemConverter;
 import org.eclipse.jdt.internal.javac.problem.JavacProblem;
 
-import com.sun.source.util.JavacTask;
-import com.sun.source.util.TaskEvent;
-import com.sun.source.util.TaskListener;
-import com.sun.tools.javac.api.JavacTool;
-import com.sun.tools.javac.api.MultiTaskListener;
-import com.sun.tools.javac.comp.AttrContext;
-import com.sun.tools.javac.comp.Env;
-import com.sun.tools.javac.file.CacheFSInfo;
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Context.Factory;
-import com.sun.tools.javac.util.Context.Key;
-import com.sun.tools.javac.util.Options;
-import com.sun.tools.javac.util.Pair;
+import shaded.com.sun.source.util.JavacTask;
+import shaded.com.sun.source.util.TaskEvent;
+import shaded.com.sun.source.util.TaskListener;
+import shaded.com.sun.tools.javac.api.JavacTool;
+import shaded.com.sun.tools.javac.api.MultiTaskListener;
+import shaded.com.sun.tools.javac.comp.AttrContext;
+import shaded.com.sun.tools.javac.comp.Env;
+import shaded.com.sun.tools.javac.file.CacheFSInfo;
+import shaded.com.sun.tools.javac.file.JavacFileManager;
+import shaded.com.sun.tools.javac.main.JavaCompiler;
+import shaded.com.sun.tools.javac.main.Option;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.Context.Factory;
+import shaded.com.sun.tools.javac.util.Context.Key;
+import shaded.com.sun.tools.javac.util.Options;
+import shaded.com.sun.tools.javac.util.Pair;
+import shaded.javax.tools.Diagnostic;
+import shaded.javax.tools.DiagnosticListener;
+import shaded.javax.tools.JavaFileManager;
+import shaded.javax.tools.JavaFileObject;
+import shaded.javax.tools.ToolProvider;
 
 public class JavacCompiler extends Compiler {
 	public static final Key<Set<JavaFileObject>> FILES_WITH_ERRORS_KEY = new Key<>();
@@ -202,7 +201,7 @@ public class JavacCompiler extends Compiler {
 		});
 		JavacFileManager fileManager = (JavacFileManager)javacContext.get(JavaFileManager.class);
 		try {
-			com.sun.tools.javac.util.List<JavaFileObject> sourceFiles = com.sun.tools.javac.util.List.from(toCompile.stream()
+			shaded.com.sun.tools.javac.util.List<JavaFileObject> sourceFiles = shaded.com.sun.tools.javac.util.List.from(toCompile.stream()
 					.filter(SourceFile.class::isInstance).map(SourceFile.class::cast).map(source -> {
 						File unitFile;
 						// path is relative to the workspace, make it absolute

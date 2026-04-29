@@ -27,7 +27,7 @@ import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.internal.compiler.ClassFile;
 import org.eclipse.jdt.internal.compiler.util.SuffixConstants;
 
-import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCModuleDecl;
 
 public class JavacClassFile extends ClassFile {
 	final String fullName;

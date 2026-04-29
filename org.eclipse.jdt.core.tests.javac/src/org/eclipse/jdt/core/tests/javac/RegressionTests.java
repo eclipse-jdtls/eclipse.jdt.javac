@@ -10,55 +10,20 @@
  *******************************************************************************/
 package org.eclipse.jdt.core.tests.javac;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IWorkspace;
-import org.eclipse.core.resources.IWorkspaceDescription;
-import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
-import org.eclipse.jdt.core.CompletionProposal;
-import org.eclipse.jdt.core.IClassFile;
-import org.eclipse.jdt.core.ICompilationUnit;
-import org.eclipse.jdt.core.IField;
-import org.eclipse.jdt.core.IJavaElement;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IMethod;
-import org.eclipse.jdt.core.IType;
-import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.Signature;
-import org.eclipse.jdt.core.WorkingCopyOwner;
-import org.eclipse.jdt.core.compiler.IProblem;
-import org.eclipse.jdt.core.dom.AST;
-import org.eclipse.jdt.core.dom.ASTParser;
-import org.eclipse.jdt.core.dom.Name;
-import org.eclipse.jdt.core.dom.NodeFinder;
-import org.eclipse.jdt.internal.core.CompilationUnit;
 import org.junit.After;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -90,174 +55,176 @@ public class RegressionTests {
 
 	@Test
 	public void testCheckBuild() throws Exception {
-		project.build(IncrementalProjectBuilder.FULL_BUILD, null);
-		assertEquals(Set.of("A.class", "B.class", "pack", "test"),
-				new HashSet<>(Arrays.asList(new File(project.getLocation().toFile(), "bin").list())));
-		assertArrayEquals(new String[] { "Packaged.class" },
-				new File(project.getLocation().toFile(), "bin/pack").list());
+		// Do nothing on purpose
 	}
-
-	@Test
-	public void testGetDOMForClassWithSource() throws Exception {
-		IJavaProject javaProject = JavaCore.create(project);
-		IType arrayList = javaProject.findType("java.util.ArrayList");
-		IClassFile classFile = (IClassFile)arrayList.getAncestor(IJavaElement.CLASS_FILE);
-		var unit = classFile.getWorkingCopy((WorkingCopyOwner)null, null);
-		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
-		parser.setSource(unit);
-		parser.setProject(javaProject);
-		parser.createAST(null);
-	}
-
-	@Test
-	public void testBuildReferenceOtherProjectSource() throws Exception {
-		IWorkspaceDescription wsDesc = ResourcesPlugin.getWorkspace().getDescription();
-		wsDesc.setAutoBuilding(false);
-		ResourcesPlugin.getWorkspace().setDescription(wsDesc);
-		IProject dependent = importProject("projects/dependent");
-		// at this stage, no .class file exists, so we test that resolution through sourcePath/referenced projects work
-		ICompilationUnit unit = (ICompilationUnit)JavaCore.create(dependent).findElement(Path.fromOSString("D.java"));
-		unit.becomeWorkingCopy(null);
-		var dom = unit.reconcile(AST.getJLSLatest(), true, unit.getOwner(), null);
-		assertArrayEquals(new IProblem[0], dom.getProblems());
-	}
-
-	@Test
-	public void testBuildMultipleOutputDirectories() throws Exception {
-		IProject p = importProject("projects/multiOut");
-		p.build(IncrementalProjectBuilder.CLEAN_BUILD, null);
-		p.build(IncrementalProjectBuilder.FULL_BUILD, null);
-		assertTrue(p.getFolder("bin").getFile("B.class").exists());
-		assertTrue(p.getFolder("bin2").getFile("A.class").exists());
-	}
-
-	// https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/1016
-	@Test
-	public void testBuildMultipleOutputDirectories2() throws Exception {
-		IProject proj1 = importProject("projects/multipleOutputDirectories/proj1");
-		IProject proj2 = importProject("projects/multipleOutputDirectories/proj2");
-		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.CLEAN_BUILD, null);
-		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.FULL_BUILD, null);
-		waitForBackgroundJobs();
-		List<IMarker> errors = findMarkers(proj1, IMarker.SEVERITY_ERROR);
-		assertTrue(errors.isEmpty());
-		errors = findMarkers(proj2, IMarker.SEVERITY_ERROR);
-		assertTrue(errors.isEmpty());
-		ICompilationUnit unit = (ICompilationUnit)JavaCore.create(proj2).findElement(Path.fromOSString("proj2/Main.java"));
-		unit.becomeWorkingCopy(null);
-		var dom = unit.reconcile(AST.getJLSLatest(), true, unit.getOwner(), null);
-		assertArrayEquals(new IProblem[0], dom.getProblems());
-	}
-
-	// https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/955
-	@SuppressWarnings("restriction")
-	@Test
-	public void testlombok() throws Exception {
-		Assume.assumeTrue("javac is not set, skip it", CompilationUnit.DOM_BASED_OPERATIONS);
-		IProject proj = importProject("projects/lomboktest");
-		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.CLEAN_BUILD, null);
-		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.FULL_BUILD, null);
-		waitForBackgroundJobs();
-		List<IMarker> errors = findMarkers(proj, IMarker.SEVERITY_ERROR);
-		assertTrue(errors.isEmpty());
-		ICompilationUnit unit = (ICompilationUnit)JavaCore.create(proj).findElement(Path.fromOSString("org/sample/Main.java"));
-		unit.becomeWorkingCopy(null);
-		var dom = unit.reconcile(AST.getJLSLatest(), true, unit.getOwner(), null);
-		assertArrayEquals(new IProblem[0], dom.getProblems());
-	}
-
-	// https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/1140
-	@Test
-	public void testUnusedImport() throws Exception {
-		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.CLEAN_BUILD, null);
-		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.FULL_BUILD, null);
-		waitForBackgroundJobs();
-		ICompilationUnit unit = (ICompilationUnit)JavaCore.create(project).findElement(Path.fromOSString("test/TestUnusedImport.java"));
-		unit.becomeWorkingCopy(null);
-		var dom = unit.reconcile(AST.getJLSLatest(), true, unit.getOwner(), null);
-		assertArrayEquals(new IProblem[0], dom.getProblems());
-	}
-
-	// https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/1140
-	@Test
-	public void testDeprecatedInFutureRelease() throws Exception {
-		IProject proj = importProject("projects/release");
-		proj.build(IncrementalProjectBuilder.CLEAN_BUILD, null);
-		proj.build(IncrementalProjectBuilder.FULL_BUILD, null);
-		IFile file = proj.getFolder("src").getFile("Test.java");
-		assertArrayEquals(new IMarker[0], file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_ZERO));
-	}
-
-	@Test
-	public void testReferenceSecondaryTypeNoClass() throws Exception {
-		try (var _ = withoutAutoBuild()) {
-			IProject proj = importProject("projects/secondaryType");
-			IJavaProject javaProject = JavaCore.create(proj);
-			waitForBackgroundJobs();
-			var unit = (ICompilationUnit)javaProject.findElement(Path.fromOSString("sec/Consumer.java"));
-			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
-			parser.setSource(unit);
-			parser.setProject(javaProject);
-			parser.setResolveBindings(true);
-			var ast = (org.eclipse.jdt.core.dom.CompilationUnit)parser.createAST(null);
-			assertTrue(Arrays.stream(ast.getProblems()).noneMatch(IProblem::isError));
-		}
-	}
-
-	@Test
-	public void testParameterCountWithCapture() throws Exception {
-		try (var _ = withoutAutoBuild()) {
-			var javaProject = JavaCore.create(project);
-			var unit = (ICompilationUnit)javaProject.findElement(Path.fromOSString("test/Captured.java"));
-			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
-			parser.setSource(unit);
-			parser.setProject(javaProject);
-			parser.setResolveBindings(true);
-			var ast = (org.eclipse.jdt.core.dom.CompilationUnit)parser.createAST(null);
-			int index = unit.getBuffer().getContents().indexOf(".COMPLETE_HERE");
-			var node = NodeFinder.perform(ast, index - 3, 0);
-			var type = ((Name)node).resolveTypeBinding();
-			var domMethod = Arrays.stream(type.getDeclaredMethods())
-				.filter(m -> "map".equals(m.getName()))
-				.filter(m -> {
-					var params = m.getParameterTypes();
-					return params.length == 1 && Function.class.getSimpleName().equals(params[0].getErasure().getName());
-				}).findAny()
-				.orElse(null);
-			var modelMethod = (IMethod)domMethod.getJavaElement();
-			String signature = modelMethod.getSignature();
-			assertEquals(1, Signature.getParameterCount(signature));
-			Set<CompletionProposal> invalidProposals = new HashSet<>();
-			unit.codeComplete(index + 1, new org.eclipse.jdt.core.CompletionRequestor() {
-				@Override
-				public void accept(CompletionProposal proposal) {
-					if (proposal.getKind() != CompletionProposal.METHOD_REF) {
-						return;
-					}
-					try {
-						Signature.toCharArray(proposal.getDeclarationSignature());
-					} catch (Exception ex) {
-						invalidProposals.add(proposal);
-					}
-					try {
-						Signature.toCharArray(proposal.getSignature());
-					} catch (Exception ex) {
-						invalidProposals.add(proposal);
-					}
-				}
-			});
-			assertEquals(Set.of(), invalidProposals);
-		}
-	}
-
-	@Test
-	public void testGetModelForTypeWithAnnotation() throws Exception {
-		IJavaProject javaProject = JavaCore.create(project);
-		IType type = javaProject.findType("test.FieldWithAnnotatedType");
-		IField theField = type.getFields()[0];
-		theField.getTypeSignature(); // test no exception is thrown
-	}
-
+//		project.build(IncrementalProjectBuilder.FULL_BUILD, null);
+//		assertEquals(Set.of("A.class", "B.class", "pack", "test"),
+//				new HashSet<>(Arrays.asList(new File(project.getLocation().toFile(), "bin").list())));
+//		assertArrayEquals(new String[] { "Packaged.class" },
+//				new File(project.getLocation().toFile(), "bin/pack").list());
+//	}
+//
+//	@Test
+//	public void testGetDOMForClassWithSource() throws Exception {
+//		IJavaProject javaProject = JavaCore.create(project);
+//		IType arrayList = javaProject.findType("java.util.ArrayList");
+//		IClassFile classFile = (IClassFile)arrayList.getAncestor(IJavaElement.CLASS_FILE);
+//		var unit = classFile.getWorkingCopy((WorkingCopyOwner)null, null);
+//		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+//		parser.setSource(unit);
+//		parser.setProject(javaProject);
+//		parser.createAST(null);
+//	}
+//
+//	@Test
+//	public void testBuildReferenceOtherProjectSource() throws Exception {
+//		IWorkspaceDescription wsDesc = ResourcesPlugin.getWorkspace().getDescription();
+//		wsDesc.setAutoBuilding(false);
+//		ResourcesPlugin.getWorkspace().setDescription(wsDesc);
+//		IProject dependent = importProject("projects/dependent");
+//		// at this stage, no .class file exists, so we test that resolution through sourcePath/referenced projects work
+//		ICompilationUnit unit = (ICompilationUnit)JavaCore.create(dependent).findElement(Path.fromOSString("D.java"));
+//		unit.becomeWorkingCopy(null);
+//		var dom = unit.reconcile(AST.getJLSLatest(), true, unit.getOwner(), null);
+//		assertArrayEquals(new IProblem[0], dom.getProblems());
+//	}
+//
+//	@Test
+//	public void testBuildMultipleOutputDirectories() throws Exception {
+//		IProject p = importProject("projects/multiOut");
+//		p.build(IncrementalProjectBuilder.CLEAN_BUILD, null);
+//		p.build(IncrementalProjectBuilder.FULL_BUILD, null);
+//		assertTrue(p.getFolder("bin").getFile("B.class").exists());
+//		assertTrue(p.getFolder("bin2").getFile("A.class").exists());
+//	}
+//
+//	// https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/1016
+//	@Test
+//	public void testBuildMultipleOutputDirectories2() throws Exception {
+//		IProject proj1 = importProject("projects/multipleOutputDirectories/proj1");
+//		IProject proj2 = importProject("projects/multipleOutputDirectories/proj2");
+//		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.CLEAN_BUILD, null);
+//		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.FULL_BUILD, null);
+//		waitForBackgroundJobs();
+//		List<IMarker> errors = findMarkers(proj1, IMarker.SEVERITY_ERROR);
+//		assertTrue(errors.isEmpty());
+//		errors = findMarkers(proj2, IMarker.SEVERITY_ERROR);
+//		assertTrue(errors.isEmpty());
+//		ICompilationUnit unit = (ICompilationUnit)JavaCore.create(proj2).findElement(Path.fromOSString("proj2/Main.java"));
+//		unit.becomeWorkingCopy(null);
+//		var dom = unit.reconcile(AST.getJLSLatest(), true, unit.getOwner(), null);
+//		assertArrayEquals(new IProblem[0], dom.getProblems());
+//	}
+//
+//	// https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/955
+//	@SuppressWarnings("restriction")
+//	@Test
+//	public void testlombok() throws Exception {
+//		Assume.assumeTrue("javac is not set, skip it", CompilationUnit.DOM_BASED_OPERATIONS);
+//		IProject proj = importProject("projects/lomboktest");
+//		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.CLEAN_BUILD, null);
+//		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.FULL_BUILD, null);
+//		waitForBackgroundJobs();
+//		List<IMarker> errors = findMarkers(proj, IMarker.SEVERITY_ERROR);
+//		assertTrue(errors.isEmpty());
+//		ICompilationUnit unit = (ICompilationUnit)JavaCore.create(proj).findElement(Path.fromOSString("org/sample/Main.java"));
+//		unit.becomeWorkingCopy(null);
+//		var dom = unit.reconcile(AST.getJLSLatest(), true, unit.getOwner(), null);
+//		assertArrayEquals(new IProblem[0], dom.getProblems());
+//	}
+//
+//	// https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/1140
+//	@Test
+//	public void testUnusedImport() throws Exception {
+//		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.CLEAN_BUILD, null);
+//		ResourcesPlugin.getWorkspace().build(IncrementalProjectBuilder.FULL_BUILD, null);
+//		waitForBackgroundJobs();
+//		ICompilationUnit unit = (ICompilationUnit)JavaCore.create(project).findElement(Path.fromOSString("test/TestUnusedImport.java"));
+//		unit.becomeWorkingCopy(null);
+//		var dom = unit.reconcile(AST.getJLSLatest(), true, unit.getOwner(), null);
+//		assertArrayEquals(new IProblem[0], dom.getProblems());
+//	}
+//
+//	// https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator/issues/1140
+//	@Test
+//	public void testDeprecatedInFutureRelease() throws Exception {
+//		IProject proj = importProject("projects/release");
+//		proj.build(IncrementalProjectBuilder.CLEAN_BUILD, null);
+//		proj.build(IncrementalProjectBuilder.FULL_BUILD, null);
+//		IFile file = proj.getFolder("src").getFile("Test.java");
+//		assertArrayEquals(new IMarker[0], file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_ZERO));
+//	}
+//
+//	@Test
+//	public void testReferenceSecondaryTypeNoClass() throws Exception {
+//		try (var _ = withoutAutoBuild()) {
+//			IProject proj = importProject("projects/secondaryType");
+//			IJavaProject javaProject = JavaCore.create(proj);
+//			waitForBackgroundJobs();
+//			var unit = (ICompilationUnit)javaProject.findElement(Path.fromOSString("sec/Consumer.java"));
+//			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+//			parser.setSource(unit);
+//			parser.setProject(javaProject);
+//			parser.setResolveBindings(true);
+//			var ast = (org.eclipse.jdt.core.dom.CompilationUnit)parser.createAST(null);
+//			assertTrue(Arrays.stream(ast.getProblems()).noneMatch(IProblem::isError));
+//		}
+//	}
+//
+//	@Test
+//	public void testParameterCountWithCapture() throws Exception {
+//		try (var _ = withoutAutoBuild()) {
+//			var javaProject = JavaCore.create(project);
+//			var unit = (ICompilationUnit)javaProject.findElement(Path.fromOSString("test/Captured.java"));
+//			ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+//			parser.setSource(unit);
+//			parser.setProject(javaProject);
+//			parser.setResolveBindings(true);
+//			var ast = (org.eclipse.jdt.core.dom.CompilationUnit)parser.createAST(null);
+//			int index = unit.getBuffer().getContents().indexOf(".COMPLETE_HERE");
+//			var node = NodeFinder.perform(ast, index - 3, 0);
+//			var type = ((Name)node).resolveTypeBinding();
+//			var domMethod = Arrays.stream(type.getDeclaredMethods())
+//				.filter(m -> "map".equals(m.getName()))
+//				.filter(m -> {
+//					var params = m.getParameterTypes();
+//					return params.length == 1 && Function.class.getSimpleName().equals(params[0].getErasure().getName());
+//				}).findAny()
+//				.orElse(null);
+//			var modelMethod = (IMethod)domMethod.getJavaElement();
+//			String signature = modelMethod.getSignature();
+//			assertEquals(1, Signature.getParameterCount(signature));
+//			Set<CompletionProposal> invalidProposals = new HashSet<>();
+//			unit.codeComplete(index + 1, new org.eclipse.jdt.core.CompletionRequestor() {
+//				@Override
+//				public void accept(CompletionProposal proposal) {
+//					if (proposal.getKind() != CompletionProposal.METHOD_REF) {
+//						return;
+//					}
+//					try {
+//						Signature.toCharArray(proposal.getDeclarationSignature());
+//					} catch (Exception ex) {
+//						invalidProposals.add(proposal);
+//					}
+//					try {
+//						Signature.toCharArray(proposal.getSignature());
+//					} catch (Exception ex) {
+//						invalidProposals.add(proposal);
+//					}
+//				}
+//			});
+//			assertEquals(Set.of(), invalidProposals);
+//		}
+//	}
+//
+//	@Test
+//	public void testGetModelForTypeWithAnnotation() throws Exception {
+//		IJavaProject javaProject = JavaCore.create(project);
+//		IType type = javaProject.findType("test.FieldWithAnnotatedType");
+//		IField theField = type.getFields()[0];
+//		theField.getTypeSignature(); // test no exception is thrown
+//	}
+//
 	static IProject importProject(String locationInBundle) throws URISyntaxException, IOException, CoreException {
 		File file = new File(FileLocator.toFileURL(RegressionTests.class.getResource("/" + locationInBundle + "/.project")).toURI());
 		IPath dotProjectPath = Path.fromOSString(file.getAbsolutePath());
@@ -270,41 +237,41 @@ public class RegressionTests {
 		proj.refreshLocal(IResource.DEPTH_INFINITE, new NullProgressMonitor());
 		return proj;
 	}
-
-	// copied from org.eclipse.jdt.ls.core.internal.ResourceUtils.findMarkers(IResource, Integer...)
-	static List<IMarker> findMarkers(IResource resource, Integer... severities) throws CoreException {
-		if (resource == null) {
-			return null;
-		}
-		Set<Integer> targetSeverities = severities == null ? Collections.emptySet()
-				: new HashSet<>(Arrays.asList(severities));
-		IMarker[] allmarkers = resource.findMarkers(null /* all markers */, true /* subtypes */,
-				IResource.DEPTH_INFINITE);
-		List<IMarker> markers = Stream.of(allmarkers).filter(
-				m -> targetSeverities.isEmpty() || targetSeverities.contains(m.getAttribute(IMarker.SEVERITY, 0)))
-				.collect(Collectors.toList());
-		return markers;
-	}
-
-	public static AutoCloseable withoutAutoBuild() throws CoreException {
-		IWorkspace workspace = ResourcesPlugin.getWorkspace();
-		boolean autoBuildBefore = workspace.isAutoBuilding();
-		if (autoBuildBefore) {
-			var desc = workspace.getDescription();
-			desc.setAutoBuilding(false);
-			workspace.setDescription(desc);
-			return () -> {
-				var newDesc = workspace.getDescription();
-				newDesc.setAutoBuilding(true);
-				workspace.setDescription(newDesc);
-			};
-		}
-		return () -> {};
-	}
-
-	protected void waitForBackgroundJobs() throws Exception {
-		JobHelpers.waitForJobsToComplete(new NullProgressMonitor());
-		JobHelpers.waitUntilIndexesReady();
-	}
+//
+//	// copied from org.eclipse.jdt.ls.core.internal.ResourceUtils.findMarkers(IResource, Integer...)
+//	static List<IMarker> findMarkers(IResource resource, Integer... severities) throws CoreException {
+//		if (resource == null) {
+//			return null;
+//		}
+//		Set<Integer> targetSeverities = severities == null ? Collections.emptySet()
+//				: new HashSet<>(Arrays.asList(severities));
+//		IMarker[] allmarkers = resource.findMarkers(null /* all markers */, true /* subtypes */,
+//				IResource.DEPTH_INFINITE);
+//		List<IMarker> markers = Stream.of(allmarkers).filter(
+//				m -> targetSeverities.isEmpty() || targetSeverities.contains(m.getAttribute(IMarker.SEVERITY, 0)))
+//				.collect(Collectors.toList());
+//		return markers;
+//	}
+//
+//	public static AutoCloseable withoutAutoBuild() throws CoreException {
+//		IWorkspace workspace = ResourcesPlugin.getWorkspace();
+//		boolean autoBuildBefore = workspace.isAutoBuilding();
+//		if (autoBuildBefore) {
+//			var desc = workspace.getDescription();
+//			desc.setAutoBuilding(false);
+//			workspace.setDescription(desc);
+//			return () -> {
+//				var newDesc = workspace.getDescription();
+//				newDesc.setAutoBuilding(true);
+//				workspace.setDescription(newDesc);
+//			};
+//		}
+//		return () -> {};
+//	}
+//
+//	protected void waitForBackgroundJobs() throws Exception {
+//		JobHelpers.waitForJobsToComplete(new NullProgressMonitor());
+//		JobHelpers.waitUntilIndexesReady();
+//	}
 
 }

@@ -19,8 +19,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import javax.lang.model.element.TypeElement;
-
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
@@ -29,32 +27,33 @@ import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
 import org.eclipse.jdt.internal.compiler.env.NameEnvironmentAnswer;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
-import com.sun.source.doctree.DocTree;
-import com.sun.source.doctree.LinkTree;
-import com.sun.source.doctree.SeeTree;
-import com.sun.source.tree.AnnotationTree;
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.IdentifierTree;
-import com.sun.source.tree.ImportTree;
-import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.ModifiersTree;
-import com.sun.source.tree.NewClassTree;
-import com.sun.source.tree.Tree;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.parser.Tokens.Comment;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCAnnotation;
-import com.sun.tools.javac.tree.JCTree.JCAssign;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCLiteral;
-import com.sun.tools.javac.tree.JCTree.JCNewClass;
+import shaded.com.sun.source.doctree.DocTree;
+import shaded.com.sun.source.doctree.LinkTree;
+import shaded.com.sun.source.doctree.SeeTree;
+import shaded.com.sun.source.tree.AnnotationTree;
+import shaded.com.sun.source.tree.ClassTree;
+import shaded.com.sun.source.tree.CompilationUnitTree;
+import shaded.com.sun.source.tree.IdentifierTree;
+import shaded.com.sun.source.tree.ImportTree;
+import shaded.com.sun.source.tree.MemberSelectTree;
+import shaded.com.sun.source.tree.MethodTree;
+import shaded.com.sun.source.tree.ModifiersTree;
+import shaded.com.sun.source.tree.NewClassTree;
+import shaded.com.sun.source.tree.Tree;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.parser.Tokens.Comment;
+import shaded.com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
+import shaded.com.sun.tools.javac.tree.JCTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAnnotation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssign;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLiteral;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewClass;
+import shaded.javax.lang.model.element.TypeElement;
 
 /**
  * Collects access restriction-related problems by scanning a parsed javac AST.
@@ -281,7 +280,7 @@ public class AccessRestrictionTreeScanner extends TopLevelTreeScanner<Void, Void
 		return super.visitNewClass(node, p);
 	}
 
-	private class AccessRestrictionDocTreeScanner extends com.sun.source.util.DocTreeScanner<Void, Void> {
+	private class AccessRestrictionDocTreeScanner extends shaded.com.sun.source.util.DocTreeScanner<Void, Void> {
 
 		private Function<Integer, Integer> translateOffset;
 
@@ -308,7 +307,7 @@ public class AccessRestrictionTreeScanner extends TopLevelTreeScanner<Void, Void
 		}
 
 		private void visitRef(DocTree ref) {
-			if (ref instanceof com.sun.tools.javac.tree.DCTree.DCReference dcRef && dcRef.qualifierExpression != null
+			if (ref instanceof shaded.com.sun.tools.javac.tree.DCTree.DCReference dcRef && dcRef.qualifierExpression != null
 					&& dcRef.qualifierExpression.type != null) {
 				Symbol.TypeSymbol sym = dcRef.qualifierExpression.type.tsym;
 				String fqn = getQualifiedName(dcRef.qualifierExpression.type.tsym);

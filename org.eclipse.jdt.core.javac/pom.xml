@@ -17,8 +17,49 @@
   <version>1.0.0-SNAPSHOT</version>
   <packaging>eclipse-plugin</packaging>
 
+	<repositories>
+		<repository>
+			<id>jitpack.io</id>
+			<url>https://jitpack.io</url>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.github.nb-javac-shaded.nb-javac-shaded</groupId>
+			<artifactId>nb-javac-shaded</artifactId>
+			<version>jdk-26-35</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.github.nb-javac-shaded.nb-javac-shaded</groupId>
+			<artifactId>nb-javac-api-shaded</artifactId>
+			<version>jdk-26-35</version>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-nbjavac-jars</id>
+						<phase>generate-resources</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.basedir}/lib</outputDirectory>
+							<includeGroupIds>com.github.nb-javac-shaded.nb-javac-shaded</includeGroupIds>
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true</overWriteSnapshots>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.eclipse.tycho</groupId>
 				<artifactId>tycho-compiler-plugin</artifactId>
