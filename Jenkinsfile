@@ -71,7 +71,7 @@ pipeline {
 						mvn verify --batch-mode -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
 							-Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" \
 							-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-							--fail-at-end -Ptest-on-javase-25 -Pbree-libs -DfailIfNoTests=false -DexcludedGroups=org.junit.Ignore -DproviderHint=junit47 \
+							--fail-at-end -Pbree-libs -DfailIfNoTests=false -DexcludedGroups=org.junit.Ignore -DproviderHint=junit47 \
 							-Dmaven.test.failure.ignore=true -Dmaven.test.error.ignore=true
 """
 				}

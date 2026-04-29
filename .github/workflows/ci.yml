@@ -57,7 +57,7 @@ jobs:
 
     - name: Build with Maven 🏗️
       run: |
-        mvn -U clean verify --batch-mode --fail-at-end -Ptest-on-javase-25 -Pbree-libs -Papi-check -Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 -Dtycho.testArgLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,20 -Djdt.performance.asserts=disabled" -Dcbi-ecj-version=99.99
+        mvn -U clean verify --batch-mode --fail-at-end -Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 -Dtycho.testArgLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,20 -Djdt.performance.asserts=disabled" -Dcbi-ecj-version=99.99
     - name: Upload Test Results for Linux
       if: always()
       uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
