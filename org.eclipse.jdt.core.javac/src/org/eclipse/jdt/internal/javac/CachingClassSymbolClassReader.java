@@ -74,7 +74,7 @@ import shaded.javax.tools.JavaFileObject;
 /// For signatures and annotations, this requires access to various internal content.
 public class CachingClassSymbolClassReader extends ClassReader {
 
-	private static Map<JavaFileObject, ClassSymbolTemplate> CACHE = Collections.synchronizedMap(new HashMap<>());
+	private final Map<JavaFileObject, ClassSymbolTemplate> CACHE = Collections.synchronizedMap(new HashMap<>());
 
 	/// Allows to replace default strategy of ClassReader by one based on local templates
 	private static class StoringQueriesAnnotate extends Annotate {

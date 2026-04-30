@@ -655,13 +655,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return res;
 	}
 
-	private static Names names = new Names(new Context()) {
-		@Override
-		public void dispose() {
-			// do nothing, keep content for re-use
-		}
-	};
-
 	private Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit>
 		parse(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] sourceUnits, int apiLevel,
 			Map<String, String> compilerOptions, boolean resolveBindings, int flags, IJavaProject javaProject, List<Classpath> extraClasspath, WorkingCopyOwner workingCopyOwner,
@@ -672,7 +665,14 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			return Collections.emptyMap();
 		}
 		var compiler = ToolProvider.getSystemJavaCompiler();
+
 		Context context = new Context();
+		Names names = new Names(context) {
+			@Override
+			public void dispose() {
+				// do nothing, keep content for re-use
+			}
+		};
 		context.put(Names.namesKey, names);
 		CachingJarsJavaFileManager.preRegister(context);
 		CachingJDKPlatformArguments.preRegister(context);

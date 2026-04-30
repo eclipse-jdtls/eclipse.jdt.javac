@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry exported="true" kind="lib" path="lib/nnb-doclint-shaded-1.0-SNAPSHOT.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/nnb-doclint-shaded-1.0-SNAPSHOT.jar" sourcepath="/home/rob/apps/claude/doclint-standalone/target/nnb-doclint-shaded-1.0-SNAPSHOT-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/nb-javac-api-shaded-jdk-26-35.jar" sourcepath="/home/rob/apps/claude/nbjavacshade/nb-javac-api-shaded/target/nb-javac-api-shaded-jdk-26-35-sources.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/nb-javac-shaded-jdk-26-35.jar" sourcepath="/home/rob/apps/claude/nbjavacshade/nb-javac-shaded/target/nb-javac-shaded-jdk-26-35-sources.jar"/>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
