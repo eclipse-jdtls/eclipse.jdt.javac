@@ -1106,17 +1106,8 @@ class JavacConverter {
 		res.modifiers().addAll(convert(javac.getModifiers(), res));
 
 		JCTree type = javac.getType();
-		if ((javac.mods.flags & VARARGS) != 0) {
-			if (type instanceof JCAnnotatedType annotatedType) {
-				annotatedType.getAnnotations().stream()
-					.map(this::convert)
-					.forEach(res.varargsAnnotations()::add);
-				type = annotatedType.getUnderlyingType();
-			}
-			// We have varity
-			if (type instanceof JCArrayTypeTree arr) {
-				type = unwrapDimensions(arr, 1);
-			}
+		boolean isVarargs = (javac.mods.flags & VARARGS) != 0;
+		if (isVarargs) {
 			res.setVarargs(true);
 		}
 
@@ -1135,6 +1126,9 @@ class JavacConverter {
 			if( !(type instanceof JCErroneous)) {
 				Type converted = convertToType(type);
 				if (converted != null) {
+					if (isVarargs) {
+						converted = extractVarargsDimension(converted, res);
+					}
 					res.setType(converted);
 				}
 			}
@@ -2131,6 +2125,34 @@ class JavacConverter {
 
 		}
 		return elem;
+	}
+
+	private Type extractVarargsDimension(Type converted, SingleVariableDeclaration declaration) {
+		if (converted instanceof ArrayType arrayType && !arrayType.dimensions().isEmpty()) {
+			Dimension varargsDimension = (Dimension) arrayType.dimensions().removeLast();
+			while (!varargsDimension.annotations().isEmpty()) {
+				declaration.varargsAnnotations().add(varargsDimension.annotations().remove(0));
+			}
+			if (arrayType.dimensions().isEmpty()) {
+				Type elementType = arrayType.getElementType();
+				elementType.setParent(null, null);
+				return elementType;
+			}
+			int end = this.rawText.indexOf("...", arrayType.getStartPosition());
+			for (Object annotation : varargsDimension.annotations()) {
+				if (annotation instanceof ASTNode node && node.getStartPosition() >= 0) {
+					end = Math.min(end, node.getStartPosition());
+				}
+			}
+			while (end > arrayType.getStartPosition() && Character.isWhitespace(this.rawText.charAt(end - 1))) {
+				end--;
+			}
+			if (end >= arrayType.getStartPosition()) {
+				arrayType.setSourceRange(arrayType.getStartPosition(), end - arrayType.getStartPosition());
+			}
+			return arrayType;
+		}
+		return converted;
 	}
 
 	private int countDimensions(JCTree tree) {
