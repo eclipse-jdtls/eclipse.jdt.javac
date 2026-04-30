@@ -10,10 +10,8 @@
  *******************************************************************************/
 package org.eclipse.jdt.core.dom;
 
-import java.beans.Expression;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,9 +29,7 @@ import java.util.stream.Stream;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
-import javax.management.openmbean.SimpleType;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IJavaProject;
