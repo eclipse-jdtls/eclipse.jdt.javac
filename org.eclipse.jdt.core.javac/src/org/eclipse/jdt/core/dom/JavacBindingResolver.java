@@ -10,8 +10,10 @@
  *******************************************************************************/
 package org.eclipse.jdt.core.dom;
 
+import java.beans.Expression;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,7 +31,9 @@ import java.util.stream.Stream;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
+import javax.management.openmbean.SimpleType;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IJavaProject;
@@ -706,7 +710,7 @@ public class JavacBindingResolver extends BindingResolver {
 		}
 		if (jcTree instanceof JCArrayTypeTree arrayType && arrayType.type != null) {
 			if (!arrayType.type.isErroneous()) {
-				return this.bindings.getTypeBinding(arrayType.type);
+				return this.bindings.getTypeBinding(javacArrayTypeToDomDimensions(arrayType.type, type));
 			} else if (type instanceof org.eclipse.jdt.core.dom.ArrayType domType) {
 				return this.bindings.getRecoveredTypeBinding(arrayType.type, type);
 			}
@@ -795,6 +799,19 @@ public class JavacBindingResolver extends BindingResolver {
 			return this.bindings.getRecoveredTypeBinding(jcTree != null ? jcTree.type : null, type);
 		}
 		return null;
+	}
+
+	private com.sun.tools.javac.code.Type javacArrayTypeToDomDimensions(com.sun.tools.javac.code.Type javacType, Type domType) {
+		if (domType instanceof org.eclipse.jdt.core.dom.ArrayType domArrayType) {
+			com.sun.tools.javac.code.Type result = javacType;
+			int extraDimensions = getTypes().dimensions(javacType) - domArrayType.getDimensions();
+			while (extraDimensions > 0 && result instanceof ArrayType arrayType) {
+				result = arrayType.elemtype;
+				extraDimensions--;
+			}
+			return result;
+		}
+		return javacType;
 	}
 
 	@Override
