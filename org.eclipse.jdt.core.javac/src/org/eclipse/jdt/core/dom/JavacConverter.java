@@ -2130,7 +2130,9 @@ class JavacConverter {
 	private Type extractVarargsDimension(Type converted, SingleVariableDeclaration declaration) {
 		if (converted instanceof ArrayType arrayType && !arrayType.dimensions().isEmpty()) {
 			Dimension varargsDimension = (Dimension) arrayType.dimensions().removeLast();
-			declaration.varargsAnnotations().addAll(ASTNode.copySubtrees(this.ast, varargsDimension.annotations()));
+			while (!varargsDimension.annotations().isEmpty()) {
+				declaration.varargsAnnotations().add(varargsDimension.annotations().remove(0));
+			}
 			if (arrayType.dimensions().isEmpty()) {
 				Type elementType = arrayType.getElementType();
 				elementType.setParent(null, null);
