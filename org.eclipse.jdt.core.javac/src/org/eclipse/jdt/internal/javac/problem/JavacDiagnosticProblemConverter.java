@@ -1171,7 +1171,7 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.err.override.incompatible.ret" -> IProblem.IncompatibleReturnType;
 			case "compiler.err.annotation.missing.default.value" -> IProblem.MissingValueForAnnotationMember;
 			case "compiler.err.annotation.value.must.be.name.value" -> IProblem.UndefinedAnnotationMember;
-			case "compiler.err.multicatch.types.must.be.disjoint" -> IProblem.InvalidUnionTypeReferenceSequence;
+			case "compiler.err.multicatch.types.must.be.disjoint" -> -1; //IProblem.InvalidUnionTypeReferenceSequence; // ECJ doesn't warn about this
 			case "compiler.err.unreported.exception.implicit.close" -> IProblem.UnhandledExceptionOnAutoClose;
 			case "compiler.err.repeated.modifier" -> IProblem.DuplicateModifierForArgument; // TODO different according to target node
 			case "compiler.err.not.stmt" -> IProblem.InvalidExpressionAsStatement;
@@ -1553,6 +1553,7 @@ public class JavacDiagnosticProblemConverter {
 			case "compiler.warn.auxiliary.class.accessed.from.outside.of.its.source.file" -> JavacProblemIds.AuxiliaryClassAccessedOutsideItsSourceFile;
 			case "compiler.warn.restricted.method" -> IProblem.DiscouragedReference;
 			case "compiler.note.deprecated.filename.additional" -> IProblem.UsingDeprecatedMethod;
+			case "compiler.warn.unreachable.catch" -> IProblem.UnreachableCatch;
 			case "compiler.note.deprecated.recompile" -> -1;
 			case "compiler.misc.doesnt.implement.sealed" -> IProblem.SealedNotDirectSuperInterface;
 			default -> {
