@@ -796,11 +796,11 @@ public class JavacBindingResolver extends BindingResolver {
 		return null;
 	}
 
-	private com.sun.tools.javac.code.Type javacArrayTypeToDomDimensions(com.sun.tools.javac.code.Type javacType, Type domType) {
+	private shaded.com.sun.tools.javac.code.Type javacArrayTypeToDomDimensions(shaded.com.sun.tools.javac.code.Type javacType, Type domType) {
 		if (domType instanceof org.eclipse.jdt.core.dom.ArrayType domArrayType) {
-			com.sun.tools.javac.code.Type result = javacType;
+			shaded.com.sun.tools.javac.code.Type result = javacType;
 			int extraDimensions = getTypes().dimensions(javacType) - domArrayType.getDimensions();
-			while (extraDimensions > 0 && result instanceof ArrayType arrayType) {
+			while (extraDimensions > 0 && result instanceof shaded.com.sun.tools.javac.code.Type.ArrayType arrayType) {
 				result = arrayType.elemtype;
 				extraDimensions--;
 			}
