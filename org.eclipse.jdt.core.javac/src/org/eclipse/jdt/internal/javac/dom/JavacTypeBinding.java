@@ -1476,7 +1476,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	}
 
 	private ITypeBinding[] getTypeArguments(Type t, TypeSymbol ts) {
-		if (!isParameterizedType(t) || isTargettingPreGenerics()) {
+		if (!isParameterizedType(t)) {
 			return NO_TYPE_ARGUMENTS;
 		}
 		return getUncheckedTypeArguments(t, ts);
@@ -1486,20 +1486,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	private ITypeBinding[] getUncheckedTypeArguments(Type t, TypeSymbol ts) {
 		List<Type> tmp = t.getTypeArguments();
 		return tmp.stream()
+				.map(x -> x instanceof Type.CapturedType capturedType ? capturedType.wildcard : x)
 				.map(x -> this.resolver.bindings.getTypeBinding(x, null, ts, false))
 				.toArray(ITypeBinding[]::new);
-	}
-
-	private boolean isTargettingPreGenerics() {
-		if (this.resolver.javaProject == null) {
-			return false;
-		}
-		String target = this.resolver.javaProject.getOption(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, true);
-		return JavaCore.VERSION_1_1.equals(target)
-				|| JavaCore.VERSION_CLDC_1_1.equals(target)
-				|| JavaCore.VERSION_1_2.equals(target)
-				|| JavaCore.VERSION_1_3.equals(target)
-				|| JavaCore.VERSION_1_4.equals(target);
 	}
 
 	@Override
@@ -1571,7 +1560,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public ITypeBinding[] getTypeParameters() {
-		if (!isGenericType() || isTargettingPreGenerics()) {
+		if (!isGenericType()) {
 			return new ITypeBinding[0];
 		}
 		return getTypeParameters(this.type);
@@ -1585,7 +1574,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	}
 
 	public ITypeBinding[] getTypeParameters(Type t) {
-		if(!isGenericType(t) || isTargettingPreGenerics() || !(t instanceof ClassType)) {
+		if(!isGenericType(t) || !(t instanceof ClassType)) {
 			return new ITypeBinding[0];
 		}
 		return ((ClassType)t).getTypeArguments()
@@ -1638,8 +1627,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if( this.type instanceof Type.CapturedType )
 			return true;
 		if( this.type instanceof WildcardType wct) {
-			if( wct.isExtendsBound())
+			if (wct.isExtendsBound() /*&& !wct.isUnbound()*/) {
 				return true;
+			}
 		}
 		return false;
 	}
