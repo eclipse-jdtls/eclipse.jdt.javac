@@ -37,6 +37,12 @@
 			<version>jdk-26-35</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.github.nb-javac-shaded</groupId>
+			<artifactId>nnb-doclint-shaded</artifactId>
+			<version>jdk-26-35-patch1</version>
+			<scope>provided</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -53,7 +59,7 @@
 						</goals>
 						<configuration>
 							<outputDirectory>${project.basedir}/lib</outputDirectory>
-							<includeGroupIds>com.github.nb-javac-shaded.nb-javac-shaded</includeGroupIds>
+							<includeGroupIds>com.github.nb-javac-shaded.nb-javac-shaded,com.github.nb-javac-shaded</includeGroupIds>
 							<overWriteReleases>false</overWriteReleases>
 							<overWriteSnapshots>true</overWriteSnapshots>
 						</configuration>
