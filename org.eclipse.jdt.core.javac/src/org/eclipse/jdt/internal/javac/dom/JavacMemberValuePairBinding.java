@@ -20,8 +20,8 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 
-import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Attribute;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
 
 public abstract class JavacMemberValuePairBinding implements IMemberValuePairBinding {
 

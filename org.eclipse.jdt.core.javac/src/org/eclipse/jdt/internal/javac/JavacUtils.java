@@ -30,9 +30,9 @@ import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.tools.JavaFileManager;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.StandardLocation;
+import shaded.javax.tools.JavaFileManager;
+import shaded.javax.tools.StandardJavaFileManager;
+import shaded.javax.tools.StandardLocation;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -54,11 +54,11 @@ import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import org.eclipse.jdt.internal.core.ClasspathEntry;
 import org.eclipse.jdt.internal.core.JavaProject;
 
-import com.sun.tools.javac.comp.CompileStates.CompileState;
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Options;
+import shaded.com.sun.tools.javac.comp.CompileStates.CompileState;
+import shaded.com.sun.tools.javac.file.JavacFileManager;
+import shaded.com.sun.tools.javac.main.Option;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.Options;
 
 public class JavacUtils {
 

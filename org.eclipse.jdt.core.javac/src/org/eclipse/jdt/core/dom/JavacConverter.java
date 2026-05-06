@@ -10,7 +10,7 @@
  *******************************************************************************/
 package org.eclipse.jdt.core.dom;
 
-import static com.sun.tools.javac.code.Flags.VARARGS;
+import static shaded.com.sun.tools.javac.code.Flags.VARARGS;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,8 +31,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import javax.lang.model.type.TypeKind;
-
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.ModuleModifier.ModuleModifierKeyword;
@@ -43,100 +41,101 @@ import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.parser.RecoveryScanner;
 import org.eclipse.jdt.internal.javac.JavacUtils;
 
-import com.sun.source.tree.CaseTree.CaseKind;
-import com.sun.source.tree.ModuleTree.ModuleKind;
-import com.sun.source.tree.Tree.Kind;
-import com.sun.source.util.DocTreePath;
-import com.sun.source.util.TreePath;
-import com.sun.tools.javac.code.BoundKind;
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Type.PackageType;
-import com.sun.tools.javac.parser.ParserFactory;
-import com.sun.tools.javac.parser.Tokens.Comment;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
-import com.sun.tools.javac.tree.DCTree.DCDocComment;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCAnnotatedType;
-import com.sun.tools.javac.tree.JCTree.JCAnnotation;
-import com.sun.tools.javac.tree.JCTree.JCAnyPattern;
-import com.sun.tools.javac.tree.JCTree.JCArrayAccess;
-import com.sun.tools.javac.tree.JCTree.JCArrayTypeTree;
-import com.sun.tools.javac.tree.JCTree.JCAssert;
-import com.sun.tools.javac.tree.JCTree.JCAssign;
-import com.sun.tools.javac.tree.JCTree.JCAssignOp;
-import com.sun.tools.javac.tree.JCTree.JCBinary;
-import com.sun.tools.javac.tree.JCTree.JCBindingPattern;
-import com.sun.tools.javac.tree.JCTree.JCBlock;
-import com.sun.tools.javac.tree.JCTree.JCBreak;
-import com.sun.tools.javac.tree.JCTree.JCCase;
-import com.sun.tools.javac.tree.JCTree.JCCaseLabel;
-import com.sun.tools.javac.tree.JCTree.JCCatch;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCConditional;
-import com.sun.tools.javac.tree.JCTree.JCConstantCaseLabel;
-import com.sun.tools.javac.tree.JCTree.JCContinue;
-import com.sun.tools.javac.tree.JCTree.JCDefaultCaseLabel;
-import com.sun.tools.javac.tree.JCTree.JCDirective;
-import com.sun.tools.javac.tree.JCTree.JCDoWhileLoop;
-import com.sun.tools.javac.tree.JCTree.JCEnhancedForLoop;
-import com.sun.tools.javac.tree.JCTree.JCErroneous;
-import com.sun.tools.javac.tree.JCTree.JCExports;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCForLoop;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCIf;
-import com.sun.tools.javac.tree.JCTree.JCImport;
-import com.sun.tools.javac.tree.JCTree.JCInstanceOf;
-import com.sun.tools.javac.tree.JCTree.JCLabeledStatement;
-import com.sun.tools.javac.tree.JCTree.JCLambda;
-import com.sun.tools.javac.tree.JCTree.JCLiteral;
-import com.sun.tools.javac.tree.JCTree.JCMemberReference;
-import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
-import com.sun.tools.javac.tree.JCTree.JCModifiers;
-import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
-import com.sun.tools.javac.tree.JCTree.JCModuleImport;
-import com.sun.tools.javac.tree.JCTree.JCNewArray;
-import com.sun.tools.javac.tree.JCTree.JCNewClass;
-import com.sun.tools.javac.tree.JCTree.JCOpens;
-import com.sun.tools.javac.tree.JCTree.JCPackageDecl;
-import com.sun.tools.javac.tree.JCTree.JCParens;
-import com.sun.tools.javac.tree.JCTree.JCPattern;
-import com.sun.tools.javac.tree.JCTree.JCPatternCaseLabel;
-import com.sun.tools.javac.tree.JCTree.JCPrimitiveTypeTree;
-import com.sun.tools.javac.tree.JCTree.JCProvides;
-import com.sun.tools.javac.tree.JCTree.JCRecordPattern;
-import com.sun.tools.javac.tree.JCTree.JCRequires;
-import com.sun.tools.javac.tree.JCTree.JCReturn;
-import com.sun.tools.javac.tree.JCTree.JCSkip;
-import com.sun.tools.javac.tree.JCTree.JCStatement;
-import com.sun.tools.javac.tree.JCTree.JCSwitch;
-import com.sun.tools.javac.tree.JCTree.JCSwitchExpression;
-import com.sun.tools.javac.tree.JCTree.JCSynchronized;
-import com.sun.tools.javac.tree.JCTree.JCThrow;
-import com.sun.tools.javac.tree.JCTree.JCTry;
-import com.sun.tools.javac.tree.JCTree.JCTypeApply;
-import com.sun.tools.javac.tree.JCTree.JCTypeCast;
-import com.sun.tools.javac.tree.JCTree.JCTypeIntersection;
-import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
-import com.sun.tools.javac.tree.JCTree.JCTypeUnion;
-import com.sun.tools.javac.tree.JCTree.JCUnary;
-import com.sun.tools.javac.tree.JCTree.JCUses;
-import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
-import com.sun.tools.javac.tree.JCTree.JCWhileLoop;
-import com.sun.tools.javac.tree.JCTree.JCWildcard;
-import com.sun.tools.javac.tree.JCTree.JCYield;
-import com.sun.tools.javac.tree.JCTree.Tag;
-import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.JCDiagnostic;
-import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.Position;
-import com.sun.tools.javac.util.Position.LineMap;
+import shaded.com.sun.source.tree.CaseTree.CaseKind;
+import shaded.com.sun.source.tree.ModuleTree.ModuleKind;
+import shaded.com.sun.source.tree.Tree.Kind;
+import shaded.com.sun.source.util.DocTreePath;
+import shaded.com.sun.source.util.TreePath;
+import shaded.com.sun.tools.javac.code.BoundKind;
+import shaded.com.sun.tools.javac.code.Flags;
+import shaded.com.sun.tools.javac.code.Type.PackageType;
+import shaded.com.sun.tools.javac.parser.ParserFactory;
+import shaded.com.sun.tools.javac.parser.Tokens.Comment;
+import shaded.com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
+import shaded.com.sun.tools.javac.tree.DCTree.DCDocComment;
+import shaded.com.sun.tools.javac.tree.JCTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAnnotatedType;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAnnotation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAnyPattern;
+import shaded.com.sun.tools.javac.tree.JCTree.JCArrayAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCArrayTypeTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssert;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssign;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssignOp;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBinary;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBindingPattern;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBlock;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBreak;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCase;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCaseLabel;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCatch;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCConditional;
+import shaded.com.sun.tools.javac.tree.JCTree.JCConstantCaseLabel;
+import shaded.com.sun.tools.javac.tree.JCTree.JCContinue;
+import shaded.com.sun.tools.javac.tree.JCTree.JCDefaultCaseLabel;
+import shaded.com.sun.tools.javac.tree.JCTree.JCDirective;
+import shaded.com.sun.tools.javac.tree.JCTree.JCDoWhileLoop;
+import shaded.com.sun.tools.javac.tree.JCTree.JCEnhancedForLoop;
+import shaded.com.sun.tools.javac.tree.JCTree.JCErroneous;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExports;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCForLoop;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIf;
+import shaded.com.sun.tools.javac.tree.JCTree.JCImport;
+import shaded.com.sun.tools.javac.tree.JCTree.JCInstanceOf;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLabeledStatement;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLambda;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLiteral;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMemberReference;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCModifiers;
+import shaded.com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCModuleImport;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewArray;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewClass;
+import shaded.com.sun.tools.javac.tree.JCTree.JCOpens;
+import shaded.com.sun.tools.javac.tree.JCTree.JCPackageDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCParens;
+import shaded.com.sun.tools.javac.tree.JCTree.JCPattern;
+import shaded.com.sun.tools.javac.tree.JCTree.JCPatternCaseLabel;
+import shaded.com.sun.tools.javac.tree.JCTree.JCPrimitiveTypeTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCProvides;
+import shaded.com.sun.tools.javac.tree.JCTree.JCRecordPattern;
+import shaded.com.sun.tools.javac.tree.JCTree.JCRequires;
+import shaded.com.sun.tools.javac.tree.JCTree.JCReturn;
+import shaded.com.sun.tools.javac.tree.JCTree.JCSkip;
+import shaded.com.sun.tools.javac.tree.JCTree.JCStatement;
+import shaded.com.sun.tools.javac.tree.JCTree.JCSwitch;
+import shaded.com.sun.tools.javac.tree.JCTree.JCSwitchExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCSynchronized;
+import shaded.com.sun.tools.javac.tree.JCTree.JCThrow;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTry;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeApply;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeCast;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeIntersection;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeParameter;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeUnion;
+import shaded.com.sun.tools.javac.tree.JCTree.JCUnary;
+import shaded.com.sun.tools.javac.tree.JCTree.JCUses;
+import shaded.com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCWhileLoop;
+import shaded.com.sun.tools.javac.tree.JCTree.JCWildcard;
+import shaded.com.sun.tools.javac.tree.JCTree.JCYield;
+import shaded.com.sun.tools.javac.tree.JCTree.Tag;
+import shaded.com.sun.tools.javac.tree.TreeInfo;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.JCDiagnostic;
+import shaded.com.sun.tools.javac.util.Log;
+import shaded.com.sun.tools.javac.util.Names;
+import shaded.com.sun.tools.javac.util.Position;
+import shaded.com.sun.tools.javac.util.Position.LineMap;
+import shaded.javax.lang.model.type.TypeKind;
 
 /**
  * Deals with conversion of Javac domain into JDT DOM domain
@@ -743,7 +742,7 @@ class JavacConverter {
 				recordDecl.setRestrictedIdentifierStartPosition(start);
 			}
 			for (JCTree node : javacClassDecl.getMembers()) {
-				if (node instanceof JCVariableDecl vd && !vd.getModifiers().getFlags().contains(javax.lang.model.element.Modifier.STATIC)) {
+				if (node instanceof JCVariableDecl vd && !vd.getModifiers().getFlags().contains(shaded.javax.lang.model.element.Modifier.STATIC)) {
 					SingleVariableDeclaration vdd = (SingleVariableDeclaration)convertVariableDeclaration(vd);
 					// Records cannot have modifiers
 					vdd.modifiers().clear();
@@ -3382,7 +3381,7 @@ class JavacConverter {
 	}
 
 	private void convertModifiers(JCModifiers modifiers, ASTNode parent, List<IExtendedModifier> res) {
-		Iterator<javax.lang.model.element.Modifier> mods = modifiers.getFlags().iterator();
+		Iterator<shaded.javax.lang.model.element.Modifier> mods = modifiers.getFlags().iterator();
 		while(mods.hasNext()) {
 			Modifier converted = convert(mods.next(), modifiers.pos, modifiers.getEndPosition(this.javacCompilationUnit.endPositions) + 1);
 			if (converted.getStartPosition() >= 0) {
@@ -3441,7 +3440,7 @@ class JavacConverter {
 		return res;
 	}
 
-	private ModifierKeyword modifierToKeyword(javax.lang.model.element.Modifier javac) {
+	private ModifierKeyword modifierToKeyword(shaded.javax.lang.model.element.Modifier javac) {
 		return switch (javac) {
 			case PUBLIC -> ModifierKeyword.PUBLIC_KEYWORD;
 			case PROTECTED -> ModifierKeyword.PROTECTED_KEYWORD;
@@ -3459,11 +3458,11 @@ class JavacConverter {
 			case STRICTFP -> ModifierKeyword.STRICTFP_KEYWORD;
 		};
 	}
-	private Modifier modifierToDom(javax.lang.model.element.Modifier javac) {
+	private Modifier modifierToDom(shaded.javax.lang.model.element.Modifier javac) {
 		return this.ast.newModifier(modifierToKeyword(javac));
 	}
 
-	private Modifier convert(javax.lang.model.element.Modifier javac, int startPos, int endPos) {
+	private Modifier convert(shaded.javax.lang.model.element.Modifier javac, int startPos, int endPos) {
 		Modifier res = modifierToDom(javac);
 		if (startPos >= 0 && endPos >= startPos && endPos <= this.rawText.length()) {
 			int indOf = this.rawText.indexOf(res.getKeyword().toString(), startPos, endPos);
@@ -3475,7 +3474,7 @@ class JavacConverter {
 	}
 
 
-	private Name convertName(com.sun.tools.javac.util.Name javac) {
+	private Name convertName(shaded.com.sun.tools.javac.util.Name javac) {
 		if (javac == null || Objects.equals(javac, Names.instance(this.context).error)) {
 			var res = this.ast.newSimpleName(FAKE_IDENTIFIER);
 			res.setFlags(ASTNode.RECOVERED);
@@ -3537,7 +3536,7 @@ class JavacConverter {
 	public org.eclipse.jdt.core.dom.Comment convert(Comment javac, int pos, int endPos) {
 		// testBug113108b expects /// comments to be Line comments, not Javadoc comments
 		if (javac.getStyle() == CommentStyle.JAVADOC_BLOCK || javac.getStyle() == CommentStyle.JAVADOC_LINE) {
-			var parser = new com.sun.tools.javac.parser.DocCommentParser(ParserFactory.instance(this.context), Log.instance(this.context).currentSource(), javac);
+			var parser = new shaded.com.sun.tools.javac.parser.DocCommentParser(ParserFactory.instance(this.context), Log.instance(this.context).currentSource(), javac);
 			JavadocConverter javadocConverter = new JavadocConverter(this, parser.parse(), pos, endPos, this.buildJavadoc);
 			this.javadocConverters.add(javadocConverter);
 			Javadoc javadoc = javadocConverter.convertJavadoc();

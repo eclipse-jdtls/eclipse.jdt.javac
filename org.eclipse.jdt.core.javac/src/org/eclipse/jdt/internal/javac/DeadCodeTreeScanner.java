@@ -18,40 +18,39 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeElement;
-
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
-import com.sun.source.tree.BinaryTree;
-import com.sun.source.tree.BlockTree;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.ConditionalExpressionTree;
-import com.sun.source.tree.IfTree;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCBinary;
-import com.sun.tools.javac.tree.JCTree.JCBlock;
-import com.sun.tools.javac.tree.JCTree.JCBreak;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCConditional;
-import com.sun.tools.javac.tree.JCTree.JCContinue;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCIf;
-import com.sun.tools.javac.tree.JCTree.JCLiteral;
-import com.sun.tools.javac.tree.JCTree.JCParens;
-import com.sun.tools.javac.tree.JCTree.JCReturn;
-import com.sun.tools.javac.tree.JCTree.JCStatement;
-import com.sun.tools.javac.tree.JCTree.JCSynchronized;
-import com.sun.tools.javac.tree.JCTree.JCThrow;
-import com.sun.tools.javac.tree.JCTree.JCUnary;
-import com.sun.tools.javac.tree.JCTree.Tag;
+import shaded.com.sun.source.tree.BinaryTree;
+import shaded.com.sun.source.tree.BlockTree;
+import shaded.com.sun.source.tree.CompilationUnitTree;
+import shaded.com.sun.source.tree.ConditionalExpressionTree;
+import shaded.com.sun.source.tree.IfTree;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.tree.JCTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBinary;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBlock;
+import shaded.com.sun.tools.javac.tree.JCTree.JCBreak;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCConditional;
+import shaded.com.sun.tools.javac.tree.JCTree.JCContinue;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIf;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLiteral;
+import shaded.com.sun.tools.javac.tree.JCTree.JCParens;
+import shaded.com.sun.tools.javac.tree.JCTree.JCReturn;
+import shaded.com.sun.tools.javac.tree.JCTree.JCStatement;
+import shaded.com.sun.tools.javac.tree.JCTree.JCSynchronized;
+import shaded.com.sun.tools.javac.tree.JCTree.JCThrow;
+import shaded.com.sun.tools.javac.tree.JCTree.JCUnary;
+import shaded.com.sun.tools.javac.tree.JCTree.Tag;
+import shaded.javax.lang.model.element.ElementKind;
+import shaded.javax.lang.model.element.TypeElement;
 
 class DeadCodeTreeScanner extends TopLevelTreeScanner<Void, Void> {
 

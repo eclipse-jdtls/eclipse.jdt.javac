@@ -22,63 +22,62 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeElement;
-
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
-import com.sun.source.doctree.ParamTree;
-import com.sun.source.doctree.SeeTree;
-import com.sun.source.doctree.ThrowsTree;
-import com.sun.source.tree.AssignmentTree;
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.IdentifierTree;
-import com.sun.source.tree.IfTree;
-import com.sun.source.tree.ImportTree;
-import com.sun.source.tree.LambdaExpressionTree;
-import com.sun.source.tree.MemberReferenceTree;
-import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.tree.MethodInvocationTree;
-import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.NewClassTree;
-import com.sun.source.tree.Tree;
-import com.sun.source.tree.TryTree;
-import com.sun.source.tree.TypeCastTree;
-import com.sun.source.tree.TypeParameterTree;
-import com.sun.source.tree.VariableTree;
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.JCPrimitiveType;
-import com.sun.tools.javac.code.TypeTag;
-import com.sun.tools.javac.parser.Tokens.Comment;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCAnnotation;
-import com.sun.tools.javac.tree.JCTree.JCArrayTypeTree;
-import com.sun.tools.javac.tree.JCTree.JCAssign;
-import com.sun.tools.javac.tree.JCTree.JCClassDecl;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
-import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCImport;
-import com.sun.tools.javac.tree.JCTree.JCLiteral;
-import com.sun.tools.javac.tree.JCTree.JCMemberReference;
-import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
-import com.sun.tools.javac.tree.JCTree.JCNewArray;
-import com.sun.tools.javac.tree.JCTree.JCNewClass;
-import com.sun.tools.javac.tree.JCTree.JCTry;
-import com.sun.tools.javac.tree.JCTree.JCTypeCast;
-import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
-import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import shaded.com.sun.source.doctree.ParamTree;
+import shaded.com.sun.source.doctree.SeeTree;
+import shaded.com.sun.source.doctree.ThrowsTree;
+import shaded.com.sun.source.tree.AssignmentTree;
+import shaded.com.sun.source.tree.ClassTree;
+import shaded.com.sun.source.tree.CompilationUnitTree;
+import shaded.com.sun.source.tree.IdentifierTree;
+import shaded.com.sun.source.tree.IfTree;
+import shaded.com.sun.source.tree.ImportTree;
+import shaded.com.sun.source.tree.LambdaExpressionTree;
+import shaded.com.sun.source.tree.MemberReferenceTree;
+import shaded.com.sun.source.tree.MemberSelectTree;
+import shaded.com.sun.source.tree.MethodInvocationTree;
+import shaded.com.sun.source.tree.MethodTree;
+import shaded.com.sun.source.tree.NewClassTree;
+import shaded.com.sun.source.tree.Tree;
+import shaded.com.sun.source.tree.TryTree;
+import shaded.com.sun.source.tree.TypeCastTree;
+import shaded.com.sun.source.tree.TypeParameterTree;
+import shaded.com.sun.source.tree.VariableTree;
+import shaded.com.sun.tools.javac.code.Flags;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.JCPrimitiveType;
+import shaded.com.sun.tools.javac.code.TypeTag;
+import shaded.com.sun.tools.javac.parser.Tokens.Comment;
+import shaded.com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
+import shaded.com.sun.tools.javac.tree.JCTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAnnotation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCArrayTypeTree;
+import shaded.com.sun.tools.javac.tree.JCTree.JCAssign;
+import shaded.com.sun.tools.javac.tree.JCTree.JCClassDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.tree.JCTree.JCExpression;
+import shaded.com.sun.tools.javac.tree.JCTree.JCFieldAccess;
+import shaded.com.sun.tools.javac.tree.JCTree.JCIdent;
+import shaded.com.sun.tools.javac.tree.JCTree.JCImport;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLiteral;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMemberReference;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import shaded.com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewArray;
+import shaded.com.sun.tools.javac.tree.JCTree.JCNewClass;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTry;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeCast;
+import shaded.com.sun.tools.javac.tree.JCTree.JCTypeParameter;
+import shaded.com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import shaded.javax.lang.model.element.ElementKind;
+import shaded.javax.lang.model.element.TypeElement;
 
 public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 	final Set<Tree> privateDecls = new LinkedHashSet<>();
@@ -663,10 +662,10 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 		return suppressed;
 	}
 
-	private class UnusedDocTreeScanner extends com.sun.source.util.DocTreeScanner<R, P> {
+	private class UnusedDocTreeScanner extends shaded.com.sun.source.util.DocTreeScanner<R, P> {
 		@Override
-		public R visitLink(com.sun.source.doctree.LinkTree node, P p) {
-			if (node.getReference() instanceof com.sun.tools.javac.tree.DCTree.DCReference ref) {
+		public R visitLink(shaded.com.sun.source.doctree.LinkTree node, P p) {
+			if (node.getReference() instanceof shaded.com.sun.tools.javac.tree.DCTree.DCReference ref) {
 				useImport(ref);
 			}
 			return super.visitLink(node, p);
@@ -676,8 +675,8 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 		public R visitSee(SeeTree node, P p) {
 			if (node.getReference() instanceof List<?> refs) {
 				for (Object ref : refs) {
-					if (ref instanceof com.sun.tools.javac.tree.DCTree.DCReference) {
-						useImport((com.sun.tools.javac.tree.DCTree.DCReference)ref);
+					if (ref instanceof shaded.com.sun.tools.javac.tree.DCTree.DCReference) {
+						useImport((shaded.com.sun.tools.javac.tree.DCTree.DCReference)ref);
 					}
 				}
 			}
@@ -686,7 +685,7 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 
 		@Override
 		public R visitThrows(ThrowsTree node, P p) {
-			if (node.getExceptionName() instanceof com.sun.tools.javac.tree.DCTree.DCReference ref) {
+			if (node.getExceptionName() instanceof shaded.com.sun.tools.javac.tree.DCTree.DCReference ref) {
 						useImport(ref);
 			}
 			return super.visitThrows(node, p);
@@ -694,7 +693,7 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 
 		@Override
 		public R visitParam(ParamTree node, P p) {
-			if (node.isTypeParameter() && node.getName() instanceof com.sun.tools.javac.tree.DCTree.DCIdentifier identifier) {
+			if (node.isTypeParameter() && node.getName() instanceof shaded.com.sun.tools.javac.tree.DCTree.DCIdentifier identifier) {
 				Symbol symbol = UnusedTreeScanner.this.typeParameterMap.get(identifier.toString());
 				if (symbol != null) {
 					UnusedTreeScanner.this.usedTypeParameters.add(symbol);
@@ -703,7 +702,7 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 			return super.visitParam(node, p);
 		}
 
-		private void useImport(com.sun.tools.javac.tree.DCTree.DCReference ref) {
+		private void useImport(shaded.com.sun.tools.javac.tree.DCTree.DCReference ref) {
 			JCIdent qualifier = null;
 			if (ref.qualifierExpression instanceof JCIdent ident) {
 				qualifier = ident;

@@ -38,16 +38,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.NestingKind;
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticListener;
-import javax.tools.JavaFileManager;
-import javax.tools.JavaFileObject;
-import javax.tools.SimpleJavaFileObject;
-import javax.tools.StandardLocation;
-import javax.tools.ToolProvider;
-
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -105,26 +95,35 @@ import org.eclipse.jdt.internal.javac.problem.JavacProblem;
 import org.eclipse.jdt.internal.javac.problem.JavacProblemDiscovery;
 import org.eclipse.jdt.internal.javac.problem.UnusedProblemFactory;
 
-import com.sun.source.util.JavacTask;
-import com.sun.tools.javac.api.JavacTool;
-import com.sun.tools.javac.api.MultiTaskListener;
-import com.sun.tools.javac.comp.CompileStates.CompileState;
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.main.Option;
-import com.sun.tools.javac.main.Option.OptionKind;
-import com.sun.tools.javac.parser.JavadocTokenizer;
-import com.sun.tools.javac.parser.Scanner;
-import com.sun.tools.javac.parser.ScannerFactory;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
-import com.sun.tools.javac.parser.Tokens.TokenKind;
-import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Context.Key;
-import com.sun.tools.javac.util.DiagnosticSource;
-import com.sun.tools.javac.util.JCDiagnostic;
-import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.Options;
+import shaded.com.sun.source.util.JavacTask;
+import shaded.com.sun.tools.javac.api.JavacTool;
+import shaded.com.sun.tools.javac.api.MultiTaskListener;
+import shaded.com.sun.tools.javac.comp.CompileStates.CompileState;
+import shaded.com.sun.tools.javac.file.JavacFileManager;
+import shaded.com.sun.tools.javac.main.Option;
+import shaded.com.sun.tools.javac.main.Option.OptionKind;
+import shaded.com.sun.tools.javac.parser.JavadocTokenizer;
+import shaded.com.sun.tools.javac.parser.Scanner;
+import shaded.com.sun.tools.javac.parser.ScannerFactory;
+import shaded.com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
+import shaded.com.sun.tools.javac.parser.Tokens.TokenKind;
+import shaded.com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.Context.Key;
+import shaded.com.sun.tools.javac.util.DiagnosticSource;
+import shaded.com.sun.tools.javac.util.JCDiagnostic;
+import shaded.com.sun.tools.javac.util.Log;
+import shaded.com.sun.tools.javac.util.Names;
+import shaded.com.sun.tools.javac.util.Options;
+import shaded.javax.lang.model.element.Modifier;
+import shaded.javax.lang.model.element.NestingKind;
+import shaded.javax.tools.Diagnostic;
+import shaded.javax.tools.DiagnosticListener;
+import shaded.javax.tools.JavaFileManager;
+import shaded.javax.tools.JavaFileObject;
+import shaded.javax.tools.SimpleJavaFileObject;
+import shaded.javax.tools.StandardLocation;
+import shaded.javax.tools.ToolProvider;
 
 /**
  * Allows to create and resolve DOM ASTs using Javac
@@ -656,13 +655,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return res;
 	}
 
-	private static Names names = new Names(new Context()) {
-		@Override
-		public void dispose() {
-			// do nothing, keep content for re-use
-		}
-	};
-
 	private Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit>
 		parse(org.eclipse.jdt.internal.compiler.env.ICompilationUnit[] sourceUnits, int apiLevel,
 			Map<String, String> compilerOptions, boolean resolveBindings, int flags, IJavaProject javaProject, List<Classpath> extraClasspath, WorkingCopyOwner workingCopyOwner,
@@ -673,7 +665,14 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			return Collections.emptyMap();
 		}
 		var compiler = ToolProvider.getSystemJavaCompiler();
+
 		Context context = new Context();
+		Names names = new Names(context) {
+			@Override
+			public void dispose() {
+				// do nothing, keep content for re-use
+			}
+		};
 		context.put(Names.namesKey, names);
 		CachingJarsJavaFileManager.preRegister(context);
 		CachingJDKPlatformArguments.preRegister(context);
@@ -747,7 +746,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 		// Configure these flags before we actually parse
 		{
-			var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
+			var javac = shaded.com.sun.tools.javac.main.JavaCompiler.instance(context);
 			javac.keepComments = javac.genEndPos = javac.lineDebugInfo = true;
 		}
 
@@ -761,7 +760,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				// Disable extra features that can affect how other trees (source path elements)
 				// are parsed during resolution so we stick to the mininal useful data generated
 				// and stored during analysis
-				var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
+				var javac = shaded.com.sun.tools.javac.main.JavaCompiler.instance(context);
 				javac.keepComments = javac.genEndPos = javac.lineDebugInfo = false;
 			}
 
@@ -891,7 +890,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			log.useSource(u.sourcefile);
 			combined.addAll(javadocComments);
 			combined.addAll(converter.notAttachedComments);
-			com.sun.tools.javac.parser.Scanner javacScanner = scanJavacCommentScanner(combined, res, context, rawText, converter);
+			shaded.com.sun.tools.javac.parser.Scanner javacScanner = scanJavacCommentScanner(combined, res, context, rawText, converter);
 			org.eclipse.jdt.internal.compiler.parser.Scanner ecjScanner = scanECJCommentScanner(javacScanner, rawText, compilerOptions);
 			addCommentsToUnit(combined, res);
 			res.initCommentMapper(ecjScanner);
@@ -1434,8 +1433,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		if (context.get(DiagnosticListener.class) instanceof ForwardDiagnosticsAsDOMProblems listener) {
 			listener.filesToUnits.clear(); // no need to keep handle on generated ASTs in the context
 		}
-		// based on com.sun.tools.javac.api.JavacTaskImpl.cleanup()
-		var javac = com.sun.tools.javac.main.JavaCompiler.instance(context);
+		// based on shaded.com.sun.tools.javac.api.JavacTaskImpl.cleanup()
+		var javac = shaded.com.sun.tools.javac.main.JavaCompiler.instance(context);
 		if (javac != null) {
 			javac.close();
 		}
@@ -1472,11 +1471,11 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		return ast;
 	}
 
-	private com.sun.tools.javac.parser.Scanner scanJavacCommentScanner(List<Comment> missingComments, CompilationUnit unit, Context context, String rawText, JavacConverter converter) {
+	private shaded.com.sun.tools.javac.parser.Scanner scanJavacCommentScanner(List<Comment> missingComments, CompilationUnit unit, Context context, String rawText, JavacConverter converter) {
 		ScannerFactory scannerFactory = ScannerFactory.instance(context);
 		JavadocTokenizer commentTokenizer = new JavadocTokenizer(scannerFactory, rawText.toCharArray(), rawText.length()) {
 			@Override
-			protected com.sun.tools.javac.parser.Tokens.Comment processComment(int pos, int endPos, CommentStyle style) {
+			protected shaded.com.sun.tools.javac.parser.Tokens.Comment processComment(int pos, int endPos, CommentStyle style) {
 				// workaround Java bug 9077218
 				if (style == CommentStyle.JAVADOC_BLOCK && endPos - pos <= 4) {
 					style = CommentStyle.BLOCK;

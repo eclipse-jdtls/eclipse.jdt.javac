@@ -35,8 +35,8 @@ import org.eclipse.jdt.internal.core.LambdaFactory;
 import org.eclipse.jdt.internal.core.LambdaMethod;
 import org.eclipse.jdt.internal.core.LambdaUtils;
 
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.tree.JCTree.JCLambda;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.tree.JCTree.JCLambda;
 
 public class JavacLambdaBinding extends JavacMethodBinding {
 

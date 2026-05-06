@@ -6,6 +6,10 @@ Bundle-SymbolicName: org.eclipse.jdt.core.javac;singleton:=true
 Bundle-Version: 1.0.0.qualifier
 Fragment-Host: org.eclipse.jdt.core
 Automatic-Module-Name: org.eclipse.jdt.core.javac
+Bundle-ClassPath: .,
+ lib/nb-javac-api-shaded-jdk-26-35.jar,
+ lib/nb-javac-shaded-jdk-26-35.jar,
+ lib/nnb-doclint-shaded-jdk-26-35-patch1.jar
 Require-Capability: osgi.ee; filter:="(&(osgi.ee=JavaSE)(version=25))"
 Import-Package: org.eclipse.core.resources,
  org.eclipse.jdt.core.dom,

@@ -9,12 +9,12 @@
 *******************************************************************************/
 package org.eclipse.jdt.internal.javac;
 
-import static com.sun.tools.javac.code.Flags.ABSTRACT;
-import static com.sun.tools.javac.code.Flags.BRIDGE;
-import static com.sun.tools.javac.code.Flags.PUBLIC;
-import static com.sun.tools.javac.code.Flags.STATIC;
-import static com.sun.tools.javac.code.Flags.SYNTHETIC;
-import static com.sun.tools.javac.code.Kinds.Kind.MTH;
+import static shaded.com.sun.tools.javac.code.Flags.ABSTRACT;
+import static shaded.com.sun.tools.javac.code.Flags.BRIDGE;
+import static shaded.com.sun.tools.javac.code.Flags.PUBLIC;
+import static shaded.com.sun.tools.javac.code.Flags.STATIC;
+import static shaded.com.sun.tools.javac.code.Flags.SYNTHETIC;
+import static shaded.com.sun.tools.javac.code.Kinds.Kind.MTH;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -28,46 +28,45 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.StreamSupport;
 
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.type.PrimitiveType;
-import javax.lang.model.type.TypeKind;
-import javax.tools.JavaFileObject;
-
 import org.eclipse.core.runtime.ILog;
 
-import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Attribute.Array;
-import com.sun.tools.javac.code.Attribute.Compound;
-import com.sun.tools.javac.code.Attribute.Constant;
-import com.sun.tools.javac.code.Scope.WriteableScope;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
-import com.sun.tools.javac.code.Symbol.CompletionFailure;
-import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.ModuleSymbol;
-import com.sun.tools.javac.code.Symbol.PackageSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
-import com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
-import com.sun.tools.javac.code.SymbolMetadata;
-import com.sun.tools.javac.code.Symtab;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.ClassType;
-import com.sun.tools.javac.code.Type.IntersectionClassType;
-import com.sun.tools.javac.code.Type.MethodType;
-import com.sun.tools.javac.code.Type.TypeVar;
-import com.sun.tools.javac.code.TypeTag;
-import com.sun.tools.javac.code.Types;
-import com.sun.tools.javac.comp.Annotate;
-import com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
-import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
-import com.sun.tools.javac.file.PathFileObject;
-import com.sun.tools.javac.jvm.ClassReader;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Convert;
-import com.sun.tools.javac.util.Name;
-import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.Pair;
+import shaded.com.sun.tools.javac.code.Attribute;
+import shaded.com.sun.tools.javac.code.Attribute.Array;
+import shaded.com.sun.tools.javac.code.Attribute.Compound;
+import shaded.com.sun.tools.javac.code.Attribute.Constant;
+import shaded.com.sun.tools.javac.code.Scope.WriteableScope;
+import shaded.com.sun.tools.javac.code.Symbol;
+import shaded.com.sun.tools.javac.code.Symbol.ClassSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.CompletionFailure;
+import shaded.com.sun.tools.javac.code.Symbol.MethodSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.ModuleSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.PackageSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.TypeVariableSymbol;
+import shaded.com.sun.tools.javac.code.Symbol.VarSymbol;
+import shaded.com.sun.tools.javac.code.SymbolMetadata;
+import shaded.com.sun.tools.javac.code.Symtab;
+import shaded.com.sun.tools.javac.code.Type;
+import shaded.com.sun.tools.javac.code.Type.ClassType;
+import shaded.com.sun.tools.javac.code.Type.IntersectionClassType;
+import shaded.com.sun.tools.javac.code.Type.MethodType;
+import shaded.com.sun.tools.javac.code.Type.TypeVar;
+import shaded.com.sun.tools.javac.code.TypeTag;
+import shaded.com.sun.tools.javac.code.Types;
+import shaded.com.sun.tools.javac.comp.Annotate;
+import shaded.com.sun.tools.javac.comp.Annotate.AnnotationTypeCompleter;
+import shaded.com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
+import shaded.com.sun.tools.javac.file.PathFileObject;
+import shaded.com.sun.tools.javac.jvm.ClassReader;
+import shaded.com.sun.tools.javac.util.Context;
+import shaded.com.sun.tools.javac.util.Convert;
+import shaded.com.sun.tools.javac.util.Name;
+import shaded.com.sun.tools.javac.util.Names;
+import shaded.com.sun.tools.javac.util.Pair;
+import shaded.javax.lang.model.element.ElementKind;
+import shaded.javax.lang.model.type.PrimitiveType;
+import shaded.javax.lang.model.type.TypeKind;
+import shaded.javax.tools.JavaFileObject;
 
 /// This particular ClassReader keeps a "template" copy of the created symbols. So when asked again for reading a class
 /// it will read in its cache and populate the symbols from the data is has in store (preventing from re-reading jars).
@@ -75,7 +74,7 @@ import com.sun.tools.javac.util.Pair;
 /// For signatures and annotations, this requires access to various internal content.
 public class CachingClassSymbolClassReader extends ClassReader {
 
-	private static Map<JavaFileObject, ClassSymbolTemplate> CACHE = Collections.synchronizedMap(new HashMap<>());
+	private final Map<JavaFileObject, ClassSymbolTemplate> CACHE = Collections.synchronizedMap(new HashMap<>());
 
 	/// Allows to replace default strategy of ClassReader by one based on local templates
 	private static class StoringQueriesAnnotate extends Annotate {
@@ -116,7 +115,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 					var previousModule = reader.currentModule;
 					try {
 						reader.currentModule = findModule(sym);
-						com.sun.tools.javac.util.List<Compound> newList = com.sun.tools.javac.util.List.from(toAnnotate.stream().map(template -> template.create(reader)).toList());
+						shaded.com.sun.tools.javac.util.List<Compound> newList = shaded.com.sun.tools.javac.util.List.from(toAnnotate.stream().map(template -> template.create(reader)).toList());
 						if (sym.annotationsPendingCompletion()) {
 							sym.setDeclarationAttributes(newList);
 						} else {
@@ -253,7 +252,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 			if (this.upperBounds.size() == 1) {
 				upperBound = reader.sigToType(this.upperBounds.getFirst());
 			} else if (this.upperBounds.size() > 1) {
-				upperBound = reader.localTypes.makeIntersectionType(com.sun.tools.javac.util.List.from(this.upperBounds.stream().map(reader::sigToType).toList()));
+				upperBound = reader.localTypes.makeIntersectionType(shaded.com.sun.tools.javac.util.List.from(this.upperBounds.stream().map(reader::sigToType).toList()));
 			}
 			if (upperBound != null) {
 				tvar.setUpperBound(upperBound);
@@ -293,7 +292,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 				.forEach(reader.typevars::enter);
 			Type type = reader.sigToType(methodTypeSignature);
 			var res = new MethodSymbol(this.flags, reader.localNames.fromString(this.name), type, owner);
-			res.params = com.sun.tools.javac.util.List.from(this.params.stream().map(param -> param.create(res, reader)).toList());
+			res.params = shaded.com.sun.tools.javac.util.List.from(this.params.stream().map(param -> param.create(res, reader)).toList());
 			if (this.defaultValue != null) {
 				res.defaultValue = this.defaultValue.create(reader);
 			}
@@ -332,10 +331,10 @@ public class CachingClassSymbolClassReader extends ClassReader {
 			if (attribute instanceof Constant constant) {
 				return new ConstantAttrTemplate(constant, reader);
 			}
-			if (attribute instanceof com.sun.tools.javac.code.Attribute.Class classAttr) {
+			if (attribute instanceof shaded.com.sun.tools.javac.code.Attribute.Class classAttr) {
 				return new ClassAttrTemplate(classAttr, reader);
 			}
-			if (attribute instanceof com.sun.tools.javac.code.Attribute.Enum enumAttr) {
+			if (attribute instanceof shaded.com.sun.tools.javac.code.Attribute.Enum enumAttr) {
 				return new EnumAttrTemplate(enumAttr, reader);
 			}
 			if (attribute instanceof Array arrayAttr) {
@@ -410,7 +409,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 
 		@Override
 		public Compound create(CachingClassSymbolClassReader reader) {
-			com.sun.tools.javac.util.List<Pair<MethodSymbol, Attribute>> values = com.sun.tools.javac.util.List.nil();
+			shaded.com.sun.tools.javac.util.List<Pair<MethodSymbol, Attribute>> values = shaded.com.sun.tools.javac.util.List.nil();
 			Type type = reader.sigToType(this.type);
 			for (Entry<String, AttributeTemplate<?>> entry : this.values.entrySet()) {
 				MethodSymbol method = findAccessMethod(type, reader.localNames.fromString(entry.getKey()), reader);
@@ -454,9 +453,9 @@ public class CachingClassSymbolClassReader extends ClassReader {
 			// a subtype of all reference types and can be converted
 			// to primitive types by unboxing.
 			MethodType mt = new MethodType(
-				com.sun.tools.javac.util.List.nil(),
+					shaded.com.sun.tools.javac.util.List.nil(),
 				reader.localSyms.botType,
-				com.sun.tools.javac.util.List.nil(),
+				shaded.com.sun.tools.javac.util.List.nil(),
 				reader.localSyms.methodClass);
 			return new MethodSymbol(PUBLIC | ABSTRACT, name, mt, container.tsym);
 	    }
@@ -475,41 +474,41 @@ public class CachingClassSymbolClassReader extends ClassReader {
 		}
 	}
 
-	private static class ClassAttrTemplate extends AttributeTemplate<com.sun.tools.javac.code.Attribute.Class> {
+	private static class ClassAttrTemplate extends AttributeTemplate<shaded.com.sun.tools.javac.code.Attribute.Class> {
 		private final String classType;
 		public ClassAttrTemplate(Type classType, CachingClassSymbolClassReader reader) {
 			super((Type)null, reader);
 			this.classType = reader.typeToSig(classType);
 		}
-		public ClassAttrTemplate(com.sun.tools.javac.code.Attribute.Class target, CachingClassSymbolClassReader reader) {
+		public ClassAttrTemplate(shaded.com.sun.tools.javac.code.Attribute.Class target, CachingClassSymbolClassReader reader) {
 			super(target, reader);
 			this.classType = reader.typeToSig(target.getValue());
 		}
 
 		@Override
-		public com.sun.tools.javac.code.Attribute.Class create(CachingClassSymbolClassReader reader) {
-			return new com.sun.tools.javac.code.Attribute.Class(reader.localTypes, reader.sigToType(this.classType));
+		public shaded.com.sun.tools.javac.code.Attribute.Class create(CachingClassSymbolClassReader reader) {
+			return new shaded.com.sun.tools.javac.code.Attribute.Class(reader.localTypes, reader.sigToType(this.classType));
 		}
 	}
 
-	private static class EnumAttrTemplate extends AttributeTemplate<com.sun.tools.javac.code.Attribute.Enum> {
+	private static class EnumAttrTemplate extends AttributeTemplate<shaded.com.sun.tools.javac.code.Attribute.Enum> {
 		private final String name;
 		public EnumAttrTemplate(Type enumType, String value, CachingClassSymbolClassReader reader) {
 			super(enumType, reader);
 			name = value;
 		}
-		public EnumAttrTemplate(com.sun.tools.javac.code.Attribute.Enum target, CachingClassSymbolClassReader reader) {
+		public EnumAttrTemplate(shaded.com.sun.tools.javac.code.Attribute.Enum target, CachingClassSymbolClassReader reader) {
 			super(target, reader);
 			name = target.getValue().getSimpleName().toString();
 		}
 
 		@Override
-		public com.sun.tools.javac.code.Attribute.Enum create(CachingClassSymbolClassReader reader) {
+		public shaded.com.sun.tools.javac.code.Attribute.Enum create(CachingClassSymbolClassReader reader) {
 			Type enumType = reader.sigToType(this.type);
 			ModuleSymbol previousModule = reader.currentModule;
 			VarSymbol sym = (VarSymbol)enumType.tsym.members().findFirst(reader.localNames.fromString(this.name), s -> s instanceof VarSymbol vSym && vSym.isEnum());
 			reader.currentModule = previousModule;
-			return new com.sun.tools.javac.code.Attribute.Enum(enumType, sym);
+			return new shaded.com.sun.tools.javac.code.Attribute.Enum(enumType, sym);
 		}
 	}
 
@@ -646,10 +645,10 @@ public class CachingClassSymbolClassReader extends ClassReader {
 				.forEach(target.members_field::enter);
 
 			ct.supertype_field = reader.sigToType(this.superSymbol);
-			ct.interfaces_field = com.sun.tools.javac.util.List.from(this.interfaces.stream()
+			ct.interfaces_field = shaded.com.sun.tools.javac.util.List.from(this.interfaces.stream()
 					.map(reader::sigToType)
 					.toArray(Type[]::new));
-			ct.typarams_field = com.sun.tools.javac.util.List.from(this.typeParams.stream()
+			ct.typarams_field = shaded.com.sun.tools.javac.util.List.from(this.typeParams.stream()
 					.map(t -> t.name)
 					.map(reader.typevars::findFirst)
 					.filter(Objects::nonNull)
@@ -779,7 +778,7 @@ public class CachingClassSymbolClassReader extends ClassReader {
 
 			// workaround to ensure exceptions are added
 			@Override
-			public boolean hasTypeVar(com.sun.tools.javac.util.List<Type> l) {
+			public boolean hasTypeVar(shaded.com.sun.tools.javac.util.List<Type> l) {
 				return l != null && !l.isEmpty();
 			}
 		};
