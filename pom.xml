@@ -189,11 +189,11 @@
 			<layout>p2</layout>
 			<url>https://download.eclipse.org/eclipse/updates/I-builds/</url>
 		</repository>
-		<!-- Forked JDT Core test bundles from incubator CI -->
+		<!-- Forked JDT Core test bundles built locally by Jenkinsfile stage 1 -->
 		<repository>
 			<id>jdt-core-fork-tests</id>
 			<layout>p2</layout>
-			<url>https://ci.eclipse.org/ls/job/jdt-core-incubator/job/dom-with-javac/lastSuccessfulBuild/artifact/repository/target/repository/</url>
+			<url>${session.executionRootDirectory}/forkedTests/repository/target/repository/</url>
 		</repository>
 	</repositories>
 
