@@ -193,7 +193,7 @@
 		<repository>
 			<id>jdt-core-fork-tests</id>
 			<layout>p2</layout>
-			<url>${session.executionRootDirectory}/forkedTests/repository/target/repository/</url>
+			<url>${maven.multiModuleProjectDirectory}/forkedTests/repository/target/repository/</url>
 		</repository>
 	</repositories>
 
