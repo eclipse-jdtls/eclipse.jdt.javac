@@ -15,6 +15,7 @@ package org.eclipse.jdt.internal.javac;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.classfile.ClassFile;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,7 +34,6 @@ import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.jdt.internal.compiler.ClassFile;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.env.ICompilationUnit;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
@@ -139,6 +139,7 @@ public class JavacCompilerTaskListener implements TaskListener {
 			boolean getNoEffectAssignments = this.javacCompiler.options.getSeverity(CompilerOptions.NoEffectAssignment) != ProblemSeverities.Ignore;
 			boolean getUnclosedCloseables = this.javacCompiler.options.getSeverity(CompilerOptions.UnclosedCloseable) != ProblemSeverities.Ignore;
 			boolean getUnusedTypeParameters = this.javacCompiler.options.getSeverity(CompilerOptions.UnusedTypeParameter) != ProblemSeverities.Ignore;
+			boolean getUnnecessaryElse = this.javacCompiler.options.getSeverity(CompilerOptions.UnnecessaryElse) != ProblemSeverities.Ignore;
 			boolean getAccessRestrictions = Options.instance(context).get(Option.XLINT_CUSTOM).contains("all");
 			boolean getIndirectStaticAccessProblems = this.javacCompiler.options.getSeverity(CompilerOptions.IndirectStaticAccess) != ProblemSeverities.Ignore;
 			boolean getUnqualifiedFieldAccessProblems = this.javacCompiler.options.getSeverity(CompilerOptions.UnqualifiedFieldAccess) != ProblemSeverities.Ignore;
@@ -150,7 +151,7 @@ public class JavacCompilerTaskListener implements TaskListener {
 
 			UnusedTreeScanner<Void, Void> unusedTreeScanner = null;
 			if (getUnusedPrivateMembers || getUnusedLocalVariables || getUnusedImports || getUnnecessaryCasts
-					|| getNoEffectAssignments || getUnclosedCloseables || getUnusedTypeParameters) {
+					|| getNoEffectAssignments || getUnclosedCloseables || getUnusedTypeParameters || getUnnecessaryElse) {
 				unusedTreeScanner = new UnusedTreeScanner<>(currentTopLevelType) {
 
 					@Override
@@ -332,6 +333,9 @@ public class JavacCompilerTaskListener implements TaskListener {
 				}
 				if (getUnusedTypeParameters) {
 					result.addUnusedTypeParameters(unusedTreeScanner.getUnusedTypeParameters(this.unusedProblemFactory));
+				}
+				if (getUnnecessaryElse) {
+					result.addUnnecessaryElse(unusedTreeScanner.getUnnecessaryElse(this.unusedProblemFactory));
 				}
 			}
 			if (accessRestrictionScanner != null) {
