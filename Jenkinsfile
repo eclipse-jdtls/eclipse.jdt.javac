@@ -85,5 +85,32 @@ pipeline {
 				}
 			}
 		}
+		stage('Upload prerelease') {
+			when {
+				expression {
+					env.BRANCH_NAME == 'main'
+				}
+			}
+			steps {
+				sshagent (credentials: ['ssh://genie.ls@projects-storage.eclipse.org']) {
+					sh """#!/bin/bash -x
+						# Clean previous builds
+						DOWNLOAD_AREA=/home/data/httpd/download.eclipse.org/jdtls/jdt-javac/snapshots
+
+						VERSION=`grep 'Bundle-Version: ' org.eclipse.jdt.core.javac/target/MANIFEST.MF | cut -d":" -f2 | tr -d '[:space:]'`
+						# Publish snapshot
+
+						P2_REPO=${DOWNLOAD_AREA}/repository/${VERSION}
+						ssh genie.ls@projects-storage.eclipse.org mkdir -p $P2_REPO
+						scp -r org.eclipse.jdt.ls.repository/target/repository/** genie.ls@projects-storage.eclipse.org:$P2_REPO
+
+						LATEST_P2_REPO=${DOWNLOAD_AREA}/repository/latest
+						ssh genie.ls@projects-storage.eclipse.org rm -rf $LATEST_P2_REPO
+						ssh genie.ls@projects-storage.eclipse.org mkdir -p $LATEST_P2_REPO
+						scp -r repository/target/repository/** genie.ls@projects-storage.eclipse.org:$LATEST_P2_REPO
+"""
+				}
+			}
+		}
 	}
 }
