@@ -92,7 +92,7 @@ pipeline {
 				}
 			}
 			steps {
-				sshagent (credentials: ['ssh://genie.ls@projects-storage.eclipse.org']) {
+				sshagent (credentials: ['projects-storage.eclipse.org-bot-ssh']) {
 					sh """#!/bin/bash -x
 						# Clean previous builds
 						DOWNLOAD_AREA=/home/data/httpd/download.eclipse.org/jdtls/jdt-javac/snapshots
