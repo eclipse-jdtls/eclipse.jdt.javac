@@ -18,6 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          repository: eclipse-jdtls/eclipse-jdt-core-incubator
+          path: eclipse.jdt.core
+      - uses: actions/checkout@v4
+        with:
           repository: eclipse-jdt/eclipse.jdt.ui
           path: eclipse.jdt.ui
       - uses: actions/checkout@v4
@@ -30,6 +34,9 @@ jobs:
           distribution: 'temurin'
           architecture: x64
           cache: maven
+      - name: Install forked jdt.core tests
+        run: mvn install --batch-mode  -Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" -Dproject.build.sourceEncoding=UTF-8 -DskipTests -pl org.eclipse.jdt.core.compiler.batch,org.eclipse.jdt.core,org.eclipse.jdt.core.tests.compiler,org.eclipse.jdt.core.tests.model -am
+        working-directory: eclipse.jdt.core
       - name: Install jdt.ui tests
         run: mvn install --batch-mode  -Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" -Dproject.build.sourceEncoding=UTF-8 -DskipTests -pl org.eclipse.jdt.ui.tests -am
         working-directory: eclipse.jdt.ui
