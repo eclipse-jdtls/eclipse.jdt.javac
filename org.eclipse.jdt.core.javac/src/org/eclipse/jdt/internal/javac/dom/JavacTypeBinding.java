@@ -1801,11 +1801,16 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public IModuleBinding getModule() {
-		Symbol o = this.type.tsym.owner;
-		if( o instanceof PackageSymbol ps) {
+		return getModule(this.type.tsym.owner);
+	}
+
+	private IModuleBinding getModule(Symbol s) {
+		if( s == null )
+			return null;
+		if( s instanceof PackageSymbol ps) {
 			return this.resolver.bindings.getModuleBinding(ps.modle);
 		}
-		return null;
+		return getModule(s.owner);
 	}
 
 	public void setRecovered(boolean recovered) {
