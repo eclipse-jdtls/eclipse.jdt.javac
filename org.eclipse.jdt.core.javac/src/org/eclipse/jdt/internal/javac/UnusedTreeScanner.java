@@ -63,11 +63,15 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
 import com.sun.tools.javac.tree.JCTree.JCArrayTypeTree;
 import com.sun.tools.javac.tree.JCTree.JCAssign;
+import com.sun.tools.javac.tree.JCTree.JCBlock;
+import com.sun.tools.javac.tree.JCTree.JCBreak;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.JCContinue;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
+import com.sun.tools.javac.tree.JCTree.JCIf;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCMemberReference;
@@ -75,6 +79,9 @@ import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCNewArray;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
+import com.sun.tools.javac.tree.JCTree.JCReturn;
+import com.sun.tools.javac.tree.JCTree.JCStatement;
+import com.sun.tools.javac.tree.JCTree.JCThrow;
 import com.sun.tools.javac.tree.JCTree.JCTry;
 import com.sun.tools.javac.tree.JCTree.JCTypeCast;
 import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
@@ -86,6 +93,8 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 	final Map<String, List<JCImport>> unusedImports = new LinkedHashMap<>();
 	final List<JCTypeCast> unnecessaryCasts = new ArrayList<>();
 	final List<JCAssign> noEffectAssignments = new ArrayList<>();
+	final List<JCStatement> unnecessaryElseStatements = new ArrayList<>();
+	final Set<JCIf> elseIfStatements = new HashSet<>();
 	final Set<Symbol> usedTypeParameters = new HashSet<>();
 	final List<JCTypeParameter> typeParameters = new ArrayList<>();
 	final Map<String, Symbol> typeParameterMap = new LinkedHashMap<>();
@@ -293,6 +302,10 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 		scan(node.getThenStatement(), p);
 		scan(node.getElseStatement(), p);
 		this.branchDepth--;
+
+		if (node instanceof JCIf jcIf && isControlFlowExit(jcIf.thenpart) && jcIf.elsepart != null) {
+			this.unnecessaryElseStatements.add(jcIf.elsepart);
+		}
 		return null;
 	}
 
@@ -617,6 +630,24 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 
 	public List<CategorizedProblem> getNoEffectAssignments(UnusedProblemFactory problemFactory) {
 		return problemFactory.addNoEffectAssignments(unit, this.noEffectAssignments);
+	}
+
+	public List<CategorizedProblem> getUnnecessaryElse(UnusedProblemFactory problemFactory) {
+		return problemFactory.addUnnecessaryElse(unit, this.unnecessaryElseStatements);
+	}
+
+	private boolean isControlFlowExit(JCStatement statement) {
+		if (statement instanceof JCReturn || statement instanceof JCBreak
+			|| statement instanceof JCContinue || statement instanceof JCThrow) {
+			return true;
+		}
+		if (statement instanceof JCBlock block && !block.stats.isEmpty()) {
+			return isControlFlowExit(block.stats.last());
+		}
+		if (statement instanceof JCIf ifStatement && ifStatement.thenpart != null && ifStatement.elsepart != null) {
+			return isControlFlowExit(ifStatement.thenpart) && isControlFlowExit(ifStatement.elsepart);
+		}
+		return false;
 	}
 
 	private boolean isUnusedSuppressed(JCAnnotation annot) {

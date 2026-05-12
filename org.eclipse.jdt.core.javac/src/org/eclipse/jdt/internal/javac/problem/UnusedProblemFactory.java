@@ -44,6 +44,7 @@ import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCTypeCast;
 import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
@@ -64,6 +65,10 @@ public class UnusedProblemFactory {
 	}
 
 	public List<CategorizedProblem> addUnusedImports(CompilationUnitTree unit, Map<String, List<JCImport>> unusedImports) {
+		if (unit == null) {
+			return Collections.emptyList();
+		}
+
 		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnusedImport);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return Collections.emptyList();
@@ -278,6 +283,10 @@ public class UnusedProblemFactory {
 	}
 
 	public List<CategorizedProblem> addUnnecessaryCasts(CompilationUnitTree unit, List<JCTypeCast> unnecessaryCasts) {
+		if (unit == null) {
+			return Collections.emptyList();
+		}
+
 		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnnecessaryCast);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return Collections.emptyList();
@@ -308,6 +317,10 @@ public class UnusedProblemFactory {
 	}
 
 	public List<CategorizedProblem> addNoEffectAssignments(CompilationUnitTree unit, List<JCAssign> noEffectAssignments) {
+		if (unit == null) {
+			return Collections.emptyList();
+		}
+
 		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.AssignmentHasNoEffect);
 		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
 			return Collections.emptyList();
@@ -361,6 +374,36 @@ public class UnusedProblemFactory {
 
 			CategorizedProblem problem = problemFactory.createProblem(fileName,
 					problemId,
+					arguments,
+					arguments,
+					severity, pos, endPos, line, column);
+			problems.add(problem);
+		}
+		return problems;
+	}
+
+	public List<CategorizedProblem> addUnnecessaryElse(CompilationUnitTree unit, List<JCStatement> unnecessaryElseStatements) {
+		if (unit == null) {
+			return Collections.emptyList();
+		}
+
+		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnnecessaryElse);
+		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
+			return Collections.emptyList();
+		}
+
+		final char[] fileName = unit.getSourceFile().getName().toCharArray();
+		List<CategorizedProblem> problems = new ArrayList<>();
+		for (JCStatement elseStatement : unnecessaryElseStatements) {
+			int pos = elseStatement.getStartPosition();
+			int endPos = elseStatement.getEndPosition((((JCCompilationUnit) unit).endPositions)) - 1;
+
+			int line = (int) unit.getLineMap().getLineNumber(pos);
+			int column = (int) unit.getLineMap().getColumnNumber(pos);
+
+			String[] arguments = new String[0];
+			CategorizedProblem problem = problemFactory.createProblem(fileName,
+					IProblem.UnnecessaryElse,
 					arguments,
 					arguments,
 					severity, pos, endPos, line, column);

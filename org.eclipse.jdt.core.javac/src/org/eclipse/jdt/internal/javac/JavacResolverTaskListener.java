@@ -135,6 +135,8 @@ public class JavacResolverTaskListener implements TaskListener {
 				    .getSeverityString(CompilerOptions.UnclosedCloseable).equals(CompilerOptions.IGNORE);
 		boolean unusedTypeParameterIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.UnusedTypeParameter).equals(CompilerOptions.IGNORE);
+		boolean unnecessaryElseIgnored = this.compilerOptions
+					.getSeverityString(CompilerOptions.UnnecessaryElse).equals(CompilerOptions.IGNORE);
 		boolean indirectStaticAccessIgnored = this.compilerOptions
 					.getSeverityString(CompilerOptions.IndirectStaticAccess).equals(CompilerOptions.IGNORE);
 		boolean unqualifiedFieldAccessIgnored = this.compilerOptions
@@ -155,7 +157,8 @@ public class JavacResolverTaskListener implements TaskListener {
 				|| !unnecessaryTypeCheckIgnored
 				|| !noEffectAssignmentIgnored
 				|| !unclosedCloseableIgnored
-				|| !unusedTypeParameterIgnored;
+				|| !unusedTypeParameterIgnored
+				|| !unnecessaryElseIgnored;
 		boolean getCodeStyleProblems = !indirectStaticAccessIgnored || !unqualifiedFieldAccessIgnored;
 		boolean getNullAnalysisProblems = !redundantNullAnnotationIgnored || !potentialNullReferenceIgnored;
 		if (!getAccessRestrictions
@@ -173,7 +176,7 @@ public class JavacResolverTaskListener implements TaskListener {
 		List<IProblem> allUnused = getUnusedProblems
 				? getUnusedElementProblems(e,
 					!unusedPrivateMemberIgnored, !unusedLocalVariableIgnored, !unusedImportIgnored, !unnecessaryTypeCheckIgnored,
-					!noEffectAssignmentIgnored, !unclosedCloseableIgnored, !unusedTypeParameterIgnored)
+					!noEffectAssignmentIgnored, !unclosedCloseableIgnored, !unusedTypeParameterIgnored, !unnecessaryElseIgnored)
 				: new ArrayList<>();
 		List<IProblem> codeStyles = getCodeStyleProblems
 				? getCodeStyleProblems(e, !indirectStaticAccessIgnored, !unqualifiedFieldAccessIgnored)
@@ -270,7 +273,7 @@ public class JavacResolverTaskListener implements TaskListener {
 
 	private List<IProblem> getUnusedElementProblems(TaskEvent e,
 			boolean getUnusedPrivateMembers, boolean getUnusedLocalVariables, boolean getUnusedImports, boolean getUnnecessaryCasts,
-			boolean getNoEffectAssignments, boolean getUnclosedCloseables, boolean getUnusedTypeParameters) {
+			boolean getNoEffectAssignments, boolean getUnclosedCloseables, boolean getUnusedTypeParameters, boolean getUnnecessaryElse) {
 		final TypeElement currentTopLevelType = e.getTypeElement();
 		UnusedTreeScanner<Void, Void> scanner = new UnusedTreeScanner<>(currentTopLevelType);
 		final CompilationUnitTree unit = e.getCompilationUnit();
@@ -336,6 +339,13 @@ public class JavacResolverTaskListener implements TaskListener {
 			List<CategorizedProblem> unusedTypeParameters = scanner.getUnusedTypeParameters(unusedProblemFactory);
 			if (!unusedTypeParameters.isEmpty()) {
 				allUnusedProblems.addAll(unusedTypeParameters);
+			}
+		}
+
+		if (getUnnecessaryElse) {
+			List<CategorizedProblem> unnecessaryElse = scanner.getUnnecessaryElse(unusedProblemFactory);
+			if (!unnecessaryElse.isEmpty()) {
+				allUnusedProblems.addAll(unnecessaryElse);
 			}
 		}
 

@@ -36,6 +36,7 @@ public class JavacCompilationResult extends CompilationResult {
 	private List<CategorizedProblem> noEffectAssignments = null;
 	private List<CategorizedProblem> unclosedCloseables = null;
 	private List<CategorizedProblem> unusedTypeParameters = null;
+	private List<CategorizedProblem> unnecessaryElse = null;
 	private List<CategorizedProblem> accessRestrictionProblems = null;
 	private List<CategorizedProblem> indirectStaticAccessProblems = null;
 	private List<CategorizedProblem> unqualifiedFieldAccessProblems = null;
@@ -131,6 +132,13 @@ public class JavacCompilationResult extends CompilationResult {
 		this.unusedTypeParameters.addAll(problems);
 	}
 
+	public void addUnnecessaryElse(List<CategorizedProblem> problems) {
+		if (this.unnecessaryElse == null) {
+			this.unnecessaryElse = new ArrayList<>();
+		}
+		this.unnecessaryElse.addAll(problems);
+	}
+
 	public void addAccessRestrictionProblems(List<CategorizedProblem> problems) {
 		if (this.accessRestrictionProblems == null) {
 			this.accessRestrictionProblems = new ArrayList<>();
@@ -181,6 +189,7 @@ public class JavacCompilationResult extends CompilationResult {
 				&& this.noEffectAssignments == null
 				&& this.unclosedCloseables == null
 				&& this.unusedTypeParameters == null
+				&& this.unnecessaryElse == null
 				&& this.accessRestrictionProblems == null
 				&& this.indirectStaticAccessProblems == null
 				&& this.unqualifiedFieldAccessProblems == null
@@ -211,6 +220,9 @@ public class JavacCompilationResult extends CompilationResult {
 		}
 		if (this.unusedTypeParameters != null) {
 			problems.addAll(this.unusedTypeParameters);
+		}
+		if (this.unnecessaryElse != null) {
+			problems.addAll(this.unnecessaryElse);
 		}
 		if (this.accessRestrictionProblems != null) {
 			problems.addAll(this.accessRestrictionProblems);
