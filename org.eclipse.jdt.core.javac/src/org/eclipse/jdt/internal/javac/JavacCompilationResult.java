@@ -36,6 +36,7 @@ public class JavacCompilationResult extends CompilationResult {
 	private List<CategorizedProblem> noEffectAssignments = null;
 	private List<CategorizedProblem> unclosedCloseables = null;
 	private List<CategorizedProblem> unusedTypeParameters = null;
+	private List<CategorizedProblem> unnecessaryNLSTagProblems = null;
 	private List<CategorizedProblem> accessRestrictionProblems = null;
 	private List<CategorizedProblem> indirectStaticAccessProblems = null;
 	private List<CategorizedProblem> unqualifiedFieldAccessProblems = null;
@@ -173,6 +174,13 @@ public class JavacCompilationResult extends CompilationResult {
 		this.potentialNullReferenceProblems.addAll(problems);
 	}
 
+	public void addUnnecessaryNLSTags(List<CategorizedProblem> problems) {
+		if (this.unnecessaryNLSTagProblems == null) {
+			this.unnecessaryNLSTagProblems = new ArrayList<>();
+		}
+		this.unnecessaryNLSTagProblems.addAll(problems);
+	}
+
 	public List<CategorizedProblem> getAdditionalProblems() {
 		if (this.unusedMembers == null
 				&& this.unusedLocalVariables == null
@@ -181,6 +189,7 @@ public class JavacCompilationResult extends CompilationResult {
 				&& this.noEffectAssignments == null
 				&& this.unclosedCloseables == null
 				&& this.unusedTypeParameters == null
+				&& this.unnecessaryNLSTagProblems == null
 				&& this.accessRestrictionProblems == null
 				&& this.indirectStaticAccessProblems == null
 				&& this.unqualifiedFieldAccessProblems == null
@@ -211,6 +220,9 @@ public class JavacCompilationResult extends CompilationResult {
 		}
 		if (this.unusedTypeParameters != null) {
 			problems.addAll(this.unusedTypeParameters);
+		}
+		if (this.unnecessaryNLSTagProblems != null) {
+			problems.addAll(this.unnecessaryNLSTagProblems);
 		}
 		if (this.accessRestrictionProblems != null) {
 			problems.addAll(this.accessRestrictionProblems);

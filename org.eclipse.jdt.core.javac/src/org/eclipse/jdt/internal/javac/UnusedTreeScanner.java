@@ -38,6 +38,7 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -85,17 +86,21 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 	final Set<Symbol> usedElements = new HashSet<>();
 	final Map<String, List<JCImport>> unusedImports = new LinkedHashMap<>();
 	final List<JCTypeCast> unnecessaryCasts = new ArrayList<>();
+	final List<ProblemLocation> unnecessaryNLSTags = new ArrayList<>();
 	final List<JCAssign> noEffectAssignments = new ArrayList<>();
 	final Set<Symbol> usedTypeParameters = new HashSet<>();
 	final List<JCTypeParameter> typeParameters = new ArrayList<>();
 	final Map<String, Symbol> typeParameterMap = new LinkedHashMap<>();
+	final Map<Symbol, CloseableState> unclosedCloseables = new LinkedHashMap<>();
+	private static final String NLS_TAG_PREFIX = "$NON-NLS-";
+	private final List<ProblemLocation> stringLiterals = new ArrayList<>();
 	private CompilationUnitTree unit = null;
 	private boolean classSuppressUnused = false;
 	private boolean methodSuppressUnused = false;
 	private boolean lhsInAssignment = false;
 
+	public record ProblemLocation(int startPos, int endPos, int line) {}
 	public record CloseableState(int declBranchDepth, int declCallableDepth, boolean potential, JCTree location) {}
-	final Map<Symbol, CloseableState> unclosedCloseables = new LinkedHashMap<>();
 	private int branchDepth = 0;
 	private int callableDepth = 0;
 
@@ -131,7 +136,11 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 	@Override
 	public R visitCompilationUnit(CompilationUnitTree node, P p) {
 		this.unit = node;
-		return super.visitCompilationUnit(node, p);
+		R result = super.visitCompilationUnit(node, p);
+		if (node instanceof JCCompilationUnit unit) {
+			scanUnnecessaryNLSTags(unit);
+		}
+		return result;
 	}
 
 	@Override
@@ -231,6 +240,20 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 		}
 
 		return super.visitMemberSelect(node, p);
+	}
+
+	@Override
+	public R visitLiteral(LiteralTree node, P p) {
+		if (node instanceof JCLiteral literal
+				&& literal.getKind() == Tree.Kind.STRING_LITERAL
+				&& this.unit instanceof JCCompilationUnit unit) {
+			int pos = literal.getStartPosition();
+			int endPos = literal.getEndPosition(unit.endPositions) - 1;
+			if (pos >= 0 && endPos >= pos) {
+				this.stringLiterals.add(new ProblemLocation(pos, endPos, -1));
+			}
+		}
+		return super.visitLiteral(node, p);
 	}
 
 	@Override
@@ -619,6 +642,10 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 		return problemFactory.addNoEffectAssignments(unit, this.noEffectAssignments);
 	}
 
+	public List<CategorizedProblem> getUnnecessaryNLSTags(UnusedProblemFactory problemFactory) {
+		return problemFactory.addUnnecessaryNLSTags(unit, this.unnecessaryNLSTags);
+	}
+
 	private boolean isUnusedSuppressed(JCAnnotation annot) {
 		boolean suppressed = false;
 		JCTree type = annot.getAnnotationType();
@@ -661,6 +688,73 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 			}
 		}
 		return suppressed;
+	}
+
+	private void scanUnnecessaryNLSTags(JCCompilationUnit unit) {
+		try {
+			String source = unit.getSourceFile().getCharContent(true).toString();
+			String[] lines = source.split("\n", -1);
+			int lineStartPos = 0;
+			for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+				String line = lines[lineIndex];
+				int nlsIndex = line.indexOf("//" + NLS_TAG_PREFIX);
+				while (nlsIndex >= 0) {
+					boolean insideStringLiteral = false;
+					int nlsStartPos = lineStartPos + nlsIndex;
+					for (ProblemLocation stringLiteral : this.stringLiterals) {
+						if (stringLiteral.startPos() <= nlsStartPos && nlsStartPos <= stringLiteral.endPos()) {
+							insideStringLiteral = true;
+							break;
+						}
+					}
+					if (!insideStringLiteral) {
+						break;
+					}
+					nlsIndex = line.indexOf("//" + NLS_TAG_PREFIX, nlsIndex + 1);
+				}
+				if (nlsIndex >= 0) {
+					int commentStartPos = lineStartPos + nlsIndex;
+					int stringLiteralCount = 0;
+					for (ProblemLocation stringLiteral : this.stringLiterals) {
+						if (stringLiteral.endPos() >= lineStartPos && stringLiteral.endPos() < commentStartPos) {
+							stringLiteralCount++;
+						}
+					}
+					int tagStartIndex = nlsIndex + 2;
+					while (tagStartIndex >= 0) {
+						int tagEndPos = findNLSTagEnd(line, tagStartIndex);
+						if (tagEndPos < 0) {
+							tagStartIndex = line.indexOf(NLS_TAG_PREFIX, tagStartIndex + NLS_TAG_PREFIX.length());
+							continue;
+						}
+						int tagNumber = Integer.parseInt(line.substring(tagStartIndex + NLS_TAG_PREFIX.length(), tagEndPos));
+						if (tagNumber > stringLiteralCount) {
+							int problemStartIndex = tagStartIndex == nlsIndex + 2 ? nlsIndex : tagStartIndex;
+							this.unnecessaryNLSTags.add(new ProblemLocation(lineStartPos + problemStartIndex,
+									lineStartPos + tagEndPos, lineIndex + 1));
+						}
+						tagStartIndex = line.indexOf(NLS_TAG_PREFIX, tagEndPos + 1);
+					}
+				}
+				lineStartPos += line.length() + 1;
+			}
+		} catch (Exception e) {
+		}
+	}
+
+	private int findNLSTagEnd(String line, int startIndex) {
+		if (!line.startsWith(NLS_TAG_PREFIX, startIndex)) {
+			return -1;
+		}
+		int numberStart = startIndex + NLS_TAG_PREFIX.length();
+		int i = numberStart;
+		while (i < line.length() && Character.isDigit(line.charAt(i))) {
+			i++;
+		}
+		if (i > numberStart && i < line.length() && line.charAt(i) == '$') {
+			return i;
+		}
+		return -1;
 	}
 
 	private class UnusedDocTreeScanner extends com.sun.source.util.DocTreeScanner<R, P> {

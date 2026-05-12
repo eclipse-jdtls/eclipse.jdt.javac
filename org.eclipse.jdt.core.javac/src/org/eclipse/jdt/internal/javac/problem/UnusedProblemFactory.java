@@ -32,6 +32,7 @@ import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import org.eclipse.jdt.internal.javac.JavacUtils;
 import org.eclipse.jdt.internal.javac.UnusedTreeScanner.CloseableState;
+import org.eclipse.jdt.internal.javac.UnusedTreeScanner.ProblemLocation;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
@@ -364,6 +365,33 @@ public class UnusedProblemFactory {
 					arguments,
 					arguments,
 					severity, pos, endPos, line, column);
+			problems.add(problem);
+		}
+		return problems;
+	}
+
+	public List<CategorizedProblem> addUnnecessaryNLSTags(CompilationUnitTree unit, List<ProblemLocation> unnecessaryNLSTags) {
+		if (unit == null) {
+			return Collections.emptyList();
+		}
+
+		int severity = JavacUtils.toSeverity(this.compilerOptions, IProblem.UnnecessaryNLSTag);
+		if (severity == ProblemSeverities.Ignore || severity == ProblemSeverities.Optional) {
+			return Collections.emptyList();
+		}
+
+		final char[] fileName = unit.getSourceFile().getName().toCharArray();
+		List<CategorizedProblem> problems = new ArrayList<>();
+		for (ProblemLocation problemLocation : unnecessaryNLSTags) {
+			int pos = problemLocation.startPos();
+			int column = (int) unit.getLineMap().getColumnNumber(pos);
+			String[] arguments = new String[0];
+
+			CategorizedProblem problem = problemFactory.createProblem(fileName,
+					IProblem.UnnecessaryNLSTag,
+					arguments,
+					arguments,
+					severity, pos, problemLocation.endPos(), problemLocation.line(), column);
 			problems.add(problem);
 		}
 		return problems;
