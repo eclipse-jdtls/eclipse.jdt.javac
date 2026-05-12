@@ -33,7 +33,9 @@ import com.sun.source.doctree.SeeTree;
 import com.sun.source.doctree.ThrowsTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
@@ -47,6 +49,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.TryTree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
@@ -220,6 +223,29 @@ public class UnusedTreeScanner<R, P> extends TopLevelTreeScanner<R, P> {
 			return null;
 		}
 		return super.visitAssignment(node, p);
+	}
+
+	@Override
+	public R visitExpressionStatement(ExpressionStatementTree node, P p) {
+		if (node.getExpression() instanceof CompoundAssignmentTree assignment) {
+			scan(assignment.getExpression(), p);
+			this.lhsInAssignment = true;
+			scan(assignment.getVariable(), p);
+			this.lhsInAssignment = false;
+			return null;
+		}
+		if (node.getExpression() instanceof UnaryTree unary
+			&& (unary.getKind() == Tree.Kind.POSTFIX_INCREMENT
+				|| unary.getKind() == Tree.Kind.POSTFIX_DECREMENT
+				|| unary.getKind() == Tree.Kind.PREFIX_INCREMENT
+				|| unary.getKind() == Tree.Kind.PREFIX_DECREMENT)
+		) {
+			this.lhsInAssignment = true;
+			scan(unary.getExpression(), p);
+			this.lhsInAssignment = false;
+			return null;
+		}
+		return super.visitExpressionStatement(node, p);
 	}
 
 	@Override
