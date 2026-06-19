@@ -17,11 +17,11 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: eclipse-jdt/eclipse.jdt.ui
           path: eclipse.jdt.ui
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: eclipse.jdt.javac
       - name: Set up JDK 26 and 21 for x64
